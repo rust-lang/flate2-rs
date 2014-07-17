@@ -1,0 +1,59 @@
+#![allow(warnings)]
+
+use libc;
+
+pub static MZ_NO_FLUSH: libc::c_int = 0;
+pub static MZ_SYNC_FLUSH: libc::c_int = 2;
+pub static MZ_FINISH: libc::c_int = 4;
+
+pub static MZ_OK: libc::c_int = 0;
+pub static MZ_STREAM_END: libc::c_int = 1;
+pub static MZ_NEED_DICT: libc::c_int = 2;
+pub static MZ_ERRNO: libc::c_int = -1;
+pub static MZ_STREAM_ERROR: libc::c_int = -2;
+pub static MZ_DATA_ERROR: libc::c_int = -3;
+pub static MZ_MEM_ERROR: libc::c_int = -4;
+pub static MZ_BUF_ERROR: libc::c_int = -5;
+pub static MZ_VERSION_ERROR: libc::c_int = -6;
+pub static MZ_PARAM_ERROR: libc::c_int = -10000;
+
+#[repr(C)]
+pub struct mz_stream {
+    pub next_in: *const u8,
+    pub avail_in: libc::c_uint,
+    pub total_in: libc::c_ulong,
+
+    pub next_out: *mut u8,
+    pub avail_out: libc::c_uint,
+    pub total_out: libc::c_ulong,
+
+    pub msg: *const libc::c_char,
+    pub state: *mut mz_internal_state,
+
+    pub zalloc: Option<mz_alloc_func>,
+    pub zfree: Option<mz_free_func>,
+    pub opaque: *mut libc::c_void,
+
+    pub data_type: libc::c_int,
+    pub adler: libc::c_ulong,
+    pub reserved: libc::c_ulong,
+}
+
+pub enum mz_internal_state {}
+
+pub type mz_alloc_func = extern fn(*mut libc::c_void,
+                                   libc::size_t,
+                                   libc::size_t) -> *mut libc::c_void;
+pub type mz_free_func = extern fn(*mut libc::c_void, *mut libc::c_void);
+
+#[link(name = "miniz", kind = "static")]
+extern {
+    pub fn mz_deflateInit(stream: *mut mz_stream,
+                          level: libc::c_int) -> libc::c_int;
+    pub fn mz_deflate(stream: *mut mz_stream, flush: libc::c_int) -> libc::c_int;
+    pub fn mz_deflateEnd(stream: *mut mz_stream) -> libc::c_int;
+
+    pub fn mz_inflateInit(stream: *mut mz_stream) -> libc::c_int;
+    pub fn mz_inflate(stream: *mut mz_stream, flush: libc::c_int) -> libc::c_int;
+    pub fn mz_inflateEnd(stream: *mut mz_stream) -> libc::c_int;
+}

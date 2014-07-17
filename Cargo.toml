@@ -1,0 +1,6 @@
+[package]
+
+name = "flate2"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+version = "0.0.1"
+build = "make -f cargo.mk"
