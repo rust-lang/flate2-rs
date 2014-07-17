@@ -1,4 +1,4 @@
-//! A streaming DEFLATE compression/decompression library
+//! A DEFLATE-based stream compression/decompression library
 //!
 //! This library is meant to supplement/replace the standard distributon's
 //! libflate library by providing a streaming encoder/decoder rather than purely
@@ -17,24 +17,25 @@ use std::io;
 use std::io::IoResult;
 use std::mem;
 
+pub use DeflateEncoder = deflate::Encoder;
+pub use DeflateDecoder = deflate::Decoder;
+pub use ZlibEncoder = zlib::Encoder;
+pub use ZlibDecoder = zlib::Decoder;
+pub use GzEncoder = gz::Encoder;
+pub use GzDecoder = gz::Decoder;
+
 mod ffi;
+pub mod deflate;
+pub mod zlib;
 pub mod gz;
 
-/// A DEFLATE encoder, or compressor.
-///
-/// This structure implements a `Writer` interface and takes a stream of
-/// uncompressed data, writing the compressed data to the wrapped writer.
-pub struct Encoder<W> {
+struct Encoder<W> {
     inner: Option<W>,
     stream: Stream,
     buf: Vec<u8>,
 }
 
-/// A DEFLATE decoder, or decompressor.
-///
-/// This structure implements a `Reader` interface and takes a stream of
-/// compressed data as input, providing the decompressed data when read from.
-pub struct Decoder<R> {
+struct Decoder<R> {
     inner: R,
     stream: Stream,
     pos: uint,
@@ -60,34 +61,18 @@ pub enum CompressionLevel {
 }
 
 impl<W: Writer> Encoder<W> {
-    /// Creates a new encoder which will write compressed data to the stream
-    /// given at the given compression level.
-    ///
-    /// When this encoder is dropped or unwrapped the final pieces of data will
-    /// be flushed.
-    pub fn new(w: W, level: CompressionLevel) -> Encoder<W> {
-        let mut state: ffi::mz_stream = unsafe { mem::zeroed() };
-        let ret = unsafe {
-            ffi::mz_deflateInit(&mut state, level as libc::c_int)
-        };
-        assert_eq!(ret, 0);
-
-        Encoder {
-            inner: Some(w),
-            stream: Stream(state, Deflate),
-            buf: Vec::with_capacity(128 * 1024),
-        }
-    }
-
-    /// Similar to `new`, but creates an encoder for a raw DEFLATE stream
-    /// without a zlib header/footer.
-    pub fn new_raw(w: W, level: CompressionLevel) -> Encoder<W> {
+    fn new(w: W, level: CompressionLevel, raw: bool,
+           buf: Vec<u8>) -> Encoder<W> {
         let mut state: ffi::mz_stream = unsafe { mem::zeroed() };
         let ret = unsafe {
             ffi::mz_deflateInit2(&mut state,
                                  level as libc::c_int,
                                  ffi::MZ_DEFLATED,
-                                 -ffi::MZ_DEFAULT_WINDOW_BITS,
+                                 if raw {
+                                     -ffi::MZ_DEFAULT_WINDOW_BITS
+                                 } else {
+                                     ffi::MZ_DEFAULT_WINDOW_BITS
+                                 },
                                  9,
                                  ffi::MZ_DEFAULT_STRATEGY)
         };
@@ -96,17 +81,8 @@ impl<W: Writer> Encoder<W> {
         Encoder {
             inner: Some(w),
             stream: Stream(state, Deflate),
-            buf: Vec::with_capacity(128 * 1024),
+            buf: buf,
         }
-    }
-
-    /// Consumes this encoder, flushing the output stream.
-    ///
-    /// This will flush the underlying data stream and then return the contained
-    /// writer if the flush succeeded.
-    pub fn finish(mut self) -> IoResult<W> {
-        try!(self.do_finish());
-        Ok(self.inner.take().unwrap())
     }
 
     fn do_finish(&mut self) -> IoResult<()> {
@@ -170,19 +146,20 @@ impl<W: Writer> Drop for Encoder<W> {
 }
 
 impl<R: Reader> Decoder<R> {
-    /// Creates a new decoder which will decompress data read from the given
-    /// stream.
-    pub fn new(r: R) -> Decoder<R> {
-        Decoder::new_with_buf(r, Vec::with_capacity(128 * 1024))
-    }
-
     /// Same as `new`, but the intermediate buffer for data is specified.
     ///
     /// Note that the capacity of the intermediate buffer is never increased,
     /// and it is recommended for it to be large.
-    pub fn new_with_buf(r: R, buf: Vec<u8>) -> Decoder<R> {
+    fn new(r: R, raw: bool, buf: Vec<u8>) -> Decoder<R> {
         let mut state: ffi::mz_stream = unsafe { mem::zeroed() };
-        let ret = unsafe { ffi::mz_inflateInit(&mut state) };
+        let ret = unsafe {
+            ffi::mz_inflateInit2(&mut state,
+                                 if raw {
+                                     -ffi::MZ_DEFAULT_WINDOW_BITS
+                                 } else {
+                                     ffi::MZ_DEFAULT_WINDOW_BITS
+                                 })
+        };
         assert_eq!(ret, 0);
 
         Decoder {
@@ -226,6 +203,9 @@ impl<R: Reader> Reader for Decoder<R> {
                     return Err(io::standard_error(io::EndOfFile))
                 }
                 ffi::MZ_BUF_ERROR => break,
+                ffi::MZ_DATA_ERROR => {
+                    return Err(io::standard_error(io::InvalidInput))
+                }
                 n => fail!("unexpected return {}", n),
             }
         }
@@ -254,27 +234,5 @@ impl Drop for Stream {
                 Stream(ref mut s, Inflate) => ffi::mz_inflateEnd(s),
             };
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{Encoder, Default, Decoder};
-    use std::io::{MemWriter, MemReader};
-    use std::rand::{task_rng, Rng};
-
-    #[test]
-    fn roundtrip() {
-        let mut real = Vec::new();
-        let mut w = Encoder::new(MemWriter::new(), Default);
-        let v = task_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
-        for _ in range(0u, 200) {
-            let to_write = v.slice_to(task_rng().gen_range(0, v.len()));
-            real.push_all(to_write);
-            w.write(to_write).unwrap();
-        }
-        let result = w.finish().unwrap();
-        let mut r = Decoder::new(MemReader::new(result.unwrap()));
-        assert!(r.read_to_end().unwrap() == real);
     }
 }

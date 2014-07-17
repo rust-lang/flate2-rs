@@ -57,7 +57,7 @@ impl<W: Writer> Encoder<W> {
     /// methods of this encoder.
     pub fn new(w: W, level: CompressionLevel) -> Encoder<W> {
         Encoder {
-            inner: ::Encoder::new_raw(w, level),
+            inner: ::Encoder::new(w, level, true, Vec::with_capacity(128 * 1024)),
             crc: 0,
             amt: 0,
             wrote_header: false,
@@ -259,7 +259,7 @@ impl<R: Reader> Decoder<R> {
         }
 
         return Ok(Decoder {
-            inner: ::Decoder::new(r),
+            inner: ::Decoder::new(r, true, Vec::with_capacity(128 * 1024)),
             crc: 0,
             amt: 0,
             extra: extra,

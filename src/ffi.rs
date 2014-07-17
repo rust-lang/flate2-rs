@@ -52,8 +52,6 @@ pub type mz_free_func = extern fn(*mut libc::c_void, *mut libc::c_void);
 
 #[link(name = "miniz", kind = "static")]
 extern {
-    pub fn mz_deflateInit(stream: *mut mz_stream,
-                          level: libc::c_int) -> libc::c_int;
     pub fn mz_deflateInit2(stream: *mut mz_stream,
                            level: libc::c_int,
                            method: libc::c_int,
@@ -63,7 +61,8 @@ extern {
     pub fn mz_deflate(stream: *mut mz_stream, flush: libc::c_int) -> libc::c_int;
     pub fn mz_deflateEnd(stream: *mut mz_stream) -> libc::c_int;
 
-    pub fn mz_inflateInit(stream: *mut mz_stream) -> libc::c_int;
+    pub fn mz_inflateInit2(stream: *mut mz_stream,
+                           window_bits: libc::c_int) -> libc::c_int;
     pub fn mz_inflate(stream: *mut mz_stream, flush: libc::c_int) -> libc::c_int;
     pub fn mz_inflateEnd(stream: *mut mz_stream) -> libc::c_int;
 
