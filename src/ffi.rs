@@ -56,4 +56,7 @@ extern {
     pub fn mz_inflateInit(stream: *mut mz_stream) -> libc::c_int;
     pub fn mz_inflate(stream: *mut mz_stream, flush: libc::c_int) -> libc::c_int;
     pub fn mz_inflateEnd(stream: *mut mz_stream) -> libc::c_int;
+
+    pub fn mz_crc32(crc: libc::c_ulong, ptr: *const u8,
+                    len: libc::size_t) -> libc::c_ulong;
 }

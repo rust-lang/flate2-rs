@@ -18,6 +18,7 @@ use std::io::IoResult;
 use std::mem;
 
 mod ffi;
+pub mod gz;
 
 /// A DEFLATE encoder, or compressor.
 ///
@@ -131,7 +132,9 @@ impl<W: Writer> Writer for Encoder<W> {
     }
 
     fn flush(&mut self) -> IoResult<()> {
-        self.deflate([], ffi::MZ_SYNC_FLUSH)
+        self.deflate([], ffi::MZ_SYNC_FLUSH).and_then(|_| {
+            self.inner.get_mut_ref().flush()
+        })
     }
 }
 
@@ -149,6 +152,14 @@ impl<R: Reader> Decoder<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.
     pub fn new(r: R) -> Decoder<R> {
+        Decoder::new_with_buf(r, Vec::with_capacity(128 * 1024))
+    }
+
+    /// Same as `new`, but the intermediate buffer for data is specified.
+    ///
+    /// Note that the capacity of the intermediate buffer is never increased,
+    /// and it is recommended for it to be large.
+    pub fn new_with_buf(r: R, buf: Vec<u8>) -> Decoder<R> {
         let mut state: ffi::mz_stream = unsafe { mem::zeroed() };
         let ret = unsafe { ffi::mz_inflateInit(&mut state) };
         assert_eq!(ret, 0);
@@ -157,7 +168,7 @@ impl<R: Reader> Decoder<R> {
             inner: r,
             stream: Stream(state, Inflate),
             pos: 0,
-            buf: Vec::with_capacity(128 * 1024),
+            buf: buf,
         }
     }
 }
