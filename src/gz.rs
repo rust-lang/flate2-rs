@@ -57,7 +57,7 @@ impl<W: Writer> Encoder<W> {
     /// methods of this encoder.
     pub fn new(w: W, level: CompressionLevel) -> Encoder<W> {
         Encoder {
-            inner: ::Encoder::new(w, level),
+            inner: ::Encoder::new_raw(w, level),
             crc: 0,
             amt: 0,
             wrote_header: false,
@@ -168,6 +168,9 @@ impl<W: Writer> Encoder<W> {
     }
 
     fn do_finish(&mut self) -> IoResult<W> {
+        if !self.wrote_header {
+            try!(self.write_header());
+        }
         try!(self.inner.do_finish());
         let mut inner = self.inner.inner.take().unwrap();
         try!(inner.write_le_u32(self.crc as u32));

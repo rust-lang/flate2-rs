@@ -17,6 +17,10 @@ pub static MZ_BUF_ERROR: libc::c_int = -5;
 pub static MZ_VERSION_ERROR: libc::c_int = -6;
 pub static MZ_PARAM_ERROR: libc::c_int = -10000;
 
+pub static MZ_DEFLATED: libc::c_int = 8;
+pub static MZ_DEFAULT_WINDOW_BITS: libc::c_int = 15;
+pub static MZ_DEFAULT_STRATEGY: libc::c_int = 0;
+
 #[repr(C)]
 pub struct mz_stream {
     pub next_in: *const u8,
@@ -50,6 +54,12 @@ pub type mz_free_func = extern fn(*mut libc::c_void, *mut libc::c_void);
 extern {
     pub fn mz_deflateInit(stream: *mut mz_stream,
                           level: libc::c_int) -> libc::c_int;
+    pub fn mz_deflateInit2(stream: *mut mz_stream,
+                           level: libc::c_int,
+                           method: libc::c_int,
+                           window_bits: libc::c_int,
+                           mem_level: libc::c_int,
+                           strategy: libc::c_int) -> libc::c_int;
     pub fn mz_deflate(stream: *mut mz_stream, flush: libc::c_int) -> libc::c_int;
     pub fn mz_deflateEnd(stream: *mut mz_stream) -> libc::c_int;
 

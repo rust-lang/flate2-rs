@@ -79,6 +79,27 @@ impl<W: Writer> Encoder<W> {
         }
     }
 
+    /// Similar to `new`, but creates an encoder for a raw DEFLATE stream
+    /// without a zlib header/footer.
+    pub fn new_raw(w: W, level: CompressionLevel) -> Encoder<W> {
+        let mut state: ffi::mz_stream = unsafe { mem::zeroed() };
+        let ret = unsafe {
+            ffi::mz_deflateInit2(&mut state,
+                                 level as libc::c_int,
+                                 ffi::MZ_DEFLATED,
+                                 -ffi::MZ_DEFAULT_WINDOW_BITS,
+                                 9,
+                                 ffi::MZ_DEFAULT_STRATEGY)
+        };
+        assert_eq!(ret, 0);
+
+        Encoder {
+            inner: Some(w),
+            stream: Stream(state, Deflate),
+            buf: Vec::with_capacity(128 * 1024),
+        }
+    }
+
     /// Consumes this encoder, flushing the output stream.
     ///
     /// This will flush the underlying data stream and then return the contained
