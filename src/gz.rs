@@ -348,6 +348,7 @@ mod tests {
     use super::{Encoder, Decoder};
     use {Default};
     use std::io::{MemWriter, MemReader};
+    use std::rand::{task_rng, Rng};
 
     #[test]
     fn roundtrip() {
@@ -356,5 +357,20 @@ mod tests {
         let inner = e.finish().unwrap();
         let mut d = Decoder::new(MemReader::new(inner.unwrap()));
         assert_eq!(d.read_to_string().unwrap().as_slice(), "foo bar baz");
+    }
+
+    #[test]
+    fn roundtrip_big() {
+        let mut real = Vec::new();
+        let mut w = Encoder::new(MemWriter::new(), Default);
+        let v = task_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
+        for _ in range(0u, 200) {
+            let to_write = v.slice_to(task_rng().gen_range(0, v.len()));
+            real.push_all(to_write);
+            w.write(to_write).unwrap();
+        }
+        let result = w.finish().unwrap();
+        let mut r = Decoder::new(MemReader::new(result.unwrap()));
+        assert!(r.read_to_end().unwrap() == real);
     }
 }

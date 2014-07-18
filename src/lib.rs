@@ -104,7 +104,7 @@ impl<W: Writer> Encoder<W> {
 
             let ret = unsafe {
                 let ret = ffi::mz_deflate(&mut *self.stream, flush);
-                self.buf.set_len((self.stream.total_out - before_out) as uint);
+                self.buf.set_len(cur_len + (self.stream.total_out - before_out) as uint);
                 ret
             };
             buf = buf.slice_from((self.stream.total_in - before_in) as uint);
