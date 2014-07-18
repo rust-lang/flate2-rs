@@ -87,12 +87,14 @@ impl<W: Writer> Encoder<W> {
 
     fn do_finish(&mut self) -> IoResult<()> {
         try!(self.deflate([], ffi::MZ_FINISH));
-        self.inner.get_mut_ref().write(self.buf.as_slice())
+        try!(self.inner.get_mut_ref().write(self.buf.as_slice()));
+        self.buf.truncate(0);
+        Ok(())
     }
 
     fn deflate(&mut self, mut buf: &[u8], flush: libc::c_int) -> IoResult<()> {
         let cap = self.buf.capacity();
-        loop {
+        while buf.len() > 0 || flush == ffi::MZ_FINISH {
             self.stream.next_in = buf.as_ptr();
             self.stream.avail_in = buf.len() as libc::c_uint;
             let cur_len = self.buf.len();
@@ -118,8 +120,9 @@ impl<W: Writer> Encoder<W> {
                 }
                 n => fail!("unexpected return {}", n),
             }
-            if buf.len() == 0 { return Ok(()) }
         }
+
+        Ok(())
     }
 }
 
