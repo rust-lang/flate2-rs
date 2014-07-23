@@ -17,8 +17,8 @@ use std::io::IoResult;
 use std::io;
 use std::mem;
 
-pub use GzEncoder = gz::Encoder;
-pub use GzDecoder = gz::Decoder;
+pub use GzBuilder = gz::Builder;
+pub use GzHeader = gz::Header;
 
 /// Types which operate over `Reader` streams, both encoders and decoders for
 /// various formats.
@@ -27,6 +27,8 @@ pub mod reader {
     pub use DeflateDecoder = deflate::DecoderReader;
     pub use ZlibEncoder = zlib::EncoderReader;
     pub use ZlibDecoder = zlib::DecoderReader;
+    pub use GzEncoder = gz::EncoderReader;
+    pub use GzDecoder = gz::DecoderReader;
 }
 
 /// Types which operate over `Writer` streams, both encoders and decoders for
@@ -36,12 +38,14 @@ pub mod writer {
     pub use DeflateDecoder = deflate::DecoderWriter;
     pub use ZlibEncoder = zlib::EncoderWriter;
     pub use ZlibDecoder = zlib::DecoderWriter;
+    pub use GzEncoder = gz::EncoderWriter;
 }
 
 mod ffi;
+mod crc;
 mod deflate;
+mod gz;
 mod zlib;
-pub mod gz;
 
 struct EncoderWriter<W> {
     inner: Option<W>,
