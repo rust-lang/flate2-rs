@@ -2,12 +2,14 @@
 
 use std::io::IoResult;
 
+use raw;
+
 /// A ZLIB encoder, or compressor.
 ///
 /// This structure implements a `Writer` interface and takes a stream of
 /// uncompressed data, writing the compressed data to the wrapped writer.
 pub struct EncoderWriter<W> {
-    inner: ::EncoderWriter<W>,
+    inner: raw::EncoderWriter<W>,
 }
 
 /// A ZLIB encoder, or compressor.
@@ -15,7 +17,7 @@ pub struct EncoderWriter<W> {
 /// This structure implements a `Reader` interface and will read uncompressed
 /// data from an underlying stream and emit a stream of compressed data.
 pub struct EncoderReader<R> {
-    inner: ::EncoderReader<R>,
+    inner: raw::EncoderReader<R>,
 }
 
 /// A ZLIB decoder, or decompressor.
@@ -23,7 +25,7 @@ pub struct EncoderReader<R> {
 /// This structure implements a `Reader` interface and takes a stream of
 /// compressed data as input, providing the decompressed data when read from.
 pub struct DecoderReader<R> {
-    inner: ::DecoderReader<R>,
+    inner: raw::DecoderReader<R>,
 }
 
 /// A ZLIB decoder, or decompressor.
@@ -31,7 +33,7 @@ pub struct DecoderReader<R> {
 /// This structure implements a `Writer` and will emit a stream of decompressed
 /// data when fed a stream of compressed data.
 pub struct DecoderWriter<W> {
-    inner: ::DecoderWriter<W>,
+    inner: raw::DecoderWriter<W>,
 }
 
 impl<W: Writer> EncoderWriter<W> {
@@ -42,8 +44,8 @@ impl<W: Writer> EncoderWriter<W> {
     /// be flushed.
     pub fn new(w: W, level: ::CompressionLevel) -> EncoderWriter<W> {
         EncoderWriter {
-            inner: ::EncoderWriter::new(w, level, false,
-                                        Vec::with_capacity(128 * 1024))
+            inner: raw::EncoderWriter::new(w, level, false,
+                                           Vec::with_capacity(128 * 1024))
         }
     }
 
@@ -67,8 +69,8 @@ impl<R: Reader> EncoderReader<R> {
     /// stream and emit the compressed stream.
     pub fn new(r: R, level: ::CompressionLevel) -> EncoderReader<R> {
         EncoderReader {
-            inner: ::EncoderReader::new(r, level, false,
-                                        Vec::with_capacity(128 * 1024))
+            inner: raw::EncoderReader::new(r, level, false,
+                                           Vec::with_capacity(128 * 1024))
         }
     }
 
@@ -94,7 +96,7 @@ impl<R: Reader> DecoderReader<R> {
     /// Note that the capacity of the intermediate buffer is never increased,
     /// and it is recommended for it to be large.
     pub fn new_with_buf(r: R, buf: Vec<u8>) -> DecoderReader<R> {
-        DecoderReader { inner: ::DecoderReader::new(r, false, buf) }
+        DecoderReader { inner: raw::DecoderReader::new(r, false, buf) }
     }
 }
 
@@ -111,7 +113,7 @@ impl<W: Writer> DecoderWriter<W> {
     /// be flushed.
     pub fn new(w: W) -> DecoderWriter<W> {
         DecoderWriter {
-            inner: ::DecoderWriter::new(w, false, Vec::with_capacity(128 * 1024))
+            inner: raw::DecoderWriter::new(w, false, Vec::with_capacity(128 * 1024))
         }
     }
 

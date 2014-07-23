@@ -11,6 +11,7 @@ use std::slice::bytes;
 
 use {BestCompression, CompressionLevel, BestSpeed};
 use crc::{CrcReader, Crc};
+use raw;
 
 static FHCRC: u8 = 1 << 1;
 static FEXTRA: u8 = 1 << 2;
@@ -22,7 +23,7 @@ static FCOMMENT: u8 = 1 << 4;
 /// This structure exposes a `Writer` interface that will emit compressed data
 /// to the underlying writer `W`.
 pub struct EncoderWriter<W> {
-    inner: ::EncoderWriter<W>,
+    inner: raw::EncoderWriter<W>,
     crc: Crc,
     header: Vec<u8>,
 }
@@ -33,7 +34,7 @@ pub struct EncoderWriter<W> {
 /// from the underlying reader and expose the compressed version as a `Reader`
 /// interface.
 pub struct EncoderReader<R> {
-    inner: ::EncoderReader<CrcReader<R>>,
+    inner: raw::EncoderReader<CrcReader<R>>,
     header: Vec<u8>,
     pos: uint,
     eof: bool,
@@ -54,7 +55,7 @@ pub struct Builder {
 /// This structure exposes a `Reader` interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
 pub struct DecoderReader<R> {
-    inner: CrcReader<::DecoderReader<R>>,
+    inner: CrcReader<raw::DecoderReader<R>>,
     header: Header,
 }
 
@@ -111,8 +112,8 @@ impl Builder {
     pub fn writer<W: Writer>(self, w: W,
                              lvl: CompressionLevel) -> EncoderWriter<W> {
         EncoderWriter {
-            inner: ::EncoderWriter::new(w, lvl, true,
-                                        Vec::with_capacity(128 * 1024)),
+            inner: raw::EncoderWriter::new(w, lvl, true,
+                                           Vec::with_capacity(128 * 1024)),
             crc: Crc::new(),
             header: self.into_header(lvl),
         }
@@ -126,8 +127,8 @@ impl Builder {
                              lvl: CompressionLevel) -> EncoderReader<R> {
         let crc = CrcReader::new(r);
         EncoderReader {
-            inner: ::EncoderReader::new(crc, lvl, true,
-                                        Vec::with_capacity(128 * 1024)),
+            inner: raw::EncoderReader::new(crc, lvl, true,
+                                           Vec::with_capacity(128 * 1024)),
             header: self.into_header(lvl),
             pos: 0,
             eof: false,
@@ -354,7 +355,7 @@ impl<R: Reader> DecoderReader<R> {
             try!(r.read_le_u16());
         }
 
-        let flate = ::DecoderReader::new(r, true, Vec::with_capacity(128 * 1024));
+        let flate = raw::DecoderReader::new(r, true, Vec::with_capacity(128 * 1024));
         return Ok(DecoderReader {
             inner: CrcReader::new(flate),
             header: Header {
