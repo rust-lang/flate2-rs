@@ -24,7 +24,7 @@ static FCOMMENT: u8 = 1 << 4;
 /// This structure exposes a `Writer` interface that will emit compressed data
 /// to the underlying writer `W`.
 pub struct Encoder<W> {
-    inner: ::Encoder<W>,
+    inner: ::EncoderWriter<W>,
     crc: libc::c_ulong,
     amt: u32,
     extra: Option<Vec<u8>>,
@@ -40,7 +40,7 @@ pub struct Encoder<W> {
 /// This structure exposes a `Reader` interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
 pub struct Decoder<R> {
-    inner: ::Decoder<R>,
+    inner: ::DecoderReader<R>,
     crc: libc::c_ulong,
     amt: u32,
     extra: Option<Vec<u8>>,
@@ -57,7 +57,7 @@ impl<W: Writer> Encoder<W> {
     /// methods of this encoder.
     pub fn new(w: W, level: CompressionLevel) -> Encoder<W> {
         Encoder {
-            inner: ::Encoder::new(w, level, true, Vec::with_capacity(128 * 1024)),
+            inner: ::EncoderWriter::new(w, level, true, Vec::with_capacity(128 * 1024)),
             crc: 0,
             amt: 0,
             wrote_header: false,
@@ -259,7 +259,7 @@ impl<R: Reader> Decoder<R> {
         }
 
         return Ok(Decoder {
-            inner: ::Decoder::new(r, true, Vec::with_capacity(128 * 1024)),
+            inner: ::DecoderReader::new(r, true, Vec::with_capacity(128 * 1024)),
             crc: 0,
             amt: 0,
             extra: extra,
