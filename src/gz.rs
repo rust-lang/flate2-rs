@@ -9,7 +9,6 @@ use std::io::{IoResult, IoError};
 use std::io;
 use std::os;
 use std::slice::bytes;
-use std::u16;
 
 use {BestCompression, CompressionLevel, BestSpeed};
 use ffi;
@@ -27,12 +26,17 @@ pub struct Encoder<W> {
     inner: ::EncoderWriter<W>,
     crc: libc::c_ulong,
     amt: u32,
+    header: Vec<u8>,
+}
+
+/// A builder structure to create a new gzip Encoder.
+///
+/// This structure controls header configuration options such as the filename.
+pub struct Builder {
     extra: Option<Vec<u8>>,
     filename: Option<CString>,
     comment: Option<CString>,
-    wrote_header: bool,
     mtime: u32,
-    xfl: u8,
 }
 
 /// A gzip streaming decoder
@@ -49,6 +53,104 @@ pub struct Decoder<R> {
     mtime: u32,
 }
 
+impl Builder {
+    /// Create a new blank builder with no header by default.
+    pub fn new() -> Builder {
+        Builder {
+            extra: None,
+            filename: None,
+            comment: None,
+            mtime: 0,
+        }
+    }
+
+    /// Configure the `mtime` field in the gzip header.
+    pub fn mtime(mut self, mtime: u32) -> Builder {
+        self.mtime = mtime;
+        self
+    }
+
+    /// Configure the `extra` field in the gzip header.
+    pub fn extra(mut self, extra: Vec<u8>) -> Builder {
+        self.extra = Some(extra);
+        self
+    }
+
+    /// Configure the `filename` field in the gzip header.
+    pub fn filename<T: ToCStr>(mut self, filename: T) -> Builder {
+        self.filename = Some(filename.to_c_str());
+        self
+    }
+
+    /// Configure the `comment` field in the gzip header.
+    pub fn comment<T: ToCStr>(mut self, comment: T) -> Builder {
+        self.comment = Some(comment.to_c_str());
+        self
+    }
+
+    /// Consume this builder, creating an encoder in the process.
+    ///
+    /// This function will prepare the header to be emitted and then return an
+    /// Encoder ready to compress data.
+    pub fn encoder<W: Writer>(self, w: W, lvl: CompressionLevel) -> Encoder<W> {
+        Encoder {
+            inner: ::EncoderWriter::new(w, lvl, true, Vec::with_capacity(128 * 1024)),
+            crc: 0,
+            amt: 0,
+            header: self.into_header(lvl),
+        }
+    }
+
+    fn into_header(self, lvl: CompressionLevel) -> Vec<u8> {
+        let Builder { extra, filename, comment, mtime } = self;
+        let mut flg = 0;
+        let mut header = Vec::from_elem(10, 0u8);
+        match extra {
+            Some(v) => {
+                flg |= FEXTRA;
+                header.push((v.len() >> 0) as u8);
+                header.push((v.len() >> 8) as u8);
+                header.push_all(v.as_slice());
+            }
+            None => {}
+        }
+        match filename {
+            Some(filename) => {
+                flg |= FNAME;
+                header.push_all(filename.as_bytes());
+            }
+            None => {}
+        }
+        match comment {
+            Some(comment) => {
+                flg |= FCOMMENT;
+                header.push_all(comment.as_bytes());
+            }
+            None => {}
+        }
+        *header.get_mut(0) = 0x1f;
+        *header.get_mut(1) = 0x8b;
+        *header.get_mut(2) = 8;
+        *header.get_mut(3) = flg;
+        *header.get_mut(4) = (mtime >>  0) as u8;
+        *header.get_mut(5) = (mtime >>  8) as u8;
+        *header.get_mut(6) = (mtime >> 16) as u8;
+        *header.get_mut(7) = (mtime >> 24) as u8;
+        *header.get_mut(8) = match lvl {
+            BestCompression => 2,
+            BestSpeed => 4,
+            _ => 0,
+        };
+        *header.get_mut(9) = match os::consts::SYSNAME {
+            "linux" => 3,
+            "macos" => 7,
+            "win32" => 0,
+            _ => 255,
+        };
+        return header;
+    }
+}
+
 impl<W: Writer> Encoder<W> {
     /// Creates a new encoder which will use the given compression level.
     ///
@@ -56,109 +158,7 @@ impl<W: Writer> Encoder<W> {
     /// before the first call to `write()` by invoking the other instance
     /// methods of this encoder.
     pub fn new(w: W, level: CompressionLevel) -> Encoder<W> {
-        Encoder {
-            inner: ::EncoderWriter::new(w, level, true, Vec::with_capacity(128 * 1024)),
-            crc: 0,
-            amt: 0,
-            wrote_header: false,
-            extra: None,
-            filename: None,
-            comment: None,
-            mtime: 0,
-            xfl: match level {
-                BestCompression => 2,
-                BestSpeed => 4,
-                _ => 0,
-            }
-        }
-    }
-
-    /// Configure the `mtime` field in the gzip header.
-    ///
-    /// This function will return an error if the header has already been
-    /// written.
-    pub fn mtime(&mut self, mtime: u32) -> IoResult<()> {
-        if self.wrote_header {
-            Err(io::standard_error(io::OtherIoError))
-        } else {
-            self.mtime = mtime;
-            Ok(())
-        }
-    }
-
-    /// Configure the `extra` field in the gzip header.
-    ///
-    /// This function will return an error if the header has already been
-    /// written.
-    pub fn extra(&mut self, extra: Vec<u8>) -> IoResult<()> {
-        if self.wrote_header || extra.len() >= u16::MAX as uint {
-            Err(io::standard_error(io::OtherIoError))
-        } else {
-            self.extra = Some(extra);
-            Ok(())
-        }
-    }
-
-    /// Configure the `filename` field in the gzip header.
-    ///
-    /// This function will return an error if the header has already been
-    /// written.
-    pub fn filename<T: ToCStr>(&mut self, filename: T) -> IoResult<()> {
-        if self.wrote_header {
-            Err(io::standard_error(io::OtherIoError))
-        } else {
-            self.filename = Some(filename.to_c_str());
-            Ok(())
-        }
-    }
-
-    /// Configure the `comment` field in the gzip header.
-    ///
-    /// This function will return an error if the header has already been
-    /// written.
-    pub fn comment<T: ToCStr>(&mut self, comment: T) -> IoResult<()> {
-        if self.wrote_header {
-            Err(io::standard_error(io::OtherIoError))
-        } else {
-            self.comment = Some(comment.to_c_str());
-            Ok(())
-        }
-    }
-
-    fn write_header(&mut self) -> IoResult<()> {
-        let w = self.inner.inner.get_mut_ref();
-        try!(w.write_u8(0x1f));
-        try!(w.write_u8(0x8b));
-        try!(w.write_u8(8));
-        let flg = if self.extra.is_some() {FEXTRA} else {0} |
-                  if self.filename.is_some() {FNAME} else {0} |
-                  if self.comment.is_some() {FCOMMENT} else {0};
-        try!(w.write_u8(flg));
-        try!(w.write_le_u32(self.mtime));
-        try!(w.write_u8(self.xfl));
-        try!(w.write_u8(match os::consts::SYSNAME {
-            "linux" => 3,
-            "macos" => 7,
-            "win32" => 0,
-            _ => 255,
-        }));
-
-        match self.extra {
-            Some(ref vec) => {
-                try!(w.write_le_u16(vec.len() as u16));
-                try!(w.write(vec.as_slice()));
-            }
-            None => {}
-        }
-        match self.filename {
-            Some(ref cstr) => try!(w.write(cstr.as_bytes())),
-            None => {}
-        }
-        match self.comment {
-            Some(ref cstr) => try!(w.write(cstr.as_bytes())),
-            None => {}
-        }
-        Ok(())
+        Builder::new().encoder(w, level)
     }
 
     /// Finish encoding this stream, returning the underlying writer once the
@@ -168,8 +168,8 @@ impl<W: Writer> Encoder<W> {
     }
 
     fn do_finish(&mut self) -> IoResult<W> {
-        if !self.wrote_header {
-            try!(self.write_header());
+        if self.header.len() != 0 {
+            try!(self.inner.write(self.header.as_slice()));
         }
         try!(self.inner.do_finish());
         let mut inner = self.inner.inner.take().unwrap();
@@ -181,9 +181,9 @@ impl<W: Writer> Encoder<W> {
 
 impl<W: Writer> Writer for Encoder<W> {
     fn write(&mut self, buf: &[u8]) -> IoResult<()> {
-        if !self.wrote_header {
-            self.wrote_header = true;
-            try!(self.write_header());
+        if self.header.len() != 0 {
+            try!(self.inner.inner.get_mut_ref().write(self.header.as_slice()));
+            self.header.truncate(0);
         }
         try!(self.inner.write(buf));
         self.crc = unsafe {

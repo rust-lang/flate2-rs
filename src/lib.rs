@@ -17,6 +17,9 @@ use std::io::IoResult;
 use std::io;
 use std::mem;
 
+pub use GzEncoder = gz::Encoder;
+pub use GzDecoder = gz::Decoder;
+
 /// Types which operate over `Reader` streams, both encoders and decoders for
 /// various formats.
 pub mod reader {
