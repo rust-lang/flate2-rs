@@ -1,5 +1,9 @@
 # flate2
 
+[![Build Status](https://travis-ci.org/alexcrichton/flate2-rs.svg?branch=master)](https://travis-ci.org/alexcrichton/flate2-rs)
+
+[Documentation](http://alexcrichton.com/flate2-rs/flate2/index.html)
+
 A streaming compression/decompression library for rust with bindings to
 [`miniz`](https://code.google.com/p/miniz/)
 
