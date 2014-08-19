@@ -31,8 +31,8 @@ extern crate libc;
 
 use std::io::IoResult;
 
-pub use GzBuilder = gz::Builder;
-pub use GzHeader = gz::Header;
+pub use gz::Builder as GzBuilder;
+pub use gz::Header as GzHeader;
 
 mod crc;
 mod deflate;
@@ -44,22 +44,22 @@ mod zlib;
 /// Types which operate over `Reader` streams, both encoders and decoders for
 /// various formats.
 pub mod reader {
-    pub use DeflateEncoder = deflate::EncoderReader;
-    pub use DeflateDecoder = deflate::DecoderReader;
-    pub use ZlibEncoder = zlib::EncoderReader;
-    pub use ZlibDecoder = zlib::DecoderReader;
-    pub use GzEncoder = gz::EncoderReader;
-    pub use GzDecoder = gz::DecoderReader;
+    pub use deflate::EncoderReader as DeflateEncoder;
+    pub use deflate::DecoderReader as DeflateDecoder;
+    pub use zlib::EncoderReader as ZlibEncoder;
+    pub use zlib::DecoderReader as ZlibDecoder;
+    pub use gz::EncoderReader as GzEncoder;
+    pub use gz::DecoderReader as GzDecoder;
 }
 
 /// Types which operate over `Writer` streams, both encoders and decoders for
 /// various formats.
 pub mod writer {
-    pub use DeflateEncoder = deflate::EncoderWriter;
-    pub use DeflateDecoder = deflate::DecoderWriter;
-    pub use ZlibEncoder = zlib::EncoderWriter;
-    pub use ZlibDecoder = zlib::DecoderWriter;
-    pub use GzEncoder = gz::EncoderWriter;
+    pub use deflate::EncoderWriter as DeflateEncoder;
+    pub use deflate::DecoderWriter as DeflateDecoder;
+    pub use zlib::EncoderWriter as ZlibEncoder;
+    pub use zlib::DecoderWriter as ZlibDecoder;
+    pub use gz::EncoderWriter as GzEncoder;
 }
 
 /// When compressing data, the compression level can be specified by a value in
