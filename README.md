@@ -27,6 +27,7 @@ extern crate flate2;
 use std::io::MemWriter;
 use flate2::writer::ZlibEncoder;
 
+# #[allow(unused_must_use)]
 fn main() {
     let mut e = ZlibEncoder::new(MemWriter::new(), flate2::Default);
     e.write(b"foo");
@@ -45,6 +46,6 @@ use flate2::reader::GzDecoder;
 
 fn main() {
     let mut d = GzDecoder::new(BufReader::new(b"..."));
-    println!("{}", d.read_to_str());
+    println!("{}", d.read_to_string());
 }
 ```
