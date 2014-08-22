@@ -1,14 +1,16 @@
 install:
-- curl http://www.rust-lang.org/rustup.sh | sudo sh -
+  - curl http://www.rust-lang.org/rustup.sh | sudo sh -
 script:
-- cargo build --verbose
-- cargo test --verbose
-- cargo doc
-after_success: ! '[ $TRAVIS_BRANCH = master ] && [ $TRAVIS_PULL_REQUEST = false ]
-  && echo ''<meta http-equiv=refresh content=0;url=flate2/index.html>'' > target/doc/index.html
-  && sudo pip install ghp-import && ghp-import -n target/doc && git push -fq https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git
-  gh-pages '
+  - cargo build --verbose
+  - cargo test --verbose
+  - cargo doc
+after_success: |
+  [ $TRAVIS_BRANCH = master ] &&
+  [ $TRAVIS_PULL_REQUEST = false ] &&
+  echo '<meta http-equiv=refresh content=0;url=flate2/index.html>' > target/doc/index.html &&
+  sudo pip install ghp-import &&
+  ghp-import -n target/doc &&
+  git push -f https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
 env:
   global:
-  - LD_LIBRARY_PATH: /usr/local/lib
-  - secure: FZznEnomgWInCLgFfEG0ylaIu9bHHyxPFw2fmgRJ59yuYxBV2CVkoZtG/SoOKGCPtLS7IJYyf2aA7jABem120QMnJX6VsEvOUBXd4BRbY8tuZ6TNcEfT3pYaPBtJaj3Pwtd5le9RjnvUtSM+BNN14VtWnSKpZSOJ+HGpdb9daxg=
+    - secure: FZznEnomgWInCLgFfEG0ylaIu9bHHyxPFw2fmgRJ59yuYxBV2CVkoZtG/SoOKGCPtLS7IJYyf2aA7jABem120QMnJX6VsEvOUBXd4BRbY8tuZ6TNcEfT3pYaPBtJaj3Pwtd5le9RjnvUtSM+BNN14VtWnSKpZSOJ+HGpdb9daxg=
