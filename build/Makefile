@@ -1,3 +1,7 @@
+ifneq ($(findstring mingw,$(TARGET)),)
+	CC := gcc
+endif
+
 ifneq ($(findstring i686,$(TARGET)),)
 	CC := $(CC) -m32
 else
