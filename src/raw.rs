@@ -50,8 +50,8 @@ impl<W: Writer> EncoderWriter<W> {
 
     pub fn do_finish(&mut self) -> IoResult<()> {
         try!(self.stream.write([], ffi::MZ_FINISH, &mut self.buf,
-                               self.inner.get_mut_ref(), ffi::mz_deflate));
-        try!(self.inner.get_mut_ref().write(self.buf.as_slice()));
+                               self.inner.as_mut().unwrap(), ffi::mz_deflate));
+        try!(self.inner.as_mut().unwrap().write(self.buf.as_slice()));
         self.buf.truncate(0);
         Ok(())
     }
@@ -60,11 +60,11 @@ impl<W: Writer> EncoderWriter<W> {
 impl<W: Writer> Writer for EncoderWriter<W> {
     fn write(&mut self, buf: &[u8]) -> IoResult<()> {
         self.stream.write(buf, ffi::MZ_NO_FLUSH, &mut self.buf,
-                          self.inner.get_mut_ref(), ffi::mz_deflate)
+                          self.inner.as_mut().unwrap(), ffi::mz_deflate)
     }
 
     fn flush(&mut self) -> IoResult<()> {
-        let inner = self.inner.get_mut_ref();
+        let inner = self.inner.as_mut().unwrap();
         try!(self.stream.write([], ffi::MZ_SYNC_FLUSH, &mut self.buf, inner,
                                ffi::mz_deflate));
         inner.flush()
@@ -129,8 +129,8 @@ impl<W: Writer> DecoderWriter<W> {
 
     pub fn do_finish(&mut self) -> IoResult<()> {
         try!(self.stream.write([], ffi::MZ_FINISH, &mut self.buf,
-                               self.inner.get_mut_ref(), ffi::mz_inflate));
-        try!(self.inner.get_mut_ref().write(self.buf.as_slice()));
+                               self.inner.as_mut().unwrap(), ffi::mz_inflate));
+        try!(self.inner.as_mut().unwrap().write(self.buf.as_slice()));
         self.buf.truncate(0);
         Ok(())
     }
@@ -139,11 +139,11 @@ impl<W: Writer> DecoderWriter<W> {
 impl<W: Writer> Writer for DecoderWriter<W> {
     fn write(&mut self, buf: &[u8]) -> IoResult<()> {
         self.stream.write(buf, ffi::MZ_NO_FLUSH, &mut self.buf,
-                          self.inner.get_mut_ref(), ffi::mz_inflate)
+                          self.inner.as_mut().unwrap(), ffi::mz_inflate)
     }
 
     fn flush(&mut self) -> IoResult<()> {
-        let inner = self.inner.get_mut_ref();
+        let inner = self.inner.as_mut().unwrap();
         try!(self.stream.write([], ffi::MZ_SYNC_FLUSH, &mut self.buf, inner,
                                ffi::mz_inflate));
         inner.flush()
