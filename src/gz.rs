@@ -218,7 +218,7 @@ impl<W: Writer> EncoderWriter<W> {
 impl<W: Writer> Writer for EncoderWriter<W> {
     fn write(&mut self, buf: &[u8]) -> IoResult<()> {
         if self.header.len() != 0 {
-            try!(self.inner.inner.get_mut_ref().write(self.header.as_slice()));
+            try!(self.inner.inner.as_mut().unwrap().write(self.header.as_slice()));
             self.header.truncate(0);
         }
         try!(self.inner.write(buf));
@@ -288,7 +288,7 @@ impl<R: Reader> Reader for EncoderReader<R> {
         } else if self.pos < self.header.len() {
             amt += copy(into, self.header.as_slice(), &mut self.pos);
             if amt == into.len() { return Ok(amt) }
-            let tmp = into; into = tmp.mut_slice_from(amt);
+            let tmp = into; into = tmp.slice_from_mut(amt);
         }
         match self.inner.read(into) {
             Ok(a) => Ok(amt + a),

@@ -201,7 +201,7 @@ impl Stream {
 
             self.next_in = buf.slice_from(*pos).as_ptr();
             self.avail_in = (buf.len() - *pos) as libc::c_uint;
-            self.next_out = into.mut_slice_from(read).as_mut_ptr();
+            self.next_out = into.slice_from_mut(read).as_mut_ptr();
             self.avail_out = (into.len() - read) as libc::c_uint;
 
             let before_out = self.total_out;
@@ -239,7 +239,7 @@ impl Stream {
             self.next_in = buf.as_ptr();
             self.avail_in = buf.len() as libc::c_uint;
             let cur_len = into.len();
-            self.next_out = into.mut_slice_from(cur_len).as_mut_ptr();
+            self.next_out = into.slice_from_mut(cur_len).as_mut_ptr();
             self.avail_out = (cap - cur_len) as libc::c_uint;
 
             let before_out = self.total_out;
