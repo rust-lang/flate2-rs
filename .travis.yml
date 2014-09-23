@@ -1,5 +1,4 @@
-install:
-  - curl https://static.rust-lang.org/rustup.sh | sudo sh -
+language: rust
 script:
   - cargo build --verbose
   - cargo test --verbose
@@ -11,7 +10,11 @@ after_success: |
   echo '<meta http-equiv=refresh content=0;url=flate2/index.html>' > target/doc/index.html &&
   sudo pip install ghp-import &&
   ghp-import -n target/doc &&
-  git push -f https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
+  git push -f https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages &&
+  rm target/doc/index.html &&
+  mv target/doc . &&
+  (curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh)
 env:
   global:
     - secure: FZznEnomgWInCLgFfEG0ylaIu9bHHyxPFw2fmgRJ59yuYxBV2CVkoZtG/SoOKGCPtLS7IJYyf2aA7jABem120QMnJX6VsEvOUBXd4BRbY8tuZ6TNcEfT3pYaPBtJaj3Pwtd5le9RjnvUtSM+BNN14VtWnSKpZSOJ+HGpdb9daxg=
+    - secure: VYL5QxBYlf+KW94L0X/Nl2ymkOfOEIvHy6CMPXT8aPFIA8EI3SYqTM+PPWsMrZ7hsPESzvfPmTheeT28rjTyE4d9sORxJJUMrLYyZUB7DmVZYnc3GjtZkD74sb+SfdTGUMloeJSNcs5uLfyBHrOb6++pK0bz/XQ07zvptyypQQU=
