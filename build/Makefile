@@ -4,8 +4,10 @@ endif
 
 ifneq ($(findstring i686,$(TARGET)),)
 	CC := $(CC) -m32
-else
+else ifneq ($(findstring x86_64,$(TARGET)),)
 	CC := $(CC) -m64 -fPIC
+else
+	CC := $(CC) -fPIC
 endif
 
 all:
