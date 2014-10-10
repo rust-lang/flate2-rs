@@ -2,24 +2,24 @@
 
 use libc;
 
-pub static MZ_NO_FLUSH: libc::c_int = 0;
-pub static MZ_SYNC_FLUSH: libc::c_int = 2;
-pub static MZ_FINISH: libc::c_int = 4;
+pub const MZ_NO_FLUSH: libc::c_int = 0;
+pub const MZ_SYNC_FLUSH: libc::c_int = 2;
+pub const MZ_FINISH: libc::c_int = 4;
 
-pub static MZ_OK: libc::c_int = 0;
-pub static MZ_STREAM_END: libc::c_int = 1;
-pub static MZ_NEED_DICT: libc::c_int = 2;
-pub static MZ_ERRNO: libc::c_int = -1;
-pub static MZ_STREAM_ERROR: libc::c_int = -2;
-pub static MZ_DATA_ERROR: libc::c_int = -3;
-pub static MZ_MEM_ERROR: libc::c_int = -4;
-pub static MZ_BUF_ERROR: libc::c_int = -5;
-pub static MZ_VERSION_ERROR: libc::c_int = -6;
-pub static MZ_PARAM_ERROR: libc::c_int = -10000;
+pub const MZ_OK: libc::c_int = 0;
+pub const MZ_STREAM_END: libc::c_int = 1;
+pub const MZ_NEED_DICT: libc::c_int = 2;
+pub const MZ_ERRNO: libc::c_int = -1;
+pub const MZ_STREAM_ERROR: libc::c_int = -2;
+pub const MZ_DATA_ERROR: libc::c_int = -3;
+pub const MZ_MEM_ERROR: libc::c_int = -4;
+pub const MZ_BUF_ERROR: libc::c_int = -5;
+pub const MZ_VERSION_ERROR: libc::c_int = -6;
+pub const MZ_PARAM_ERROR: libc::c_int = -10000;
 
-pub static MZ_DEFLATED: libc::c_int = 8;
-pub static MZ_DEFAULT_WINDOW_BITS: libc::c_int = 15;
-pub static MZ_DEFAULT_STRATEGY: libc::c_int = 0;
+pub const MZ_DEFLATED: libc::c_int = 8;
+pub const MZ_DEFAULT_WINDOW_BITS: libc::c_int = 15;
+pub const MZ_DEFAULT_STRATEGY: libc::c_int = 0;
 
 #[repr(C)]
 pub struct mz_stream {
