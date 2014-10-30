@@ -4,7 +4,7 @@
 
 use std::c_str::CString;
 use std::cmp;
-use std::io::{IoResult, IoError};
+use std::io::{BytesReader,IoResult, IoError};
 use std::io;
 use std::os;
 use std::slice::bytes;
