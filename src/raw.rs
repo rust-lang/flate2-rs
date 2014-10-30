@@ -222,7 +222,7 @@ impl Stream {
                 ffi::MZ_DATA_ERROR => {
                     return Err(io::standard_error(io::InvalidInput))
                 }
-                n => fail!("unexpected return {}", n),
+                n => panic!("unexpected return {}", n),
             }
         }
 
@@ -260,7 +260,7 @@ impl Stream {
                 ffi::MZ_OK => {},
                 ffi::MZ_STREAM_END => return Ok(()),
                 ffi::MZ_BUF_ERROR => {}
-                n => fail!("unexpected return {}", n),
+                n => panic!("unexpected return {}", n),
             }
         }
 
