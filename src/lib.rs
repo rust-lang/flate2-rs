@@ -24,7 +24,7 @@
 //! These provide convenience methods for creating a decoder/encoder out of an
 //! already existing stream to chain construction.
 
-#![deny(missing_doc)]
+#![deny(missing_docs)]
 #![feature(unsafe_destructor)]
 
 extern crate libc;

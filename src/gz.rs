@@ -162,20 +162,20 @@ impl Builder {
             }
             None => {}
         }
-        *header.get_mut(0) = 0x1f;
-        *header.get_mut(1) = 0x8b;
-        *header.get_mut(2) = 8;
-        *header.get_mut(3) = flg;
-        *header.get_mut(4) = (mtime >>  0) as u8;
-        *header.get_mut(5) = (mtime >>  8) as u8;
-        *header.get_mut(6) = (mtime >> 16) as u8;
-        *header.get_mut(7) = (mtime >> 24) as u8;
-        *header.get_mut(8) = match lvl {
+        header[0] = 0x1f;
+        header[1] = 0x8b;
+        header[2] = 8;
+        header[3] = flg;
+        header[4] = (mtime >>  0) as u8;
+        header[5] = (mtime >>  8) as u8;
+        header[6] = (mtime >> 16) as u8;
+        header[7] = (mtime >> 24) as u8;
+        header[8] = match lvl {
             BestCompression => 2,
             BestSpeed => 4,
             _ => 0,
         };
-        *header.get_mut(9) = match os::consts::SYSNAME {
+        header[9] = match os::consts::SYSNAME {
             "linux" => 3,
             "macos" => 7,
             "win32" => 0,
