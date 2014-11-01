@@ -3,7 +3,6 @@
 name = "flate2"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 version = "0.0.1"
-build = "sh build/make.sh -C build"
 license = "MIT/APL2"
 readme = "README.md"
 keywords = ["gzip", "flate", "zlib", "encoding"]
@@ -15,3 +14,7 @@ Bindings to miniz.c for DEFLATE compression and decompression exposed as
 Reader/Writer streams. Contains bindings for zlib, deflate, and gzip-based
 streams.
 """
+
+[dependencies.miniz-sys]
+path = "miniz-sys"
+version = "*"

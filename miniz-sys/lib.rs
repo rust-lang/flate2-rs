@@ -1,6 +1,6 @@
 #![allow(warnings)]
 
-use libc;
+extern crate libc;
 
 pub const MZ_NO_FLUSH: libc::c_int = 0;
 pub const MZ_SYNC_FLUSH: libc::c_int = 2;
@@ -69,3 +69,4 @@ extern {
     pub fn mz_crc32(crc: libc::c_ulong, ptr: *const u8,
                     len: libc::size_t) -> libc::c_ulong;
 }
+

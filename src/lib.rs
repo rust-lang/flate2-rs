@@ -28,6 +28,7 @@
 #![feature(unsafe_destructor)]
 
 extern crate libc;
+extern crate "miniz-sys" as ffi;
 
 use std::io::IoResult;
 
@@ -36,7 +37,6 @@ pub use gz::Header as GzHeader;
 
 mod crc;
 mod deflate;
-mod ffi;
 mod gz;
 mod raw;
 mod zlib;
