@@ -1,0 +1,14 @@
+[package]
+
+name = "miniz-sys"
+version = "0.0.1"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+links = "miniz"
+build = "build.rs"
+
+[lib]
+name = "miniz-sys"
+path = "lib.rs"
+
+[build-dependencies.gcc]
+git = "https://github.com/alexcrichton/gcc-rs"
