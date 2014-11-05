@@ -50,7 +50,6 @@ pub type mz_alloc_func = extern fn(*mut libc::c_void,
                                    libc::size_t) -> *mut libc::c_void;
 pub type mz_free_func = extern fn(*mut libc::c_void, *mut libc::c_void);
 
-#[link(name = "miniz", kind = "static")]
 extern {
     pub fn mz_deflateInit2(stream: *mut mz_stream,
                            level: libc::c_int,
