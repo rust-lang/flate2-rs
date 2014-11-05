@@ -1,4 +1,4 @@
-ifneq ($(findstring mingw,$(TARGET)),)
+ifneq ($(findstring windows,$(TARGET)),)
 	CC := gcc
 endif
 
