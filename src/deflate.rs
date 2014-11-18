@@ -137,7 +137,7 @@ mod tests {
     use std::io::{MemWriter, MemReader, BufReader};
     use std::rand::{task_rng, Rng};
 
-    use {Default};
+    use CompressionLevel::Default;
 
     #[test]
     fn roundtrip() {

@@ -450,7 +450,7 @@ fn corrupt() -> IoError {
 #[cfg(test)]
 mod tests {
     use super::{EncoderWriter, EncoderReader, DecoderReader, Builder};
-    use {Default};
+    use CompressionLevel::Default;
     use std::io::{MemWriter, MemReader};
     use std::rand::{task_rng, Rng};
 

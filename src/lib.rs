@@ -156,14 +156,14 @@ impl<T: Writer> FlateWriter for T {}
 #[cfg(test)]
 mod test {
     use std::io::BufReader;
-    use {FlateReader, Default};
+    use {FlateReader, CompressionLevel};
 
     #[test]
     fn crazy() {
         let rdr = BufReader::new(b"foobar");
-        let res = rdr.gz_encode(Default)
-                        .deflate_encode(Default)
-                            .zlib_encode(Default)
+        let res = rdr.gz_encode(CompressionLevel::Default)
+                        .deflate_encode(CompressionLevel::Default)
+                            .zlib_encode(CompressionLevel::Default)
                             .zlib_decode()
                         .deflate_decode()
                      .gz_decode()
