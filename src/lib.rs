@@ -34,6 +34,7 @@ use std::io::IoResult;
 
 pub use gz::Builder as GzBuilder;
 pub use gz::Header as GzHeader;
+pub use CompressionLevel::{BestCompression,BestSpeed,NoCompression};
 
 mod crc;
 mod deflate;

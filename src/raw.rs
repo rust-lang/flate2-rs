@@ -7,6 +7,7 @@ use libc;
 
 use {CompressionLevel, NoCompression};
 use ffi;
+use self::Flavor::{Deflate,Inflate};
 
 pub struct EncoderWriter<W> {
     pub inner: Option<W>,
