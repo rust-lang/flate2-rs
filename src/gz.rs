@@ -259,7 +259,7 @@ impl<R: Reader> EncoderReader<R> {
         if self.pos == 8 {
             return Err(io::standard_error(io::EndOfFile))
         }
-        let arr = [
+        let ref arr = [
             (self.inner.inner.crc().sum() >>  0) as u8,
             (self.inner.inner.crc().sum() >>  8) as u8,
             (self.inner.inner.crc().sum() >> 16) as u8,
@@ -379,7 +379,7 @@ impl<R: Reader> DecoderReader<R> {
     pub fn header(&self) -> &Header { &self.header }
 
     fn finish(&mut self) -> IoResult<()> {
-        let mut buf = [0u8, ..8];
+        let ref mut buf = [0u8, ..8];
         {
             let flate = self.inner.inner();
             let len = {
