@@ -1,7 +1,7 @@
 [package]
 
 name = "miniz-sys"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 links = "miniz"
 build = "build.rs"
