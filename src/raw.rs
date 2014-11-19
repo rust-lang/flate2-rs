@@ -50,7 +50,7 @@ impl<W: Writer> EncoderWriter<W> {
     }
 
     pub fn do_finish(&mut self) -> IoResult<()> {
-        try!(self.stream.write([], ffi::MZ_FINISH, &mut self.buf,
+        try!(self.stream.write(&[], ffi::MZ_FINISH, &mut self.buf,
                                self.inner.as_mut().unwrap(), ffi::mz_deflate));
         try!(self.inner.as_mut().unwrap().write(self.buf.as_slice()));
         self.buf.truncate(0);
@@ -66,7 +66,7 @@ impl<W: Writer> Writer for EncoderWriter<W> {
 
     fn flush(&mut self) -> IoResult<()> {
         let inner = self.inner.as_mut().unwrap();
-        try!(self.stream.write([], ffi::MZ_SYNC_FLUSH, &mut self.buf, inner,
+        try!(self.stream.write(&[], ffi::MZ_SYNC_FLUSH, &mut self.buf, inner,
                                ffi::mz_deflate));
         inner.flush()
     }
@@ -129,7 +129,7 @@ impl<W: Writer> DecoderWriter<W> {
     }
 
     pub fn do_finish(&mut self) -> IoResult<()> {
-        try!(self.stream.write([], ffi::MZ_FINISH, &mut self.buf,
+        try!(self.stream.write(&[], ffi::MZ_FINISH, &mut self.buf,
                                self.inner.as_mut().unwrap(), ffi::mz_inflate));
         try!(self.inner.as_mut().unwrap().write(self.buf.as_slice()));
         self.buf.truncate(0);
@@ -145,7 +145,7 @@ impl<W: Writer> Writer for DecoderWriter<W> {
 
     fn flush(&mut self) -> IoResult<()> {
         let inner = self.inner.as_mut().unwrap();
-        try!(self.stream.write([], ffi::MZ_SYNC_FLUSH, &mut self.buf, inner,
+        try!(self.stream.write(&[], ffi::MZ_SYNC_FLUSH, &mut self.buf, inner,
                                ffi::mz_inflate));
         inner.flush()
     }
