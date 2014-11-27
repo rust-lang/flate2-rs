@@ -1,14 +1,20 @@
 [package]
 
 name = "miniz-sys"
-version = "0.0.2"
+version = "0.1.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 links = "miniz"
 build = "build.rs"
+license = "MIT/Apache-2.0"
+repository = "https://github.com/alexcrichton/flate2-rs"
+description = """
+Bindings to the miniz.c library.
+"""
 
 [lib]
 name = "miniz-sys"
 path = "lib.rs"
 
 [build-dependencies.gcc]
-git = "https://github.com/alexcrichton/gcc-rs"
+gcc = "https://github.com/alexcrichton/gcc-rs"
+version = "0.1.0"
