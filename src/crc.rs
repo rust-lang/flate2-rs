@@ -23,10 +23,10 @@ impl Crc {
     pub fn sum(&self) -> libc::c_ulong { self.crc }
     pub fn amt(&self) -> u32 { self.amt }
 
-    pub fn update(&mut self, with: &[u8]) {
-        self.amt += with.len() as u32;
+    pub fn update(&mut self, data: &[u8]) {
+        self.amt += data.len() as u32;
         self.crc = unsafe {
-            ffi::mz_crc32(self.crc, with.as_ptr(), with.len() as libc::size_t)
+            ffi::mz_crc32(self.crc, data.as_ptr(), data.len() as libc::size_t)
         };
     }
 }

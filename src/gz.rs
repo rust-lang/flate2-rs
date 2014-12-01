@@ -8,6 +8,7 @@ use std::io::{BytesReader,IoResult, IoError};
 use std::io;
 use std::os;
 use std::slice::bytes;
+use libc;
 
 use {BestCompression, CompressionLevel, BestSpeed};
 use crc::{CrcReader, Crc};
@@ -308,28 +309,31 @@ impl<R: Reader> DecoderReader<R> {
     ///
     /// If an error is encountered when parsing the gzip header, an error is
     /// returned.
-    pub fn new(mut r: R) -> IoResult<DecoderReader<R>> {
-        let id1 = try!(r.read_u8());
-        let id2 = try!(r.read_u8());
+    pub fn new(r: R) -> IoResult<DecoderReader<R>> {
+        // from here, all reads should go through this reader (not r):
+        let mut crc_reader = CrcReader::new( r );
+        
+        let id1 = try!(crc_reader.read_u8());
+        let id2 = try!(crc_reader.read_u8());
         if id1 != 0x1f || id2 != 0x8b { return Err(bad_header()) }
-        let cm = try!(r.read_u8());
+        let cm = try!(crc_reader.read_u8());
         if cm != 8 { return Err(bad_header()) }
 
-        let flg = try!(r.read_u8());
-        let mtime = try!(r.read_le_u32());
-        let _xfl = try!(r.read_u8());
-        let _os = try!(r.read_u8());
+        let flg = try!(crc_reader.read_u8());
+        let mtime = try!(crc_reader.read_le_u32());
+        let _xfl = try!(crc_reader.read_u8());
+        let _os = try!(crc_reader.read_u8());
 
         let extra = if flg & FEXTRA != 0 {
-            let xlen = try!(r.read_le_u16());
-            Some(try!(r.read_exact(xlen as uint)))
+            let xlen = try!(crc_reader.read_le_u16());
+            Some(try!(crc_reader.read_exact(xlen as uint)))
         } else {
             None
         };
         let filename = if flg & FNAME != 0 {
             // wow this is slow
             let mut b = Vec::new();
-            for byte in r.bytes() {
+            for byte in crc_reader.bytes() {
                 let byte = try!(byte);
                 if byte == 0 { break }
                 b.push(byte);
@@ -341,7 +345,7 @@ impl<R: Reader> DecoderReader<R> {
         let comment = if flg & FCOMMENT != 0 {
             // wow this is slow
             let mut b = Vec::new();
-            for byte in r.bytes() {
+            for byte in crc_reader.bytes() {
                 let byte = try!(byte);
                 if byte == 0 { break }
                 b.push(byte);
@@ -352,10 +356,12 @@ impl<R: Reader> DecoderReader<R> {
         };
 
         if flg & FHCRC != 0 {
-            try!(r.read_le_u16());
+            let calced_crc = crc_reader.crc().sum() & 0xFFFF;
+            let stored_crc = try!(crc_reader.read_le_u16()) as libc::c_ulong;
+            if calced_crc != stored_crc { return Err(corrupt()) }
         }
 
-        let flate = raw::DecoderReader::new(r, true, Vec::with_capacity(128 * 1024));
+        let flate = raw::DecoderReader::new(crc_reader.unwrap(), true, Vec::with_capacity(128 * 1024));
         return Ok(DecoderReader {
             inner: CrcReader::new(flate),
             header: Header {
