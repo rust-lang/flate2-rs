@@ -8,7 +8,6 @@ use std::io::{BytesReader,IoResult, IoError};
 use std::io;
 use std::os;
 use std::slice::bytes;
-use libc;
 
 use {BestCompression, CompressionLevel, BestSpeed};
 use crc::{CrcReader, Crc};
@@ -252,8 +251,8 @@ impl<R: Reader> EncoderReader<R> {
     }
 
     /// Returns the underlying stream, consuming this encoder
-    pub fn unwrap(self) -> R {
-        self.inner.inner.unwrap()
+    pub fn into_inner(self) -> R {
+        self.inner.inner.into_inner()
     }
 
     fn read_footer(&mut self, into: &mut [u8]) -> IoResult<uint> {
@@ -310,9 +309,8 @@ impl<R: Reader> DecoderReader<R> {
     /// If an error is encountered when parsing the gzip header, an error is
     /// returned.
     pub fn new(r: R) -> IoResult<DecoderReader<R>> {
-        // from here, all reads should go through this reader (not r):
-        let mut crc_reader = CrcReader::new( r );
-        
+        let mut crc_reader = CrcReader::new(r);
+
         let id1 = try!(crc_reader.read_u8());
         let id2 = try!(crc_reader.read_u8());
         if id1 != 0x1f || id2 != 0x8b { return Err(bad_header()) }
@@ -356,12 +354,13 @@ impl<R: Reader> DecoderReader<R> {
         };
 
         if flg & FHCRC != 0 {
-            let calced_crc = crc_reader.crc().sum() & 0xFFFF;
-            let stored_crc = try!(crc_reader.read_le_u16()) as libc::c_ulong;
+            let calced_crc = crc_reader.crc().sum() as u16;
+            let stored_crc = try!(crc_reader.read_le_u16());
             if calced_crc != stored_crc { return Err(corrupt()) }
         }
 
-        let flate = raw::DecoderReader::new(crc_reader.unwrap(), true, Vec::with_capacity(128 * 1024));
+        let flate = raw::DecoderReader::new(crc_reader.into_inner(), true,
+                                            Vec::with_capacity(128 * 1024));
         return Ok(DecoderReader {
             inner: CrcReader::new(flate),
             header: Header {

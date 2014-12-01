@@ -74,7 +74,7 @@ impl<R: Reader> EncoderReader<R> {
     }
 
     /// Consumes this encoder, returning the underlying reader.
-    pub fn unwrap(self) -> R {
+    pub fn into_inner(self) -> R {
         self.inner.inner
     }
 }

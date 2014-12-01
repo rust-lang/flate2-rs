@@ -36,7 +36,7 @@ impl<R: Reader> CrcReader<R> {
         CrcReader { inner: r, crc: Crc::new() }
     }
     pub fn crc(&self) -> &Crc { &self.crc }
-    pub fn unwrap(self) -> R { self.inner }
+    pub fn into_inner(self) -> R { self.inner }
     pub fn inner(&mut self) -> &mut R { &mut self.inner }
 }
 
