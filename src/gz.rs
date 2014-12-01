@@ -459,7 +459,7 @@ mod tests {
         let mut e = EncoderWriter::new(MemWriter::new(), Default);
         e.write(b"foo bar baz").unwrap();
         let inner = e.finish().unwrap();
-        let mut d = DecoderReader::new(MemReader::new(inner.unwrap()));
+        let mut d = DecoderReader::new(MemReader::new(inner.into_inner()));
         assert_eq!(d.read_to_string().unwrap().as_slice(), "foo bar baz");
     }
 
@@ -474,7 +474,7 @@ mod tests {
             w.write(to_write).unwrap();
         }
         let result = w.finish().unwrap();
-        let mut r = DecoderReader::new(MemReader::new(result.unwrap()));
+        let mut r = DecoderReader::new(MemReader::new(result.into_inner()));
         assert!(r.read_to_end().unwrap() == real);
     }
 
