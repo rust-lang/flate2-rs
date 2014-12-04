@@ -452,7 +452,7 @@ impl Header {
 
 fn corrupt() -> IoError {
     IoError {
-        kind: io::OtherIoError,
+        kind: io::InvalidInput,
         desc: "corrupt gzip stream does not have a matching checksum",
         detail: None,
     }
@@ -485,7 +485,8 @@ mod tests {
             w.write(to_write).unwrap();
         }
         let result = w.finish().unwrap();
-        let mut r = DecoderReader::new(MemReader::new(result.into_inner()));
+        let inner = result.into_inner();
+        let mut r = DecoderReader::new(MemReader::new(inner));
         assert!(r.read_to_end().unwrap() == real);
     }
 

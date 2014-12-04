@@ -1,4 +1,4 @@
-/* miniz.c v1.15 - public domain deflate/inflate, zlib-subset, ZIP reading/writing/appending, PNG writing
+/* miniz.c v1.16 beta r1 - public domain deflate/inflate, zlib-subset, ZIP reading/writing/appending, PNG writing
    See "unlicense" statement at the end of this file.
    Rich Geldreich <richgel99@gmail.com>, last updated Oct. 13, 2013
    Implements RFC 1950: http://www.ietf.org/rfc/rfc1950.txt and RFC 1951: http://www.ietf.org/rfc/rfc1951.txt
@@ -7,6 +7,21 @@
    MINIZ_NO_ARCHIVE_APIS, or to get rid of all stdio usage define MINIZ_NO_STDIO (see the list below for more macros).
 
    * Change History
+     10/19/13 v1.16 beta r1 - Two key inflator-only robustness and streaming related changes. Also merged in tdefl_compressor_alloc(), tdefl_compressor_free() helpers to make script bindings easier for rustyzip.
+       - The inflator coroutine func. is subtle and complex so I'm being cautious about this release. I would greatly appreciate any help with testing or any feedback.
+         I feel good about these changes, and they've been through several hours of automated testing, but they will probably not fix anything for the majority of prev. users so I'm
+         going to mark this release as beta for a few weeks and continue testing it at work/home on various things.
+       - The inflator in raw (non-zlib) mode is now usable on gzip or similiar data streams that have a bunch of bytes following the raw deflate data (problem discovered by rustyzip author williamw520).
+         This version should *never* read beyond the last byte of the raw deflate data independent of how many bytes you pass into the input buffer. This issue was caused by the various Huffman bitbuffer lookahead optimizations, and
+         would not be an issue if the caller knew and enforced the precise size of the raw compressed data *or* if the compressed data was in zlib format (i.e. always followed by the byte aligned zlib adler32).
+         So in other words, you can now call the inflator on deflate streams that are followed by arbitrary amounts of data and it's guaranteed that decompression will stop exactly on the last byte.
+       - The inflator now has a new failure status: TINFL_STATUS_FAILED_CANNOT_MAKE_PROGRESS (-4). Previously, if the inflator was starved of bytes and could not make progress (because the input buffer was empty and the
+         caller did not set the TINFL_FLAG_HAS_MORE_INPUT flag - say on truncated or corrupted compressed data stream) it would append all 0's to the input and try to soldier on.
+         This is scary, because in the worst case, I believe it was possible for the prev. inflator to start outputting large amounts of literal data. If the caller didn't know when to stop accepting output
+         (because it didn't know how much uncompressed data was expected, or didn't enforce a sane maximum) it could continue forever. v1.16 cannot fall into this failure mode, instead it'll return
+         TINFL_STATUS_FAILED_CANNOT_MAKE_PROGRESS immediately if it needs 1 or more bytes to make progress, the input buf is empty, and the caller has indicated that no more input is available. This is a "soft"
+         failure, so you can call the inflator again with more input and it will try to continue, or you can give up and fail. This could be very useful in network streaming scenarios.
+       - Added documentation to all the tinfl return status codes, fixed miniz_tester so it accepts double minus params for Linux, tweaked example1.c, added a simple "follower bytes" test to miniz_tester.cpp.
      10/13/13 v1.15 r4 - Interim bugfix release while I work on the next major release with Zip64 support (almost there!):
        - Critical fix for the MZ_ZIP_FLAG_DO_NOT_SORT_CENTRAL_DIRECTORY bug (thanks kahmyong.moon@hp.com) which could cause locate files to not find files. This bug
         would only have occured in earlier versions if you explicitly used this flag, OR if you used mz_zip_extract_archive_file_to_heap() or mz_zip_add_mem_to_archive_file_in_place()
@@ -253,6 +268,7 @@ typedef void *(*mz_alloc_func)(void *opaque, size_t items, size_t size);
 typedef void (*mz_free_func)(void *opaque, void *address);
 typedef void *(*mz_realloc_func)(void *opaque, void *address, size_t items, size_t size);
 
+// TODO: I can't encode "1.16" here, argh
 #define MZ_VERSION          "9.1.15"
 #define MZ_VERNUM           0x91F0
 #define MZ_VER_MAJOR        9
@@ -721,12 +737,37 @@ struct tinfl_decompressor_tag; typedef struct tinfl_decompressor_tag tinfl_decom
 // Return status.
 typedef enum
 {
+  // This flags indicates the inflator needs 1 or more input bytes to make forward progress, but the caller is indicating that no more are available. The compressed data
+  // is probably corrupted. If you call the inflator again with more bytes it'll try to continue processing the input but this is a BAD sign (either the data is corrupted or you called it incorrectly).
+  // If you call it again with no input you'll just get TINFL_STATUS_FAILED_CANNOT_MAKE_PROGRESS again.
+  TINFL_STATUS_FAILED_CANNOT_MAKE_PROGRESS = -4,
+
+  // This flag indicates that one or more of the input parameters was obviously bogus. (You can try calling it again, but if you get this error the calling code is wrong.)
   TINFL_STATUS_BAD_PARAM = -3,
+
+  // This flags indicate the inflator is finished but the adler32 check of the uncompressed data didn't match. If you call it again it'll return TINFL_STATUS_DONE.
   TINFL_STATUS_ADLER32_MISMATCH = -2,
+
+  // This flags indicate the inflator has somehow failed (bad code, corrupted input, etc.). If you call it again without resetting via tinfl_init() it it'll just keep on returning the same status failure code.
   TINFL_STATUS_FAILED = -1,
+
+  // Any status code less than TINFL_STATUS_DONE must indicate a failure.
+
+  // This flag indicates the inflator has returned every byte of uncompressed data that it can, has consumed every byte that it needed, has successfully reached the end of the deflate stream, and
+  // if zlib headers and adler32 checking enabled that it has successfully checked the uncompressed data's adler32. If you call it again you'll just get TINFL_STATUS_DONE over and over again.
   TINFL_STATUS_DONE = 0,
+
+  // This flag indicates the inflator MUST have more input data (even 1 byte) before it can make any more forward progress, or you need to clear the TINFL_FLAG_HAS_MORE_INPUT
+  // flag on the next call if you don't have any more source data. If the source data was somehow corrupted it's also possible (but unlikely) for the inflator to keep on demanding input to
+  // proceed, so be sure to properly set the TINFL_FLAG_HAS_MORE_INPUT flag.
   TINFL_STATUS_NEEDS_MORE_INPUT = 1,
+
+  // This flag indicates the inflator definitely has 1 or more bytes of uncompressed data available, but it cannot write this data into the output buffer.
+  // Note if the source compressed data was corrupted it's possible for the inflator to return a lot of uncompressed data to the caller. I've been assuming you know how much uncompressed data to expect
+  // (either exact or worst case) and will stop calling the inflator and fail after receiving too much. In pure streaming scenarios where you have no idea how many bytes to expect this may not be possible
+  // so I may need to add some code to address this.
   TINFL_STATUS_HAS_MORE_OUTPUT = 2
+
 } tinfl_status;
 
 // Initializes the decompressor to its initial state.
@@ -918,6 +959,14 @@ mz_uint32 tdefl_get_adler32(tdefl_compressor *d);
 // strategy may be either MZ_DEFAULT_STRATEGY, MZ_FILTERED, MZ_HUFFMAN_ONLY, MZ_RLE, or MZ_FIXED
 mz_uint tdefl_create_comp_flags_from_zip_params(int level, int window_bits, int strategy);
 #endif // #ifndef MINIZ_NO_ZLIB_APIS
+
+// Allocate the tdefl_compressor and tinfl_decompressor structures in C so that
+// non-C language bindings to tdefl_ and tinfl_ API don't need to worry about
+// structure size and allocation mechanism.
+tdefl_compressor *tdefl_compressor_alloc();
+void tdefl_compressor_free(tdefl_compressor *pComp);
+tinfl_decompressor *tinfl_decompressor_alloc();
+void tinfl_decompressor_free(tinfl_decompressor *pDecomp);
 
 #ifdef __cplusplus
 }
@@ -1365,23 +1414,10 @@ const char *mz_error(int err)
 #define TINFL_CR_RETURN_FOREVER(state_index, result) do { for ( ; ; ) { TINFL_CR_RETURN(state_index, result); } } MZ_MACRO_END
 #define TINFL_CR_FINISH }
 
-// TODO: If the caller has indicated that there's no more input, and we attempt to read beyond the input buf, then something is wrong with the input because the inflator never
-// reads ahead more than it needs to. Currently TINFL_GET_BYTE() pads the end of the stream with 0's in this scenario.
 #define TINFL_GET_BYTE(state_index, c) do { \
-  if (pIn_buf_cur >= pIn_buf_end) { \
-    for ( ; ; ) { \
-      if (decomp_flags & TINFL_FLAG_HAS_MORE_INPUT) { \
-        TINFL_CR_RETURN(state_index, TINFL_STATUS_NEEDS_MORE_INPUT); \
-        if (pIn_buf_cur < pIn_buf_end) { \
-          c = *pIn_buf_cur++; \
-          break; \
-        } \
-      } else { \
-        c = 0; \
-        break; \
-      } \
-    } \
-  } else c = *pIn_buf_cur++; } MZ_MACRO_END
+  while (pIn_buf_cur >= pIn_buf_end) { \
+    TINFL_CR_RETURN(state_index, (decomp_flags & TINFL_FLAG_HAS_MORE_INPUT) ? TINFL_STATUS_NEEDS_MORE_INPUT : TINFL_STATUS_FAILED_CANNOT_MAKE_PROGRESS); \
+  } c = *pIn_buf_cur++; } MZ_MACRO_END
 
 #define TINFL_NEED_BITS(state_index, n) do { mz_uint c; TINFL_GET_BYTE(state_index, c); bit_buf |= (((tinfl_bit_buf_t)c) << num_bits); num_bits += 8; } while (num_bits < (mz_uint)(n))
 #define TINFL_SKIP_BITS(state_index, n) do { if (num_bits < (mz_uint)(n)) { TINFL_NEED_BITS(state_index, n); } bit_buf >>= (n); num_bits -= (n); } MZ_MACRO_END
@@ -1410,6 +1446,8 @@ const char *mz_error(int err)
 // beyond the final byte of the deflate stream. (In other words, when this macro wants to read another byte from the input, it REALLY needs another byte in order to fully
 // decode the next Huffman code.) Handling this properly is particularly important on raw deflate (non-zlib) streams, which aren't followed by a byte aligned adler-32.
 // The slow path is only executed at the very end of the input buffer.
+// v1.16: The original macro handled the case at the very end of the passed-in input buffer, but we also need to handle the case where the user passes in 1+zillion bytes
+// following the deflate data and our non-conservative read-ahead path won't kick in here on this code. This is much trickier.
 #define TINFL_HUFF_DECODE(state_index, sym, pHuff) do { \
   int temp; mz_uint code_len, c; \
   if (num_bits < 15) { \
@@ -1474,14 +1512,7 @@ tinfl_status tinfl_decompress(tinfl_decompressor *r, const mz_uint8 *pIn_buf_nex
         size_t n; while (pOut_buf_cur >= pOut_buf_end) { TINFL_CR_RETURN(9, TINFL_STATUS_HAS_MORE_OUTPUT); }
         while (pIn_buf_cur >= pIn_buf_end)
         {
-          if (decomp_flags & TINFL_FLAG_HAS_MORE_INPUT)
-          {
-            TINFL_CR_RETURN(38, TINFL_STATUS_NEEDS_MORE_INPUT);
-          }
-          else
-          {
-            TINFL_CR_RETURN_FOREVER(40, TINFL_STATUS_FAILED);
-          }
+          TINFL_CR_RETURN(38, (decomp_flags & TINFL_FLAG_HAS_MORE_INPUT) ? TINFL_STATUS_NEEDS_MORE_INPUT : TINFL_STATUS_FAILED_CANNOT_MAKE_PROGRESS);
         }
         n = MZ_MIN(MZ_MIN((size_t)(pOut_buf_end - pOut_buf_cur), (size_t)(pIn_buf_end - pIn_buf_cur)), counter);
         TINFL_MEMCPY(pOut_buf_cur, pIn_buf_cur, n); pIn_buf_cur += n; pOut_buf_cur += n; counter -= (mz_uint)n;
@@ -1668,15 +1699,27 @@ tinfl_status tinfl_decompress(tinfl_decompressor *r, const mz_uint8 *pIn_buf_nex
       }
     }
   } while (!(r->m_final & 1));
+
+  // Ensure byte alignment and put back any bytes from the bitbuf if we've looked ahead too far on gzip, or other Deflate streams followed by arbitrary data.
+  // I'm being super conservative here. A number of simplifications can be made to the byte alignment part, and the Adler32 check shouldn't ever need to worry about reading from the bitbuf now.
+  TINFL_SKIP_BITS(32, num_bits & 7);
+  while ((pIn_buf_cur > pIn_buf_next) && (num_bits >= 8)) { --pIn_buf_cur; num_bits -= 8; } bit_buf &= (tinfl_bit_buf_t)((1ULL << num_bits) - 1ULL);
+  MZ_ASSERT(!num_bits); // if this assert fires then we've read beyond the end of non-deflate/zlib streams with following data (such as gzip streams).
+
   if (decomp_flags & TINFL_FLAG_PARSE_ZLIB_HEADER)
   {
-    TINFL_SKIP_BITS(32, num_bits & 7); for (counter = 0; counter < 4; ++counter) { mz_uint s; if (num_bits) TINFL_GET_BITS(41, s, 8); else TINFL_GET_BYTE(42, s); r->m_z_adler32 = (r->m_z_adler32 << 8) | s; }
+    for (counter = 0; counter < 4; ++counter) { mz_uint s; if (num_bits) TINFL_GET_BITS(41, s, 8); else TINFL_GET_BYTE(42, s); r->m_z_adler32 = (r->m_z_adler32 << 8) | s; }
   }
   TINFL_CR_RETURN_FOREVER(34, TINFL_STATUS_DONE);
+
   TINFL_CR_FINISH
 
 common_exit:
-  r->m_num_bits = num_bits; r->m_bit_buf = bit_buf; r->m_dist = dist; r->m_counter = counter; r->m_num_extra = num_extra; r->m_dist_from_out_buf_start = dist_from_out_buf_start;
+  // As long as we aren't telling the caller that we NEED more input to make forward progress:
+  // Put back any bytes from the bitbuf in case we've looked ahead too far on gzip, or other Deflate streams followed by arbitrary data.
+  // We need to be very careful here to NOT push back any bytes we definitely know we need to make forward progress, though, or we'll lock the caller up into an inf loop.
+  if ((status != TINFL_STATUS_NEEDS_MORE_INPUT) && (status != TINFL_STATUS_FAILED_CANNOT_MAKE_PROGRESS)) { while ((pIn_buf_cur > pIn_buf_next) && (num_bits >= 8)) { --pIn_buf_cur; num_bits -= 8; } }
+  r->m_num_bits = num_bits; r->m_bit_buf = bit_buf & (tinfl_bit_buf_t)((1ULL << num_bits) - 1ULL); r->m_dist = dist; r->m_counter = counter; r->m_num_extra = num_extra; r->m_dist_from_out_buf_start = dist_from_out_buf_start;
   *pIn_buf_size = pIn_buf_cur - pIn_buf_next; *pOut_buf_size = pOut_buf_cur - pOut_buf_next;
   if ((decomp_flags & (TINFL_FLAG_PARSE_ZLIB_HEADER | TINFL_FLAG_COMPUTE_ADLER32)) && (status >= 0))
   {
@@ -2828,10 +2871,37 @@ void *tdefl_write_image_to_png_file_in_memory_ex(const void *pImage, int w, int 
   // compute final size of file, grab compressed data buffer and return
   *pLen_out += 57; MZ_FREE(pComp); return out_buf.m_pBuf;
 }
+
 void *tdefl_write_image_to_png_file_in_memory(const void *pImage, int w, int h, int num_chans, size_t *pLen_out)
 {
   // Level 6 corresponds to TDEFL_DEFAULT_MAX_PROBES or MZ_DEFAULT_LEVEL (but we can't depend on MZ_DEFAULT_LEVEL being available in case the zlib API's where #defined out)
   return tdefl_write_image_to_png_file_in_memory_ex(pImage, w, h, num_chans, pLen_out, 6, MZ_FALSE);
+}
+
+// Allocate the tdefl_compressor and tinfl_decompressor structures in C so that
+// non-C language bindings to tdefL_ and tinfl_ API don't need to worry about
+// structure size and allocation mechanism.
+tdefl_compressor *tdefl_compressor_alloc()
+{
+  return (tdefl_compressor *)MZ_MALLOC(sizeof(tdefl_compressor));
+}
+
+void tdefl_compressor_free(tdefl_compressor* pComp)
+{
+  MZ_FREE(pComp);
+}
+
+tinfl_decompressor *tinfl_decompressor_alloc()
+{
+  tinfl_decompressor *pDecomp = (tinfl_decompressor *)MZ_MALLOC(sizeof(tinfl_decompressor));
+  if (pDecomp)
+    tinfl_init(pDecomp);
+  return pDecomp;
+}
+
+void tinfl_decompressor_free(tinfl_decompressor *pDecomp)
+{
+  MZ_FREE(pDecomp);
 }
 
 #ifdef _MSC_VER
