@@ -388,14 +388,20 @@ impl<R: Reader> DecoderReader<R> {
         {
             let flate = self.inner.inner();
             let len = {
-                let remaining = flate.buf.slice_from(flate.buf.len());
+                let remaining = flate.buf.slice_from(flate.pos);
                 let len = cmp::min(remaining.len(), buf.len());
                 bytes::copy_memory(buf, remaining.slice_to(len));
                 len
             };
 
             if len < buf.len() {
-                try!(flate.read_at_least(buf.len() - len, buf));
+                match flate.inner.read(buf.slice_from_mut(len)) {
+                    Ok(..) => {}
+                    Err(ref e) if e.kind == io::EndOfFile => {
+                        return Err(corrupt())
+                    }
+                    Err(e) => return Err(e)
+                }
             }
         }
 

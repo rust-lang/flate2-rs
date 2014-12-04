@@ -25,7 +25,7 @@ pub struct EncoderReader<R> {
 pub struct DecoderReader<R> {
     pub inner: R,
     stream: Stream,
-    pos: uint,
+    pub pos: uint,
     pub buf: Vec<u8>,
 }
 
