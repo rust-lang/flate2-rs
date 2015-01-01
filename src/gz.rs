@@ -6,6 +6,7 @@ use std::c_str::CString;
 use std::cmp;
 use std::io::{BytesReader,IoResult, IoError};
 use std::io;
+use std::iter::repeat;
 use std::os;
 use std::slice::bytes;
 
@@ -138,7 +139,7 @@ impl Builder {
     fn into_header(self, lvl: CompressionLevel) -> Vec<u8> {
         let Builder { extra, filename, comment, mtime } = self;
         let mut flg = 0;
-        let mut header = Vec::from_elem(10, 0u8);
+        let mut header = repeat(0u8).take(10).collect::<Vec<_>>();
         match extra {
             Some(v) => {
                 flg |= FEXTRA;
@@ -463,7 +464,7 @@ mod tests {
     use super::{EncoderWriter, EncoderReader, DecoderReader, Builder};
     use CompressionLevel::Default;
     use std::io::{MemWriter, MemReader};
-    use std::rand::{task_rng, Rng};
+    use std::rand::{thread_rng, Rng};
 
     #[test]
     fn roundtrip() {
@@ -478,9 +479,9 @@ mod tests {
     fn roundtrip_big() {
         let mut real = Vec::new();
         let mut w = EncoderWriter::new(MemWriter::new(), Default);
-        let v = task_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
+        let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
         for _ in range(0u, 200) {
-            let to_write = v.slice_to(task_rng().gen_range(0, v.len()));
+            let to_write = v.slice_to(thread_rng().gen_range(0, v.len()));
             real.push_all(to_write);
             w.write(to_write).unwrap();
         }
@@ -492,7 +493,7 @@ mod tests {
 
     #[test]
     fn roundtrip_big2() {
-        let v = task_rng().gen_iter::<u8>().take(1024 * 1024).collect::<Vec<_>>();
+        let v = thread_rng().gen_iter::<u8>().take(1024 * 1024).collect::<Vec<_>>();
         let r = MemReader::new(v.clone());
         let mut r = DecoderReader::new(EncoderReader::new(r, Default));
         assert!(r.read_to_end().unwrap() == v);

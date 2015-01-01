@@ -136,7 +136,7 @@ impl<W: Writer> Writer for DecoderWriter<W> {
 mod tests {
     use super::{EncoderWriter, EncoderReader, DecoderReader, DecoderWriter};
     use std::io::{MemWriter, MemReader, BufReader};
-    use std::rand::{task_rng, Rng};
+    use std::rand::{thread_rng, Rng};
 
     use CompressionLevel::Default;
 
@@ -144,9 +144,9 @@ mod tests {
     fn roundtrip() {
         let mut real = Vec::new();
         let mut w = EncoderWriter::new(MemWriter::new(), Default);
-        let v = task_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
+        let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
         for _ in range(0u, 200) {
-            let to_write = v.slice_to(task_rng().gen_range(0, v.len()));
+            let to_write = v.slice_to(thread_rng().gen_range(0, v.len()));
             real.push_all(to_write);
             w.write(to_write).unwrap();
         }
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn roundtrip2() {
-        let v = task_rng().gen_iter::<u8>().take(1024 * 1024).collect::<Vec<_>>();
+        let v = thread_rng().gen_iter::<u8>().take(1024 * 1024).collect::<Vec<_>>();
         let v = v.as_slice();
         let buf = BufReader::new(v);
         let mut r = DecoderReader::new(EncoderReader::new(buf, Default));
@@ -166,7 +166,7 @@ mod tests {
 
     #[test]
     fn roundtrip3() {
-        let v = task_rng().gen_iter::<u8>().take(1024 * 1024).collect::<Vec<_>>();
+        let v = thread_rng().gen_iter::<u8>().take(1024 * 1024).collect::<Vec<_>>();
         let v = v.as_slice();
         let mut w = EncoderWriter::new(DecoderWriter::new(MemWriter::new()),
                                        Default);
