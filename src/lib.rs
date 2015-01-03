@@ -25,7 +25,7 @@
 //! already existing stream to chain construction.
 
 #![deny(missing_docs)]
-#![feature(unsafe_destructor)]
+#![feature(unsafe_destructor, associated_types)]
 
 extern crate libc;
 extern crate "miniz-sys" as ffi;
@@ -79,7 +79,7 @@ pub enum CompressionLevel {
 }
 
 /// A helper trait to create encoder/decoders with method syntax.
-pub trait FlateReader: Reader {
+pub trait FlateReader: Reader + Sized {
     /// Consume this reader to create a compression stream at the specified
     /// compression level.
     fn gz_encode(self, lvl: CompressionLevel) -> reader::GzEncoder<Self> {
@@ -115,7 +115,7 @@ pub trait FlateReader: Reader {
 }
 
 /// A helper trait to create encoder/decoders with method syntax.
-pub trait FlateWriter: Writer {
+pub trait FlateWriter: Writer + Sized {
     /// Consume this writer to create a compression stream at the specified
     /// compression level.
     fn gz_encode(self, lvl: CompressionLevel) -> writer::GzEncoder<Self> {

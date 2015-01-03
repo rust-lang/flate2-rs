@@ -274,6 +274,7 @@ impl Stream {
 }
 
 impl Deref for Stream {
+    type Target = ffi::mz_stream;
     fn deref<'a>(&'a self) -> &'a ffi::mz_stream {
         let Stream(ref inner, _) = *self; inner
     }
