@@ -65,7 +65,7 @@ pub mod writer {
 
 /// When compressing data, the compression level can be specified by a value in
 /// this enum.
-#[deriving(Copy)]
+#[derive(Copy)]
 pub enum CompressionLevel {
     /// No compression is to be performed, this may actually inflate data
     /// slightly when encoding.

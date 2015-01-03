@@ -4,6 +4,7 @@ use std::io;
 use std::mem;
 use std::io::IoResult;
 use libc;
+use std::ops::{Deref, DerefMut};
 
 use {CompressionLevel, NoCompression};
 use ffi;
@@ -272,13 +273,13 @@ impl Stream {
     }
 }
 
-impl Deref<ffi::mz_stream> for Stream {
+impl Deref for Stream {
     fn deref<'a>(&'a self) -> &'a ffi::mz_stream {
         let Stream(ref inner, _) = *self; inner
     }
 }
 
-impl DerefMut<ffi::mz_stream> for Stream {
+impl DerefMut for Stream {
     fn deref_mut<'a>(&'a mut self) -> &'a mut ffi::mz_stream {
         let Stream(ref mut inner, _) = *self; inner
     }

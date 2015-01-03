@@ -9,6 +9,7 @@ use std::io;
 use std::iter::repeat;
 use std::os;
 use std::slice::bytes;
+use std::c_str::ToCStr;
 
 use {BestCompression, CompressionLevel, BestSpeed};
 use crc::{CrcReader, Crc};
@@ -385,7 +386,7 @@ impl<R: Reader> DecoderReader<R> {
     pub fn header(&self) -> &Header { &self.header }
 
     fn finish(&mut self) -> IoResult<()> {
-        let ref mut buf = [0u8, ..8];
+        let ref mut buf = [0u8; 8];
         {
             let flate = self.inner.inner();
             let len = {
