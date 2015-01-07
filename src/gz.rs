@@ -2,14 +2,14 @@
 //!
 //! [1]: http://www.gzip.org/zlib/rfc-gzip.html
 
-use std::c_str::CString;
 use std::cmp;
+use std::ffi::CString;
 use std::io::{BytesReader,IoResult, IoError};
 use std::io;
 use std::iter::repeat;
 use std::os;
+use std::path::BytesContainer;
 use std::slice::bytes;
-use std::c_str::ToCStr;
 
 use {BestCompression, CompressionLevel, BestSpeed};
 use crc::{CrcReader, Crc};
@@ -96,14 +96,14 @@ impl Builder {
     }
 
     /// Configure the `filename` field in the gzip header.
-    pub fn filename<T: ToCStr>(mut self, filename: T) -> Builder {
-        self.filename = Some(filename.to_c_str());
+    pub fn filename<T: BytesContainer>(mut self, filename: T) -> Builder {
+        self.filename = Some(CString::from_slice(filename.container_as_bytes()));
         self
     }
 
     /// Configure the `comment` field in the gzip header.
-    pub fn comment<T: ToCStr>(mut self, comment: T) -> Builder {
-        self.comment = Some(comment.to_c_str());
+    pub fn comment<T: BytesContainer>(mut self, comment: T) -> Builder {
+        self.comment = Some(CString::from_slice(comment.container_as_bytes()));
         self
     }
 
@@ -153,14 +153,14 @@ impl Builder {
         match filename {
             Some(filename) => {
                 flg |= FNAME;
-                header.push_all(filename.as_bytes());
+                header.push_all(filename.as_bytes_with_nul());
             }
             None => {}
         }
         match comment {
             Some(comment) => {
                 flg |= FCOMMENT;
-                header.push_all(comment.as_bytes());
+                header.push_all(comment.as_bytes_with_nul());
             }
             None => {}
         }

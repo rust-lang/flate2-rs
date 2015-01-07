@@ -25,7 +25,7 @@
 //! already existing stream to chain construction.
 
 #![deny(missing_docs)]
-#![feature(unsafe_destructor, associated_types)]
+#![feature(unsafe_destructor)]
 
 extern crate libc;
 extern crate "miniz-sys" as ffi;
