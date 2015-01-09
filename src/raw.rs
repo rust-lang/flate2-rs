@@ -20,13 +20,13 @@ pub struct EncoderReader<R> {
     pub inner: R,
     stream: Stream,
     buf: Vec<u8>,
-    pos: uint,
+    pos: usize,
 }
 
 pub struct DecoderReader<R> {
     pub inner: R,
     stream: Stream,
-    pub pos: uint,
+    pub pos: usize,
     pub buf: Vec<u8>,
 }
 
@@ -96,7 +96,7 @@ impl<R: Reader> EncoderReader<R> {
 }
 
 impl<R: Reader> Reader for EncoderReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> IoResult<uint> {
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         self.stream.read(buf, &mut self.buf, &mut self.pos,
                          &mut self.inner, ffi::mz_deflate)
     }
@@ -114,7 +114,7 @@ impl<R: Reader> DecoderReader<R> {
 }
 
 impl<R: Reader> Reader for DecoderReader<R> {
-    fn read(&mut self, into: &mut [u8]) -> IoResult<uint> {
+    fn read(&mut self, into: &mut [u8]) -> IoResult<usize> {
         self.stream.read(into, &mut self.buf, &mut self.pos,
                          &mut self.inner, ffi::mz_inflate)
     }
@@ -182,10 +182,10 @@ impl Stream {
     }
 
     fn read<R: Reader>(&mut self, into: &mut [u8], buf: &mut Vec<u8>,
-                       pos: &mut uint, reader: &mut R,
+                       pos: &mut usize, reader: &mut R,
                        f: unsafe extern fn(*mut ffi::mz_stream,
                                            libc::c_int) -> libc::c_int)
-                       -> IoResult<uint> {
+                       -> IoResult<usize> {
 
         let cap = buf.capacity();
         let mut read = 0;
@@ -214,8 +214,8 @@ impl Stream {
 
             let flush = if eof {ffi::MZ_FINISH} else {ffi::MZ_NO_FLUSH};
             let ret = unsafe { f(&mut **self, flush) };
-            read += (self.total_out - before_out) as uint;
-            *pos += (self.total_in - before_in) as uint;
+            read += (self.total_out - before_out) as usize;
+            *pos += (self.total_in - before_in) as usize;
 
             match ret {
                 ffi::MZ_OK => {}
@@ -252,10 +252,10 @@ impl Stream {
 
             let ret = unsafe {
                 let ret = f(&mut **self, flush);
-                into.set_len(cur_len + (self.total_out - before_out) as uint);
+                into.set_len(cur_len + (self.total_out - before_out) as usize);
                 ret
             };
-            buf = buf.slice_from((self.total_in - before_in) as uint);
+            buf = buf.slice_from((self.total_in - before_in) as usize);
 
             if cap - cur_len == 0 || ret == ffi::MZ_BUF_ERROR {
                 try!(writer.write(into.as_slice()));

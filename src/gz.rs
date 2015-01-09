@@ -38,7 +38,7 @@ pub struct EncoderWriter<W> {
 pub struct EncoderReader<R> {
     inner: raw::EncoderReader<CrcReader<R>>,
     header: Vec<u8>,
-    pos: uint,
+    pos: usize,
     eof: bool,
 }
 
@@ -257,7 +257,7 @@ impl<R: Reader> EncoderReader<R> {
         self.inner.inner.into_inner()
     }
 
-    fn read_footer(&mut self, into: &mut [u8]) -> IoResult<uint> {
+    fn read_footer(&mut self, into: &mut [u8]) -> IoResult<usize> {
         if self.pos == 8 {
             return Err(io::standard_error(io::EndOfFile))
         }
@@ -275,7 +275,7 @@ impl<R: Reader> EncoderReader<R> {
     }
 }
 
-fn copy(into: &mut [u8], from: &[u8], pos: &mut uint) -> uint {
+fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
     let min = cmp::min(into.len(), from.len() - *pos);
     bytes::copy_memory(into, from.slice(*pos, *pos + min));
     *pos += min;
@@ -283,7 +283,7 @@ fn copy(into: &mut [u8], from: &[u8], pos: &mut uint) -> uint {
 }
 
 impl<R: Reader> Reader for EncoderReader<R> {
-    fn read(&mut self, mut into: &mut [u8]) -> IoResult<uint> {
+    fn read(&mut self, mut into: &mut [u8]) -> IoResult<usize> {
         let mut amt = 0;
         if self.eof {
             return self.read_footer(into)
@@ -326,7 +326,7 @@ impl<R: Reader> DecoderReader<R> {
 
         let extra = if flg & FEXTRA != 0 {
             let xlen = try!(crc_reader.read_le_u16());
-            Some(try!(crc_reader.read_exact(xlen as uint)))
+            Some(try!(crc_reader.read_exact(xlen as usize)))
         } else {
             None
         };
@@ -422,7 +422,7 @@ impl<R: Reader> DecoderReader<R> {
 }
 
 impl<R: Reader> Reader for DecoderReader<R> {
-    fn read(&mut self, into: &mut [u8]) -> IoResult<uint> {
+    fn read(&mut self, into: &mut [u8]) -> IoResult<usize> {
         match self.inner.read(into) {
             Ok(amt) => Ok(amt),
             Err(e) => {
@@ -481,7 +481,7 @@ mod tests {
         let mut real = Vec::new();
         let mut w = EncoderWriter::new(MemWriter::new(), Default);
         let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
-        for _ in range(0u, 200) {
+        for _ in range(0, 200) {
             let to_write = v.slice_to(thread_rng().gen_range(0, v.len()));
             real.push_all(to_write);
             w.write(to_write).unwrap();

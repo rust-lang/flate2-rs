@@ -81,7 +81,7 @@ impl<R: Reader> EncoderReader<R> {
 }
 
 impl<R: Reader> Reader for EncoderReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> IoResult<uint> { self.inner.read(buf) }
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> { self.inner.read(buf) }
 }
 
 impl<R: Reader> DecoderReader<R> {
@@ -101,7 +101,7 @@ impl<R: Reader> DecoderReader<R> {
 }
 
 impl<R: Reader> Reader for DecoderReader<R> {
-    fn read(&mut self, into: &mut [u8]) -> IoResult<uint> {
+    fn read(&mut self, into: &mut [u8]) -> IoResult<usize> {
         self.inner.read(into)
     }
 }
@@ -145,7 +145,7 @@ mod tests {
         let mut real = Vec::new();
         let mut w = EncoderWriter::new(MemWriter::new(), Default);
         let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
-        for _ in range(0u, 200) {
+        for _ in range(0, 200) {
             let to_write = v.slice_to(thread_rng().gen_range(0, v.len()));
             real.push_all(to_write);
             w.write(to_write).unwrap();
