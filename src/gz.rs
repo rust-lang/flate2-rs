@@ -277,7 +277,7 @@ impl<R: Reader> EncoderReader<R> {
 
 fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
     let min = cmp::min(into.len(), from.len() - *pos);
-    bytes::copy_memory(into, from.slice(*pos, *pos + min));
+    bytes::copy_memory(into, &from[*pos .. *pos + min]);
     *pos += min;
     return min
 }
@@ -290,7 +290,7 @@ impl<R: Reader> Reader for EncoderReader<R> {
         } else if self.pos < self.header.len() {
             amt += copy(into, self.header.as_slice(), &mut self.pos);
             if amt == into.len() { return Ok(amt) }
-            let tmp = into; into = tmp.slice_from_mut(amt);
+            let tmp = into; into = &mut tmp[amt..];
         }
         match self.inner.read(into) {
             Ok(a) => Ok(amt + a),
@@ -390,14 +390,14 @@ impl<R: Reader> DecoderReader<R> {
         {
             let flate = self.inner.inner();
             let len = {
-                let remaining = flate.buf.slice_from(flate.pos);
+                let remaining = &flate.buf[flate.pos..];
                 let len = cmp::min(remaining.len(), buf.len());
-                bytes::copy_memory(buf, remaining.slice_to(len));
+                bytes::copy_memory(buf, &remaining[..len]);
                 len
             };
 
             if len < buf.len() {
-                match flate.inner.read(buf.slice_from_mut(len)) {
+                match flate.inner.read(&mut buf[len..]) {
                     Ok(..) => {}
                     Err(ref e) if e.kind == io::EndOfFile => {
                         return Err(corrupt())
@@ -482,7 +482,7 @@ mod tests {
         let mut w = EncoderWriter::new(MemWriter::new(), Default);
         let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
         for _ in range(0, 200) {
-            let to_write = v.slice_to(thread_rng().gen_range(0, v.len()));
+            let to_write = &v[..thread_rng().gen_range(0, v.len())];
             real.push_all(to_write);
             w.write(to_write).unwrap();
         }

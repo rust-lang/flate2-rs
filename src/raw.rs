@@ -201,8 +201,8 @@ impl Stream {
                 *pos = 0;
             }
 
-            let next_in = buf.slice_from(*pos);
-            let next_out = into.slice_from_mut(read);
+            let next_in = &buf[*pos..];
+            let next_out = &mut into[read..];
 
             self.next_in = next_in.as_ptr();
             self.avail_in = next_in.len() as libc::c_uint;
@@ -244,7 +244,7 @@ impl Stream {
             self.next_in = buf.as_ptr();
             self.avail_in = buf.len() as libc::c_uint;
             let cur_len = into.len();
-            self.next_out = into.slice_from_mut(cur_len).as_mut_ptr();
+            self.next_out = into[cur_len..].as_mut_ptr();
             self.avail_out = (cap - cur_len) as libc::c_uint;
 
             let before_out = self.total_out;
@@ -255,7 +255,7 @@ impl Stream {
                 into.set_len(cur_len + (self.total_out - before_out) as usize);
                 ret
             };
-            buf = buf.slice_from((self.total_in - before_in) as usize);
+            buf = &buf[(self.total_in - before_in) as usize..];
 
             if cap - cur_len == 0 || ret == ffi::MZ_BUF_ERROR {
                 try!(writer.write(into.as_slice()));

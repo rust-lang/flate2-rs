@@ -145,7 +145,7 @@ mod tests {
         let mut w = EncoderWriter::new(MemWriter::new(), Default);
         let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
         for _ in range(0, 200) {
-            let to_write = v.slice_to(thread_rng().gen_range(0, v.len()));
+            let to_write = &v[..thread_rng().gen_range(0, v.len())];
             real.push_all(to_write);
             w.write(to_write).unwrap();
         }

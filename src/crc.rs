@@ -43,7 +43,7 @@ impl<R: Reader> CrcReader<R> {
 impl<R: Reader> Reader for CrcReader<R> {
     fn read(&mut self, into: &mut [u8]) -> IoResult<usize> {
         let amt = try!(self.inner.read(into));
-        self.crc.update(into.slice_to(amt));
+        self.crc.update(&into[..amt]);
         Ok(amt)
     }
 }
