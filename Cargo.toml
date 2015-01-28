@@ -15,6 +15,9 @@ Reader/Writer streams. Contains bindings for zlib, deflate, and gzip-based
 streams.
 """
 
+[dependencies]
+libc = "0.1"
+
 [dependencies.miniz-sys]
 path = "miniz-sys"
 version = "0.1.0"
