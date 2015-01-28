@@ -1,6 +1,6 @@
 //! DEFLATE compression and decompression of streams
 
-use std::io::IoResult;
+use std::old_io::IoResult;
 use raw;
 
 /// A DEFLATE encoder, or compressor.
@@ -59,7 +59,7 @@ impl<W: Writer> EncoderWriter<W> {
 }
 
 impl<W: Writer> Writer for EncoderWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> IoResult<()> { self.inner.write(buf) }
+    fn write_all(&mut self, buf: &[u8]) -> IoResult<()> { self.inner.write_all(buf) }
     fn flush(&mut self) -> IoResult<()> { self.inner.flush() }
 }
 
@@ -127,14 +127,14 @@ impl<W: Writer> DecoderWriter<W> {
 }
 
 impl<W: Writer> Writer for DecoderWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> IoResult<()> { self.inner.write(buf) }
+    fn write_all(&mut self, buf: &[u8]) -> IoResult<()> { self.inner.write_all(buf) }
     fn flush(&mut self) -> IoResult<()> { self.inner.flush() }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{EncoderWriter, EncoderReader, DecoderReader, DecoderWriter};
-    use std::io::{MemWriter, MemReader, BufReader};
+    use std::old_io::{MemWriter, MemReader, BufReader};
     use std::rand::{thread_rng, Rng};
 
     use CompressionLevel::Default;
@@ -147,7 +147,7 @@ mod tests {
         for _ in range(0, 200) {
             let to_write = &v[..thread_rng().gen_range(0, v.len())];
             real.push_all(to_write);
-            w.write(to_write).unwrap();
+            w.write_all(to_write).unwrap();
         }
         let result = w.finish().unwrap();
         let mut r = DecoderReader::new(MemReader::new(result.into_inner()));
@@ -169,7 +169,7 @@ mod tests {
         let v = v.as_slice();
         let mut w = EncoderWriter::new(DecoderWriter::new(MemWriter::new()),
                                        Default);
-        w.write(v.as_slice()).unwrap();
+        w.write_all(v.as_slice()).unwrap();
         let w = w.finish().unwrap().finish().unwrap().into_inner();
         assert!(w.as_slice() == v);
     }

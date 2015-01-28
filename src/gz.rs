@@ -4,8 +4,8 @@
 
 use std::cmp;
 use std::ffi::CString;
-use std::io::{BytesReader,IoResult, IoError};
-use std::io;
+use std::old_io::{BytesReader,IoResult, IoError};
+use std::old_io;
 use std::iter::repeat;
 use std::os;
 use std::path::BytesContainer;
@@ -207,7 +207,7 @@ impl<W: Writer> EncoderWriter<W> {
 
     fn do_finish(&mut self) -> IoResult<W> {
         if self.header.len() != 0 {
-            try!(self.inner.write(self.header.as_slice()));
+            try!(self.inner.write_all(self.header.as_slice()));
         }
         try!(self.inner.do_finish());
         let mut inner = self.inner.inner.take().unwrap();
@@ -218,12 +218,12 @@ impl<W: Writer> EncoderWriter<W> {
 }
 
 impl<W: Writer> Writer for EncoderWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> IoResult<()> {
+    fn write_all(&mut self, buf: &[u8]) -> IoResult<()> {
         if self.header.len() != 0 {
-            try!(self.inner.inner.as_mut().unwrap().write(self.header.as_slice()));
+            try!(self.inner.inner.as_mut().unwrap().write_all(self.header.as_slice()));
             self.header.truncate(0);
         }
-        try!(self.inner.write(buf));
+        try!(self.inner.write_all(buf));
         self.crc.update(buf);
         Ok(())
     }
@@ -259,7 +259,7 @@ impl<R: Reader> EncoderReader<R> {
 
     fn read_footer(&mut self, into: &mut [u8]) -> IoResult<usize> {
         if self.pos == 8 {
-            return Err(io::standard_error(io::EndOfFile))
+            return Err(old_io::standard_error(old_io::EndOfFile))
         }
         let ref arr = [
             (self.inner.inner.crc().sum() >>  0) as u8,
@@ -294,7 +294,7 @@ impl<R: Reader> Reader for EncoderReader<R> {
         }
         match self.inner.read(into) {
             Ok(a) => Ok(amt + a),
-            Err(ref e) if e.kind == io::EndOfFile => {
+            Err(ref e) if e.kind == old_io::EndOfFile => {
                 self.eof = true;
                 self.pos = 0;
                 self.read_footer(into)
@@ -375,7 +375,7 @@ impl<R: Reader> DecoderReader<R> {
 
         fn bad_header() -> IoError {
             IoError {
-                kind: io::InvalidInput,
+                kind: old_io::InvalidInput,
                 desc: "invalid gzip header",
                 detail: None,
             }
@@ -399,7 +399,7 @@ impl<R: Reader> DecoderReader<R> {
             if len < buf.len() {
                 match flate.inner.read(&mut buf[len..]) {
                     Ok(..) => {}
-                    Err(ref e) if e.kind == io::EndOfFile => {
+                    Err(ref e) if e.kind == old_io::EndOfFile => {
                         return Err(corrupt())
                     }
                     Err(e) => return Err(e)
@@ -426,7 +426,7 @@ impl<R: Reader> Reader for DecoderReader<R> {
         match self.inner.read(into) {
             Ok(amt) => Ok(amt),
             Err(e) => {
-                if e.kind == io::EndOfFile {
+                if e.kind == old_io::EndOfFile {
                     try!(self.finish());
                 }
                 return Err(e)
@@ -454,7 +454,7 @@ impl Header {
 
 fn corrupt() -> IoError {
     IoError {
-        kind: io::InvalidInput,
+        kind: old_io::InvalidInput,
         desc: "corrupt gzip stream does not have a matching checksum",
         detail: None,
     }
@@ -464,13 +464,13 @@ fn corrupt() -> IoError {
 mod tests {
     use super::{EncoderWriter, EncoderReader, DecoderReader, Builder};
     use CompressionLevel::Default;
-    use std::io::{MemWriter, MemReader};
+    use std::old_io::{MemWriter, MemReader};
     use std::rand::{thread_rng, Rng};
 
     #[test]
     fn roundtrip() {
         let mut e = EncoderWriter::new(MemWriter::new(), Default);
-        e.write(b"foo bar baz").unwrap();
+        e.write_all(b"foo bar baz").unwrap();
         let inner = e.finish().unwrap();
         let mut d = DecoderReader::new(MemReader::new(inner.into_inner()));
         assert_eq!(d.read_to_string().unwrap().as_slice(), "foo bar baz");
@@ -484,7 +484,7 @@ mod tests {
         for _ in range(0, 200) {
             let to_write = &v[..thread_rng().gen_range(0, v.len())];
             real.push_all(to_write);
-            w.write(to_write).unwrap();
+            w.write_all(to_write).unwrap();
         }
         let result = w.finish().unwrap();
         let inner = result.into_inner();

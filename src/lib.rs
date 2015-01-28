@@ -32,7 +32,7 @@
 extern crate libc;
 extern crate "miniz-sys" as ffi;
 
-use std::io::IoResult;
+use std::old_io::IoResult;
 
 pub use gz::Builder as GzBuilder;
 pub use gz::Header as GzHeader;
@@ -158,7 +158,7 @@ impl<T: Writer> FlateWriter for T {}
 
 #[cfg(test)]
 mod test {
-    use std::io::BufReader;
+    use std::old_io::BufReader;
     use {FlateReader, CompressionLevel};
 
     #[test]

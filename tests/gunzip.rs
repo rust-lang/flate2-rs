@@ -1,7 +1,6 @@
 extern crate flate2;
 
-use std::vec::Vec;
-use std::io::{IoErrorKind,IoResult, File};
+use std::old_io::{IoErrorKind, IoResult, File};
 use flate2::reader::GzDecoder;
 
 // test extraction of a gzipped file

@@ -1,6 +1,6 @@
 //! Simple CRC bindings backed by miniz.c
 
-use std::io::IoResult;
+use std::old_io::IoResult;
 use libc;
 
 use ffi;

@@ -1,8 +1,8 @@
 //! Raw un-exported bindings to miniz for encoding/decoding
 
-use std::io;
+use std::old_io;
 use std::mem;
-use std::io::IoResult;
+use std::old_io::IoResult;
 use libc;
 use std::ops::{Deref, DerefMut};
 
@@ -53,14 +53,14 @@ impl<W: Writer> EncoderWriter<W> {
     pub fn do_finish(&mut self) -> IoResult<()> {
         try!(self.stream.write(&[], ffi::MZ_FINISH, &mut self.buf,
                                self.inner.as_mut().unwrap(), ffi::mz_deflate));
-        try!(self.inner.as_mut().unwrap().write(self.buf.as_slice()));
+        try!(self.inner.as_mut().unwrap().write_all(self.buf.as_slice()));
         self.buf.truncate(0);
         Ok(())
     }
 }
 
 impl<W: Writer> Writer for EncoderWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> IoResult<()> {
+    fn write_all(&mut self, buf: &[u8]) -> IoResult<()> {
         self.stream.write(buf, ffi::MZ_NO_FLUSH, &mut self.buf,
                           self.inner.as_mut().unwrap(), ffi::mz_deflate)
     }
@@ -132,14 +132,14 @@ impl<W: Writer> DecoderWriter<W> {
     pub fn do_finish(&mut self) -> IoResult<()> {
         try!(self.stream.write(&[], ffi::MZ_FINISH, &mut self.buf,
                                self.inner.as_mut().unwrap(), ffi::mz_inflate));
-        try!(self.inner.as_mut().unwrap().write(self.buf.as_slice()));
+        try!(self.inner.as_mut().unwrap().write_all(self.buf.as_slice()));
         self.buf.truncate(0);
         Ok(())
     }
 }
 
 impl<W: Writer> Writer for DecoderWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> IoResult<()> {
+    fn write_all(&mut self, buf: &[u8]) -> IoResult<()> {
         self.stream.write(buf, ffi::MZ_NO_FLUSH, &mut self.buf,
                           self.inner.as_mut().unwrap(), ffi::mz_inflate)
     }
@@ -195,7 +195,7 @@ impl Stream {
                 buf.truncate(0);
                 match reader.push(cap, buf) {
                     Ok(..) => {}
-                    Err(ref e) if e.kind == io::EndOfFile => eof = true,
+                    Err(ref e) if e.kind == old_io::EndOfFile => eof = true,
                     Err(e) => return Err(e),
                 }
                 *pos = 0;
@@ -221,11 +221,11 @@ impl Stream {
                 ffi::MZ_OK => {}
                 ffi::MZ_STREAM_END if read > 0 => break,
                 ffi::MZ_STREAM_END => {
-                    return Err(io::standard_error(io::EndOfFile))
+                    return Err(old_io::standard_error(old_io::EndOfFile))
                 }
                 ffi::MZ_BUF_ERROR => break,
                 ffi::MZ_DATA_ERROR => {
-                    return Err(io::standard_error(io::InvalidInput))
+                    return Err(old_io::standard_error(old_io::InvalidInput))
                 }
                 n => panic!("unexpected return {}", n),
             }
@@ -258,7 +258,7 @@ impl Stream {
             buf = &buf[(self.total_in - before_in) as usize..];
 
             if cap - cur_len == 0 || ret == ffi::MZ_BUF_ERROR {
-                try!(writer.write(into.as_slice()));
+                try!(writer.write_all(into.as_slice()));
                 into.truncate(0);
             }
             match ret {
