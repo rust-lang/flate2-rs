@@ -22,14 +22,16 @@ git = "https://github.com/alexcrichton/flate2-rs"
 ## Compression
 
 ```rust
+# #![feature(io)]
 extern crate flate2;
 
-use std::io::MemWriter;
+use std::old_io::MemWriter;
+use flate2::CompressionLevel;
 use flate2::writer::ZlibEncoder;
 
 # #[allow(unused_must_use)]
 fn main() {
-    let mut e = ZlibEncoder::new(MemWriter::new(), flate2::Default);
+    let mut e = ZlibEncoder::new(MemWriter::new(), CompressionLevel::Default);
     e.write(b"foo");
     e.write(b"bar");
     let compressed_bytes = e.finish();
@@ -38,15 +40,16 @@ fn main() {
 
 ## Decompression
 
-```rust
+```rust,no_run
+# #![feature(io)]
 extern crate flate2;
 
-use std::io::BufReader;
+use std::old_io::BufReader;
 use flate2::reader::GzDecoder;
 
 fn main() {
     let mut d = GzDecoder::new(BufReader::new(b"..."));
-    println!("{}", d.read_to_string());
+    println!("{}", d.read_to_string().unwrap());
 }
 ```
 
