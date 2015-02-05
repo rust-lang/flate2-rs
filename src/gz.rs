@@ -8,7 +8,6 @@ use std::old_io::{BytesReader,IoResult, IoError};
 use std::old_io;
 use std::iter::repeat;
 use std::env;
-use std::old_path::BytesContainer;
 use std::slice::bytes;
 
 use {BestCompression, CompressionLevel, BestSpeed};
@@ -96,14 +95,14 @@ impl Builder {
     }
 
     /// Configure the `filename` field in the gzip header.
-    pub fn filename<T: BytesContainer>(mut self, filename: T) -> Builder {
-        self.filename = Some(CString::from_slice(filename.container_as_bytes()));
+    pub fn filename(mut self, filename: &[u8]) -> Builder {
+        self.filename = Some(CString::from_slice(filename));
         self
     }
 
     /// Configure the `comment` field in the gzip header.
-    pub fn comment<T: BytesContainer>(mut self, comment: T) -> Builder {
-        self.comment = Some(CString::from_slice(comment.container_as_bytes()));
+    pub fn comment(mut self, comment: &[u8]) -> Builder {
+        self.comment = Some(CString::from_slice(comment));
         self
     }
 
@@ -503,8 +502,8 @@ mod tests {
     #[test]
     fn fields() {
         let r = MemReader::new(vec![0, 2, 4, 6]);
-        let e = Builder::new().filename("foo.rs")
-                              .comment("bar")
+        let e = Builder::new().filename(b"foo.rs")
+                              .comment(b"bar")
                               .extra(vec![0, 1, 2, 3])
                               .reader(r, Default);
         let mut d = DecoderReader::new(e).unwrap();

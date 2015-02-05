@@ -24,7 +24,7 @@
 //! These provide convenience methods for creating a decoder/encoder out of an
 //! already existing stream to chain construction.
 
-#![feature(io, core, collections, std_misc, path, env)]
+#![feature(io, core, collections, std_misc, env)]
 #![deny(missing_docs)]
 #![feature(unsafe_destructor)]
 #![cfg_attr(test, deny(warnings))]
