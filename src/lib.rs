@@ -24,13 +24,14 @@
 //! These provide convenience methods for creating a decoder/encoder out of an
 //! already existing stream to chain construction.
 
+#![feature(io, core, collections, std_misc, path, env)]
 #![deny(missing_docs)]
 #![feature(unsafe_destructor)]
-#![cfg_attr(test, allow(unstable))]
 #![cfg_attr(test, deny(warnings))]
 
 extern crate libc;
 extern crate "miniz-sys" as ffi;
+#[cfg(test)] extern crate rand;
 
 use std::old_io::IoResult;
 

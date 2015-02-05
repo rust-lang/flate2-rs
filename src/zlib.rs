@@ -136,7 +136,7 @@ impl<W: Writer> Writer for DecoderWriter<W> {
 mod tests {
     use super::{EncoderWriter, EncoderReader, DecoderReader, DecoderWriter};
     use std::old_io::{MemWriter, MemReader, BufReader};
-    use std::rand::{thread_rng, Rng};
+    use rand::{thread_rng, Rng};
 
     use CompressionLevel::Default;
 

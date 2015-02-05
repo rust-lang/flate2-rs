@@ -7,8 +7,8 @@ use std::ffi::CString;
 use std::old_io::{BytesReader,IoResult, IoError};
 use std::old_io;
 use std::iter::repeat;
-use std::os;
-use std::path::BytesContainer;
+use std::env;
+use std::old_path::BytesContainer;
 use std::slice::bytes;
 
 use {BestCompression, CompressionLevel, BestSpeed};
@@ -177,7 +177,7 @@ impl Builder {
             BestSpeed => 4,
             _ => 0,
         };
-        header[9] = match os::consts::SYSNAME {
+        header[9] = match env::consts::OS {
             "linux" => 3,
             "macos" => 7,
             "win32" => 0,
@@ -465,7 +465,7 @@ mod tests {
     use super::{EncoderWriter, EncoderReader, DecoderReader, Builder};
     use CompressionLevel::Default;
     use std::old_io::{MemWriter, MemReader};
-    use std::rand::{thread_rng, Rng};
+    use rand::{thread_rng, Rng};
 
     #[test]
     fn roundtrip() {

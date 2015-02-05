@@ -1,3 +1,5 @@
+#![feature(io, path)]
+
 extern crate flate2;
 
 use std::old_io::{IoErrorKind, IoResult, File};
