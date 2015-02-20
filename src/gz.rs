@@ -96,13 +96,13 @@ impl Builder {
 
     /// Configure the `filename` field in the gzip header.
     pub fn filename(mut self, filename: &[u8]) -> Builder {
-        self.filename = Some(CString::from_slice(filename));
+        self.filename = Some(CString::new(filename).unwrap());
         self
     }
 
     /// Configure the `comment` field in the gzip header.
     pub fn comment(mut self, comment: &[u8]) -> Builder {
-        self.comment = Some(CString::from_slice(comment));
+        self.comment = Some(CString::new(comment).unwrap());
         self
     }
 
