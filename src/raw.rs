@@ -1,12 +1,12 @@
 //! Raw un-exported bindings to miniz for encoding/decoding
 
-use std::old_io;
+use std::io::prelude::*;
+use std::io;
 use std::mem;
-use std::old_io::IoResult;
-use libc;
 use std::ops::{Deref, DerefMut};
+use libc;
 
-use {CompressionLevel, NoCompression};
+use Compression;
 use ffi;
 use self::Flavor::{Deflate,Inflate};
 
@@ -40,8 +40,8 @@ enum Flavor { Deflate, Inflate }
 
 struct Stream(ffi::mz_stream, Flavor);
 
-impl<W: Writer> EncoderWriter<W> {
-    pub fn new(w: W, level: CompressionLevel, raw: bool,
+impl<W: Write> EncoderWriter<W> {
+    pub fn new(w: W, level: Compression, raw: bool,
                buf: Vec<u8>) -> EncoderWriter<W> {
         EncoderWriter {
             inner: Some(w),
@@ -50,31 +50,35 @@ impl<W: Writer> EncoderWriter<W> {
         }
     }
 
-    pub fn do_finish(&mut self) -> IoResult<()> {
-        try!(self.stream.write(&[], ffi::MZ_FINISH, &mut self.buf,
-                               self.inner.as_mut().unwrap(), ffi::mz_deflate));
-        try!(self.inner.as_mut().unwrap().write_all(self.buf.as_slice()));
+    pub fn do_finish(&mut self) -> io::Result<()> {
+        let inner = self.inner.as_mut().unwrap();
+        try!(self.stream.write(&[], ffi::MZ_FINISH, &mut self.buf, inner,
+                               ffi::mz_deflate));
+        try!(inner.write_all(&self.buf));
         self.buf.truncate(0);
         Ok(())
     }
 }
 
-impl<W: Writer> Writer for EncoderWriter<W> {
-    fn write_all(&mut self, buf: &[u8]) -> IoResult<()> {
+impl<W: Write> Write for EncoderWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.stream.write(buf, ffi::MZ_NO_FLUSH, &mut self.buf,
                           self.inner.as_mut().unwrap(), ffi::mz_deflate)
     }
 
-    fn flush(&mut self) -> IoResult<()> {
+    fn flush(&mut self) -> io::Result<()> {
         let inner = self.inner.as_mut().unwrap();
         try!(self.stream.write(&[], ffi::MZ_SYNC_FLUSH, &mut self.buf, inner,
                                ffi::mz_deflate));
+        if self.buf.len() > 0 {
+            try!(inner.write_all(&self.buf));
+        }
         inner.flush()
     }
 }
 
 #[unsafe_destructor]
-impl<W: Writer> Drop for EncoderWriter<W> {
+impl<W: Write> Drop for EncoderWriter<W> {
     fn drop(&mut self) {
         match self.inner {
             Some(..) => { let _ = self.do_finish(); }
@@ -83,8 +87,8 @@ impl<W: Writer> Drop for EncoderWriter<W> {
     }
 }
 
-impl<R: Reader> EncoderReader<R> {
-    pub fn new(w: R, level: CompressionLevel, raw: bool,
+impl<R: Read> EncoderReader<R> {
+    pub fn new(w: R, level: Compression, raw: bool,
                buf: Vec<u8>) -> EncoderReader<R> {
         EncoderReader {
             inner: w,
@@ -95,65 +99,69 @@ impl<R: Reader> EncoderReader<R> {
     }
 }
 
-impl<R: Reader> Reader for EncoderReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+impl<R: Read> Read for EncoderReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.stream.read(buf, &mut self.buf, &mut self.pos,
                          &mut self.inner, ffi::mz_deflate)
     }
 }
 
-impl<R: Reader> DecoderReader<R> {
+impl<R: Read> DecoderReader<R> {
     pub fn new(r: R, raw: bool, buf: Vec<u8>) -> DecoderReader<R> {
         DecoderReader {
             inner: r,
-            stream: Stream::new(Inflate, raw, NoCompression),
+            stream: Stream::new(Inflate, raw, Compression::None),
             pos: 0,
             buf: buf,
         }
     }
 }
 
-impl<R: Reader> Reader for DecoderReader<R> {
-    fn read(&mut self, into: &mut [u8]) -> IoResult<usize> {
+impl<R: Read> Read for DecoderReader<R> {
+    fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         self.stream.read(into, &mut self.buf, &mut self.pos,
                          &mut self.inner, ffi::mz_inflate)
     }
 }
 
-impl<W: Writer> DecoderWriter<W> {
+impl<W: Write> DecoderWriter<W> {
     pub fn new(w: W, raw: bool, buf: Vec<u8>) -> DecoderWriter<W> {
         DecoderWriter {
             inner: Some(w),
-            stream: Stream::new(Inflate, raw, NoCompression),
+            stream: Stream::new(Inflate, raw, Compression::None),
             buf: buf,
         }
     }
 
-    pub fn do_finish(&mut self) -> IoResult<()> {
-        try!(self.stream.write(&[], ffi::MZ_FINISH, &mut self.buf,
-                               self.inner.as_mut().unwrap(), ffi::mz_inflate));
-        try!(self.inner.as_mut().unwrap().write_all(self.buf.as_slice()));
+    pub fn do_finish(&mut self) -> io::Result<()> {
+        let inner = self.inner.as_mut().unwrap();
+        try!(self.stream.write(&[], ffi::MZ_FINISH, &mut self.buf, inner,
+                               ffi::mz_inflate));
+        try!(inner.write_all(&self.buf));
         self.buf.truncate(0);
         Ok(())
     }
 }
 
-impl<W: Writer> Writer for DecoderWriter<W> {
-    fn write_all(&mut self, buf: &[u8]) -> IoResult<()> {
+impl<W: Write> Write for DecoderWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.stream.write(buf, ffi::MZ_NO_FLUSH, &mut self.buf,
                           self.inner.as_mut().unwrap(), ffi::mz_inflate)
     }
 
-    fn flush(&mut self) -> IoResult<()> {
+    fn flush(&mut self) -> io::Result<()> {
         let inner = self.inner.as_mut().unwrap();
         try!(self.stream.write(&[], ffi::MZ_SYNC_FLUSH, &mut self.buf, inner,
                                ffi::mz_inflate));
+        if self.buf.len() > 0 {
+            try!(inner.write_all(&self.buf));
+        }
         inner.flush()
     }
 }
 
 impl Stream {
-    fn new(kind: Flavor, raw: bool, level: CompressionLevel) -> Stream {
+    fn new(kind: Flavor, raw: bool, level: Compression) -> Stream {
         let mut state: ffi::mz_stream = unsafe { mem::zeroed() };
         let ret = match kind {
             Deflate => unsafe {
@@ -181,95 +189,90 @@ impl Stream {
         Stream(state, kind)
     }
 
-    fn read<R: Reader>(&mut self, into: &mut [u8], buf: &mut Vec<u8>,
-                       pos: &mut usize, reader: &mut R,
-                       f: unsafe extern fn(*mut ffi::mz_stream,
-                                           libc::c_int) -> libc::c_int)
-                       -> IoResult<usize> {
-
-        let cap = buf.capacity();
-        let mut read = 0;
-        let mut eof = false;
-        while read < into.len() {
+    fn read<R: Read>(&mut self, into: &mut [u8], buf: &mut Vec<u8>,
+                     pos: &mut usize, reader: &mut R,
+                     f: unsafe extern fn(*mut ffi::mz_stream,
+                                         libc::c_int) -> libc::c_int)
+                     -> io::Result<usize> {
+        loop {
+            let mut eof = false;
             if *pos == buf.len() {
                 buf.truncate(0);
-                match reader.push(cap, buf) {
-                    Ok(..) => {}
-                    Err(ref e) if e.kind == old_io::EndOfFile => eof = true,
-                    Err(e) => return Err(e),
-                }
                 *pos = 0;
+                // FIXME(rust-lang/rust#22640) this should be `.take()`
+                let mut r = ::util::Take {
+                    limit: buf.capacity() as u64,
+                    inner: &mut *reader,
+                };
+                try!(r.read_to_end(buf));
+                eof = buf.len() == 0;
             }
 
             let next_in = &buf[*pos..];
-            let next_out = &mut into[read..];
 
             self.next_in = next_in.as_ptr();
             self.avail_in = next_in.len() as libc::c_uint;
-            self.next_out = next_out.as_mut_ptr();
-            self.avail_out = next_out.len() as libc::c_uint;
+            self.next_out = into.as_mut_ptr();
+            self.avail_out = into.len() as libc::c_uint;
 
             let before_out = self.total_out;
             let before_in = self.total_in;
 
             let flush = if eof {ffi::MZ_FINISH} else {ffi::MZ_NO_FLUSH};
             let ret = unsafe { f(&mut **self, flush) };
-            read += (self.total_out - before_out) as usize;
+            let read = (self.total_out - before_out) as usize;
             *pos += (self.total_in - before_in) as usize;
 
-            match ret {
-                ffi::MZ_OK => {}
-                ffi::MZ_STREAM_END if read > 0 => break,
-                ffi::MZ_STREAM_END => {
-                    return Err(old_io::standard_error(old_io::EndOfFile))
+            return match ret {
+                ffi::MZ_OK | ffi::MZ_BUF_ERROR => {
+                    // If we haven't ready any data and we haven't hit EOF yet,
+                    // then we need to keep asking for more data because if we
+                    // return that 0 bytes of data have been read then it will
+                    // be interpreted as EOF.
+                    if read == 0 && !eof { continue }
+                    Ok(read)
                 }
-                ffi::MZ_BUF_ERROR => break,
+                ffi::MZ_STREAM_END => return Ok(read),
                 ffi::MZ_DATA_ERROR => {
-                    return Err(old_io::standard_error(old_io::InvalidInput))
+                    Err(io::Error::new(io::ErrorKind::InvalidInput,
+                                       "corrupt deflate stream", None))
                 }
                 n => panic!("unexpected return {}", n),
             }
         }
-
-        Ok(read)
     }
 
-    fn write<W: Writer>(&mut self, mut buf: &[u8], flush: libc::c_int,
+    fn write<W: Write>(&mut self, buf: &[u8], flush: libc::c_int,
                         into: &mut Vec<u8>, writer: &mut W,
                         f: unsafe extern fn(*mut ffi::mz_stream,
                                             libc::c_int) -> libc::c_int)
-                        -> IoResult<()> {
-        let cap = into.capacity();
-        while buf.len() > 0 || flush == ffi::MZ_FINISH {
-            self.next_in = buf.as_ptr();
-            self.avail_in = buf.len() as libc::c_uint;
-            let cur_len = into.len();
-            self.next_out = into[cur_len..].as_mut_ptr();
-            self.avail_out = (cap - cur_len) as libc::c_uint;
-
-            let before_out = self.total_out;
-            let before_in = self.total_in;
-
-            let ret = unsafe {
-                let ret = f(&mut **self, flush);
-                into.set_len(cur_len + (self.total_out - before_out) as usize);
-                ret
-            };
-            buf = &buf[(self.total_in - before_in) as usize..];
-
-            if cap - cur_len == 0 || ret == ffi::MZ_BUF_ERROR {
-                try!(writer.write_all(into.as_slice()));
-                into.truncate(0);
-            }
-            match ret {
-                ffi::MZ_OK => {},
-                ffi::MZ_STREAM_END => return Ok(()),
-                ffi::MZ_BUF_ERROR => {}
-                n => panic!("unexpected return {}", n),
-            }
+                        -> io::Result<usize> {
+        if into.len() > 0 {
+            try!(writer.write_all(into));
+            into.truncate(0);
         }
 
-        Ok(())
+        let cur_len = into.len();
+
+        self.next_in = buf.as_ptr();
+        self.avail_in = buf.len() as libc::c_uint;
+        self.next_out = into[cur_len..].as_mut_ptr();
+        self.avail_out = (into.capacity() - cur_len) as libc::c_uint;
+
+        let before_out = self.total_out;
+        let before_in = self.total_in;
+
+        let ret = unsafe {
+            let ret = f(&mut **self, flush);
+            into.set_len(cur_len + (self.total_out - before_out) as usize);
+            ret
+        };
+        match ret {
+            ffi::MZ_OK
+            | ffi::MZ_BUF_ERROR
+            | ffi::MZ_STREAM_END => Ok((self.total_in - before_in) as usize),
+            n => panic!("unexpected return {}", n),
+        }
     }
 }
 

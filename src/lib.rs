@@ -24,30 +24,31 @@
 //! These provide convenience methods for creating a decoder/encoder out of an
 //! already existing stream to chain construction.
 
-#![feature(old_io, core, collections, std_misc, env)]
+#![feature(io, core, collections, std_misc, env)]
 #![deny(missing_docs)]
 #![feature(unsafe_destructor)]
-#![cfg_attr(test, deny(warnings))]
+// #![cfg_attr(test, deny(warnings))]
 
 extern crate libc;
 extern crate "miniz-sys" as ffi;
 #[cfg(test)] extern crate rand;
 
-use std::old_io::IoResult;
+use std::io::prelude::*;
+use std::io;
 
 pub use gz::Builder as GzBuilder;
 pub use gz::Header as GzHeader;
-pub use CompressionLevel::{BestCompression,BestSpeed,NoCompression};
 
 mod crc;
 mod deflate;
 mod gz;
 mod raw;
 mod zlib;
+mod util;
 
 /// Types which operate over `Reader` streams, both encoders and decoders for
 /// various formats.
-pub mod reader {
+pub mod read {
     pub use deflate::EncoderReader as DeflateEncoder;
     pub use deflate::DecoderReader as DeflateDecoder;
     pub use zlib::EncoderReader as ZlibEncoder;
@@ -58,7 +59,7 @@ pub mod reader {
 
 /// Types which operate over `Writer` streams, both encoders and decoders for
 /// various formats.
-pub mod writer {
+pub mod write {
     pub use deflate::EncoderWriter as DeflateEncoder;
     pub use deflate::DecoderWriter as DeflateDecoder;
     pub use zlib::EncoderWriter as ZlibEncoder;
@@ -69,109 +70,110 @@ pub mod writer {
 /// When compressing data, the compression level can be specified by a value in
 /// this enum.
 #[derive(Copy)]
-pub enum CompressionLevel {
+pub enum Compression {
     /// No compression is to be performed, this may actually inflate data
     /// slightly when encoding.
-    NoCompression = 0,
+    None = 0,
     /// Optimize for the best speed of encoding.
-    BestSpeed = 1,
+    Fast = 1,
     /// Optimize for the size of data being encoded.
-    BestCompression = 9,
+    Best = 9,
     /// Choose the default compression, a balance between speed and size.
     Default = 6,
 }
 
 /// A helper trait to create encoder/decoders with method syntax.
-pub trait FlateReader: Reader + Sized {
+pub trait FlateReadExt: Read + Sized {
     /// Consume this reader to create a compression stream at the specified
     /// compression level.
-    fn gz_encode(self, lvl: CompressionLevel) -> reader::GzEncoder<Self> {
-        reader::GzEncoder::new(self, lvl)
+    fn gz_encode(self, lvl: Compression) -> read::GzEncoder<Self> {
+        read::GzEncoder::new(self, lvl)
     }
 
     /// Consume this reader to create a decompression stream of this stream.
-    fn gz_decode(self) -> IoResult<reader::GzDecoder<Self>> {
-        reader::GzDecoder::new(self)
-    }
-
-    /// Consume this reader to create a compression stream at the specified
-    /// compression level.
-    fn zlib_encode(self, lvl: CompressionLevel) -> reader::ZlibEncoder<Self> {
-        reader::ZlibEncoder::new(self, lvl)
-    }
-
-    /// Consume this reader to create a decompression stream of this stream.
-    fn zlib_decode(self) -> reader::ZlibDecoder<Self> {
-        reader::ZlibDecoder::new(self)
+    fn gz_decode(self) -> io::Result<read::GzDecoder<Self>> {
+        read::GzDecoder::new(self)
     }
 
     /// Consume this reader to create a compression stream at the specified
     /// compression level.
-    fn deflate_encode(self, lvl: CompressionLevel) -> reader::DeflateEncoder<Self> {
-        reader::DeflateEncoder::new(self, lvl)
+    fn zlib_encode(self, lvl: Compression) -> read::ZlibEncoder<Self> {
+        read::ZlibEncoder::new(self, lvl)
     }
 
     /// Consume this reader to create a decompression stream of this stream.
-    fn deflate_decode(self) -> reader::DeflateDecoder<Self> {
-        reader::DeflateDecoder::new(self)
+    fn zlib_decode(self) -> read::ZlibDecoder<Self> {
+        read::ZlibDecoder::new(self)
+    }
+
+    /// Consume this reader to create a compression stream at the specified
+    /// compression level.
+    fn deflate_encode(self, lvl: Compression) -> read::DeflateEncoder<Self> {
+        read::DeflateEncoder::new(self, lvl)
+    }
+
+    /// Consume this reader to create a decompression stream of this stream.
+    fn deflate_decode(self) -> read::DeflateDecoder<Self> {
+        read::DeflateDecoder::new(self)
     }
 }
 
 /// A helper trait to create encoder/decoders with method syntax.
-pub trait FlateWriter: Writer + Sized {
+pub trait FlateWriteExt: Write + Sized {
     /// Consume this writer to create a compression stream at the specified
     /// compression level.
-    fn gz_encode(self, lvl: CompressionLevel) -> writer::GzEncoder<Self> {
-        writer::GzEncoder::new(self, lvl)
+    fn gz_encode(self, lvl: Compression) -> write::GzEncoder<Self> {
+        write::GzEncoder::new(self, lvl)
     }
 
     // TODO: coming soon to a theater near you!
     // /// Consume this writer to create a decompression stream of this stream.
-    // fn gz_decode(self) -> IoResult<writer::GzDecoder<Self>> {
-    //     writer::GzDecoder::new(self)
+    // fn gz_decode(self) -> IoResult<write::GzDecoder<Self>> {
+    //     write::GzDecoder::new(self)
     // }
 
     /// Consume this writer to create a compression stream at the specified
     /// compression level.
-    fn zlib_encode(self, lvl: CompressionLevel) -> writer::ZlibEncoder<Self> {
-        writer::ZlibEncoder::new(self, lvl)
+    fn zlib_encode(self, lvl: Compression) -> write::ZlibEncoder<Self> {
+        write::ZlibEncoder::new(self, lvl)
     }
 
     /// Consume this writer to create a decompression stream of this stream.
-    fn zlib_decode(self) -> writer::ZlibDecoder<Self> {
-        writer::ZlibDecoder::new(self)
+    fn zlib_decode(self) -> write::ZlibDecoder<Self> {
+        write::ZlibDecoder::new(self)
     }
 
     /// Consume this writer to create a compression stream at the specified
     /// compression level.
-    fn deflate_encode(self, lvl: CompressionLevel) -> writer::DeflateEncoder<Self> {
-        writer::DeflateEncoder::new(self, lvl)
+    fn deflate_encode(self, lvl: Compression) -> write::DeflateEncoder<Self> {
+        write::DeflateEncoder::new(self, lvl)
     }
 
     /// Consume this writer to create a decompression stream of this stream.
-    fn deflate_decode(self) -> writer::DeflateDecoder<Self> {
-        writer::DeflateDecoder::new(self)
+    fn deflate_decode(self) -> write::DeflateDecoder<Self> {
+        write::DeflateDecoder::new(self)
     }
 }
 
-impl<T: Reader> FlateReader for T {}
-impl<T: Writer> FlateWriter for T {}
+impl<T: Read> FlateReadExt for T {}
+impl<T: Write> FlateWriteExt for T {}
 
 #[cfg(test)]
 mod test {
-    use std::old_io::BufReader;
-    use {FlateReader, CompressionLevel};
+    use std::io::prelude::*;
+    use {FlateReadExt, Compression};
 
     #[test]
     fn crazy() {
-        let rdr = BufReader::new(b"foobar");
-        let res = rdr.gz_encode(CompressionLevel::Default)
-                        .deflate_encode(CompressionLevel::Default)
-                            .zlib_encode(CompressionLevel::Default)
-                            .zlib_decode()
-                        .deflate_decode()
-                     .gz_decode()
-                     .read_to_end().unwrap();
-        assert_eq!(res.as_slice(), b"foobar");
+        let rdr = &mut b"foobar";
+        let mut res = Vec::new();
+        rdr.gz_encode(Compression::Default)
+              .deflate_encode(Compression::Default)
+                  .zlib_encode(Compression::Default)
+                  .zlib_decode()
+              .deflate_decode()
+           .gz_decode().unwrap()
+           .read_to_end(&mut res).unwrap();
+        assert_eq!(res, b"foobar");
     }
 }

@@ -19,4 +19,4 @@ path = "lib.rs"
 libc = "0.1"
 
 [build-dependencies]
-gcc = "0.1"
+gcc = "0.3"

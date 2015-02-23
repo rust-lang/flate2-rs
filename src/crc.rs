@@ -1,6 +1,7 @@
 //! Simple CRC bindings backed by miniz.c
 
-use std::old_io::IoResult;
+use std::io::prelude::*;
+use std::io;
 use libc;
 
 use ffi;
@@ -31,7 +32,7 @@ impl Crc {
     }
 }
 
-impl<R: Reader> CrcReader<R> {
+impl<R: Read> CrcReader<R> {
     pub fn new(r: R) -> CrcReader<R> {
         CrcReader { inner: r, crc: Crc::new() }
     }
@@ -40,8 +41,8 @@ impl<R: Reader> CrcReader<R> {
     pub fn inner(&mut self) -> &mut R { &mut self.inner }
 }
 
-impl<R: Reader> Reader for CrcReader<R> {
-    fn read(&mut self, into: &mut [u8]) -> IoResult<usize> {
+impl<R: Read> Read for CrcReader<R> {
+    fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         let amt = try!(self.inner.read(into));
         self.crc.update(&into[..amt]);
         Ok(amt)

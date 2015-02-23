@@ -1,4 +1,4 @@
-#![allow(warnings)]
+#![allow(bad_style)]
 
 extern crate libc;
 
