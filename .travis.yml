@@ -3,6 +3,7 @@ sudo: false
 script:
   - cargo build --verbose
   - cargo test --verbose
+  - rustdoc --test README.md -L target -L target/deps
   - cargo doc
 after_success: |
   [ $TRAVIS_BRANCH = master ] &&

@@ -15,23 +15,21 @@ Supported formats:
 
 ```toml
 # Cargo.toml
-[dependencies.flate2]
-git = "https://github.com/alexcrichton/flate2-rs"
+[dependencies]
+flate2 = "0.2"
 ```
 
 ## Compression
 
 ```rust
-# #![feature(io)]
 extern crate flate2;
 
-use std::old_io::MemWriter;
-use flate2::CompressionLevel;
-use flate2::writer::ZlibEncoder;
+use std::io::prelude::*;
+use flate2::Compression;
+use flate2::write::ZlibEncoder;
 
-# #[allow(unused_must_use)]
 fn main() {
-    let mut e = ZlibEncoder::new(MemWriter::new(), CompressionLevel::Default);
+    let mut e = ZlibEncoder::new(Vec::new(), Compression::Default);
     e.write(b"foo");
     e.write(b"bar");
     let compressed_bytes = e.finish();
@@ -41,15 +39,16 @@ fn main() {
 ## Decompression
 
 ```rust,no_run
-# #![feature(io)]
 extern crate flate2;
 
-use std::old_io::BufReader;
-use flate2::reader::GzDecoder;
+use std::io::prelude::*;
+use flate2::read::GzDecoder;
 
 fn main() {
-    let mut d = GzDecoder::new(BufReader::new(b"..."));
-    println!("{}", d.read_to_string().unwrap());
+    let mut d = GzDecoder::new(b"...").unwrap();
+    let mut s = String::new();
+    d.read_to_string(&mut s).unwrap();
+    println!("{}", s);
 }
 ```
 
