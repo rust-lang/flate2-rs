@@ -19,15 +19,17 @@ pub struct EncoderWriter<W> {
 pub struct EncoderReader<R> {
     pub inner: R,
     stream: Stream,
-    buf: Vec<u8>,
+    buf: Box<[u8]>,
     pos: usize,
+    cap: usize,
 }
 
 pub struct DecoderReader<R> {
     pub inner: R,
     stream: Stream,
     pub pos: usize,
-    pub buf: Vec<u8>,
+    pub cap: usize,
+    pub buf: Box<[u8]>,
 }
 
 pub struct DecoderWriter<W> {
@@ -93,7 +95,8 @@ impl<R: Read> EncoderReader<R> {
         EncoderReader {
             inner: w,
             stream: Stream::new(Deflate, raw, level),
-            buf: buf,
+            buf: buf.into_boxed_slice(),
+            cap: 0,
             pos: 0,
         }
     }
@@ -101,7 +104,7 @@ impl<R: Read> EncoderReader<R> {
 
 impl<R: Read> Read for EncoderReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.stream.read(buf, &mut self.buf, &mut self.pos,
+        self.stream.read(buf, &mut self.buf, &mut self.pos, &mut self.cap,
                          &mut self.inner, ffi::mz_deflate)
     }
 }
@@ -112,14 +115,15 @@ impl<R: Read> DecoderReader<R> {
             inner: r,
             stream: Stream::new(Inflate, raw, Compression::None),
             pos: 0,
-            buf: buf,
+            buf: buf.into_boxed_slice(),
+            cap: 0,
         }
     }
 }
 
 impl<R: Read> Read for DecoderReader<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
-        self.stream.read(into, &mut self.buf, &mut self.pos,
+        self.stream.read(into, &mut self.buf, &mut self.pos, &mut self.cap,
                          &mut self.inner, ffi::mz_inflate)
     }
 }
@@ -189,26 +193,20 @@ impl Stream {
         Stream(state, kind)
     }
 
-    fn read<R: Read>(&mut self, into: &mut [u8], buf: &mut Vec<u8>,
-                     pos: &mut usize, reader: &mut R,
+    fn read<R: Read>(&mut self, into: &mut [u8], buf: &mut [u8],
+                     pos: &mut usize, cap: &mut usize, reader: &mut R,
                      f: unsafe extern fn(*mut ffi::mz_stream,
                                          libc::c_int) -> libc::c_int)
                      -> io::Result<usize> {
         loop {
             let mut eof = false;
-            if *pos == buf.len() {
-                buf.truncate(0);
+            if *pos == *cap {
+                *cap = try!(reader.take(buf.len() as u64).read(buf));
                 *pos = 0;
-                // FIXME(rust-lang/rust#22640) this should be `.take()`
-                let mut r = ::util::Take {
-                    limit: buf.capacity() as u64,
-                    inner: &mut *reader,
-                };
-                try!(r.read_to_end(buf));
-                eof = buf.len() == 0;
+                eof = *cap == 0;
             }
 
-            let next_in = &buf[*pos..];
+            let next_in = &buf[*pos..*cap];
 
             self.next_in = next_in.as_ptr();
             self.avail_in = next_in.len() as libc::c_uint;

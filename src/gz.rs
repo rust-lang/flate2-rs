@@ -114,7 +114,7 @@ impl Builder {
     pub fn write<W: Write>(self, w: W, lvl: Compression) -> EncoderWriter<W> {
         EncoderWriter {
             inner: raw::EncoderWriter::new(w, lvl, true,
-                                           Vec::with_capacity(128 * 1024)),
+                                           Vec::with_capacity(32 * 1024)),
             crc: Crc::new(),
             header: self.into_header(lvl),
         }
@@ -128,7 +128,7 @@ impl Builder {
         let crc = CrcReader::new(r);
         EncoderReader {
             inner: raw::EncoderReader::new(crc, lvl, true,
-                                           Vec::with_capacity(128 * 1024)),
+                                           repeat(0).take(32 * 1024).collect()),
             header: self.into_header(lvl),
             pos: 0,
             eof: false,
@@ -374,7 +374,7 @@ impl<R: Read> DecoderReader<R> {
         }
 
         let flate = raw::DecoderReader::new(crc_reader.into_inner(), true,
-                                            Vec::with_capacity(128 * 1024));
+                                            repeat(0).take(32 * 1024).collect());
         return Ok(DecoderReader {
             inner: CrcReader::new(flate),
             header: Header {

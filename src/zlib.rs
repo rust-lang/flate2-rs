@@ -2,6 +2,7 @@
 
 use std::io::prelude::*;
 use std::io;
+use std::iter::repeat;
 
 use raw;
 
@@ -46,7 +47,7 @@ impl<W: Write> EncoderWriter<W> {
     pub fn new(w: W, level: ::Compression) -> EncoderWriter<W> {
         EncoderWriter {
             inner: raw::EncoderWriter::new(w, level, false,
-                                           Vec::with_capacity(128 * 1024))
+                                           Vec::with_capacity(32 * 1024)),
         }
     }
 
@@ -71,7 +72,7 @@ impl<R: Read> EncoderReader<R> {
     pub fn new(r: R, level: ::Compression) -> EncoderReader<R> {
         EncoderReader {
             inner: raw::EncoderReader::new(r, level, false,
-                                           Vec::with_capacity(128 * 1024))
+                                           repeat(0).take(32 * 1024).collect())
         }
     }
 
@@ -89,7 +90,7 @@ impl<R: Read> DecoderReader<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.
     pub fn new(r: R) -> DecoderReader<R> {
-        DecoderReader::new_with_buf(r, Vec::with_capacity(128 * 1024))
+        DecoderReader::new_with_buf(r, repeat(0).take(32 * 1024).collect())
     }
 
     /// Same as `new`, but the intermediate buffer for data is specified.
@@ -114,7 +115,8 @@ impl<W: Write> DecoderWriter<W> {
     /// be flushed.
     pub fn new(w: W) -> DecoderWriter<W> {
         DecoderWriter {
-            inner: raw::DecoderWriter::new(w, false, Vec::with_capacity(128 * 1024))
+            inner: raw::DecoderWriter::new(w, false,
+                                           Vec::with_capacity(32 * 1024)),
         }
     }
 
