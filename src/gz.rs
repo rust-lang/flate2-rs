@@ -24,7 +24,7 @@ static FCOMMENT: u8 = 1 << 4;
 ///
 /// This structure exposes a `Write` interface that will emit compressed data
 /// to the underlying writer `W`.
-pub struct EncoderWriter<W> {
+pub struct EncoderWriter<W: Write> {
     inner: raw::EncoderWriter<W>,
     crc: Crc,
     header: Vec<u8>,
@@ -35,7 +35,7 @@ pub struct EncoderWriter<W> {
 /// This structure exposes a `Read` interface that will read uncompressed data
 /// from the underlying reader and expose the compressed version as a `Read`
 /// interface.
-pub struct EncoderReader<R> {
+pub struct EncoderReader<R: Read> {
     inner: raw::EncoderReader<CrcReader<R>>,
     header: Vec<u8>,
     pos: usize,
@@ -56,7 +56,7 @@ pub struct Builder {
 ///
 /// This structure exposes a `Read` interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
-pub struct DecoderReader<R> {
+pub struct DecoderReader<R: Read> {
     inner: CrcReader<raw::DecoderReader<R>>,
     header: Header,
 }
@@ -207,8 +207,8 @@ impl<W: Write> EncoderWriter<W> {
         if self.header.len() != 0 {
             try!(self.inner.write_all(&self.header));
         }
-        try!(self.inner.do_finish());
-        let mut inner = self.inner.inner.take().unwrap();
+        try!(self.inner.finish());
+        let mut inner = self.inner.take_inner();
         let (sum, amt) = (self.crc.sum() as u32, self.crc.amt());
         let buf = [
             (sum >>  0) as u8,
@@ -228,7 +228,7 @@ impl<W: Write> EncoderWriter<W> {
 impl<W: Write> Write for EncoderWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.header.len() != 0 {
-            try!(self.inner.inner.as_mut().unwrap().write_all(&self.header));
+            try!(self.inner.write_all_raw(&self.header));
             self.header.truncate(0);
         }
         let n = try!(self.inner.write(buf));
@@ -242,7 +242,7 @@ impl<W: Write> Write for EncoderWriter<W> {
 #[unsafe_destructor]
 impl<W: Write> Drop for EncoderWriter<W> {
     fn drop(&mut self) {
-        if self.inner.inner.is_some() {
+        if !self.inner.unwrapped() {
             let _ = self.do_finish();
         }
     }
@@ -262,20 +262,21 @@ impl<R: Read> EncoderReader<R> {
 
     /// Returns the underlying stream, consuming this encoder
     pub fn into_inner(self) -> R {
-        self.inner.inner.into_inner()
+        self.inner.into_inner().into_inner()
     }
 
     fn read_footer(&mut self, into: &mut [u8]) -> io::Result<usize> {
         if self.pos == 8 { return Ok(0) }
+        let crc = self.inner.get_ref().crc();
         let ref arr = [
-            (self.inner.inner.crc().sum() >>  0) as u8,
-            (self.inner.inner.crc().sum() >>  8) as u8,
-            (self.inner.inner.crc().sum() >> 16) as u8,
-            (self.inner.inner.crc().sum() >> 24) as u8,
-            (self.inner.inner.crc().amt() >>  0) as u8,
-            (self.inner.inner.crc().amt() >>  8) as u8,
-            (self.inner.inner.crc().amt() >> 16) as u8,
-            (self.inner.inner.crc().amt() >> 24) as u8,
+            (crc.sum() >>  0) as u8,
+            (crc.sum() >>  8) as u8,
+            (crc.sum() >> 16) as u8,
+            (crc.sum() >> 24) as u8,
+            (crc.amt() >>  0) as u8,
+            (crc.amt() >>  8) as u8,
+            (crc.amt() >> 16) as u8,
+            (crc.amt() >> 24) as u8,
         ];
         Ok(copy(into, arr, &mut self.pos))
     }
@@ -413,16 +414,10 @@ impl<R: Read> DecoderReader<R> {
     fn finish(&mut self) -> io::Result<()> {
         let ref mut buf = [0u8; 8];
         {
-            let flate = self.inner.inner();
-            let mut len = {
-                let remaining = &flate.buf[flate.pos..];
-                let len = cmp::min(remaining.len(), buf.len());
-                bytes::copy_memory(buf, &remaining[..len]);
-                len
-            };
+            let mut len = 0;
 
             while len < buf.len() {
-                match try!(flate.inner.read(&mut buf[len..])) {
+                match try!(self.inner.inner().read_raw(&mut buf[len..])) {
                     0 => return Err(corrupt()),
                     n => len += n,
                 }

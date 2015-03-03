@@ -44,6 +44,7 @@ mod deflate;
 mod gz;
 mod raw;
 mod zlib;
+mod stream;
 
 /// Types which operate over `Reader` streams, both encoders and decoders for
 /// various formats.

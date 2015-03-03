@@ -10,7 +10,7 @@ use raw;
 ///
 /// This structure implements a `Write` interface and takes a stream of
 /// uncompressed data, writing the compressed data to the wrapped writer.
-pub struct EncoderWriter<W> {
+pub struct EncoderWriter<W: Write> {
     inner: raw::EncoderWriter<W>,
 }
 
@@ -18,7 +18,7 @@ pub struct EncoderWriter<W> {
 ///
 /// This structure implements a `Read` interface and will read uncompressed
 /// data from an underlying stream and emit a stream of compressed data.
-pub struct EncoderReader<R> {
+pub struct EncoderReader<R: Read> {
     inner: raw::EncoderReader<R>,
 }
 
@@ -26,7 +26,7 @@ pub struct EncoderReader<R> {
 ///
 /// This structure implements a `Read` interface and takes a stream of
 /// compressed data as input, providing the decompressed data when read from.
-pub struct DecoderReader<R> {
+pub struct DecoderReader<R: Read> {
     inner: raw::DecoderReader<R>,
 }
 
@@ -34,7 +34,7 @@ pub struct DecoderReader<R> {
 ///
 /// This structure implements a `Write` and will emit a stream of decompressed
 /// data when fed a stream of compressed data.
-pub struct DecoderWriter<W> {
+pub struct DecoderWriter<W: Write> {
     inner: raw::DecoderWriter<W>,
 }
 
@@ -56,8 +56,8 @@ impl<W: Write> EncoderWriter<W> {
     /// This will flush the underlying data stream and then return the contained
     /// writer if the flush succeeded.
     pub fn finish(mut self) -> io::Result<W> {
-        try!(self.inner.do_finish());
-        Ok(self.inner.inner.take().unwrap())
+        try!(self.inner.finish());
+        Ok(self.inner.into_inner())
     }
 }
 
@@ -78,12 +78,14 @@ impl<R: Read> EncoderReader<R> {
 
     /// Consumes this encoder, returning the underlying reader.
     pub fn into_inner(self) -> R {
-        self.inner.inner
+        self.inner.into_inner()
     }
 }
 
 impl<R: Read> Read for EncoderReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> { self.inner.read(buf) }
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.inner.read(buf)
+    }
 }
 
 impl<R: Read> DecoderReader<R> {
@@ -99,6 +101,11 @@ impl<R: Read> DecoderReader<R> {
     /// and it is recommended for it to be large.
     pub fn new_with_buf(r: R, buf: Vec<u8>) -> DecoderReader<R> {
         DecoderReader { inner: raw::DecoderReader::new(r, true, buf) }
+    }
+
+    /// Consumes this decoder, returning the underlying reader.
+    pub fn into_inner(self) -> R {
+        self.inner.into_inner()
     }
 }
 
@@ -125,8 +132,8 @@ impl<W: Write> DecoderWriter<W> {
     /// This will flush the underlying data stream and then return the contained
     /// writer if the flush succeeded.
     pub fn finish(mut self) -> io::Result<W> {
-        try!(self.inner.do_finish());
-        Ok(self.inner.inner.take().unwrap())
+        try!(self.inner.finish());
+        Ok(self.inner.into_inner())
     }
 }
 
