@@ -27,7 +27,7 @@
 #![feature(io, core, collections, std_misc)]
 #![deny(missing_docs)]
 #![feature(unsafe_destructor)]
-// #![cfg_attr(test, deny(warnings))]
+#![cfg_attr(test, deny(warnings))]
 
 extern crate libc;
 extern crate "miniz-sys" as ffi;
