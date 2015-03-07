@@ -1,4 +1,4 @@
-#![feature(io, path, fs)]
+#![feature(io, path)]
 
 extern crate flate2;
 
