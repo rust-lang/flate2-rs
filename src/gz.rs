@@ -9,7 +9,6 @@ use std::io::prelude::*;
 use std::io;
 use std::iter::repeat;
 use std::mem;
-use std::slice::bytes;
 
 use Compression;
 use crc::{CrcReader, Crc};
@@ -144,7 +143,7 @@ impl Builder {
                 flg |= FEXTRA;
                 header.push((v.len() >> 0) as u8);
                 header.push((v.len() >> 8) as u8);
-                header.push_all(v.as_slice());
+                header.push_all(&v);
             }
             None => {}
         }
@@ -284,7 +283,9 @@ impl<R: Read> EncoderReader<R> {
 
 fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
     let min = cmp::min(into.len(), from.len() - *pos);
-    bytes::copy_memory(into, &from[*pos .. *pos + min]);
+    for (slot, val) in into.iter_mut().zip(from[*pos..*pos + min].iter()) {
+        *slot = *val;
+    }
     *pos += min;
     return min
 }
@@ -450,15 +451,15 @@ impl<R: Read> Read for DecoderReader<R> {
 impl Header {
     /// Returns the `filename` field of this gzip stream's header, if present.
     pub fn filename(&self) -> Option<&[u8]> {
-        self.filename.as_ref().map(|s| s.as_slice())
+        self.filename.as_ref().map(|s| &s[..])
     }
     /// Returns the `extra` field of this gzip stream's header, if present.
     pub fn extra(&self) -> Option<&[u8]> {
-        self.extra.as_ref().map(|s| s.as_slice())
+        self.extra.as_ref().map(|s| &s[..])
     }
     /// Returns the `comment` field of this gzip stream's header, if present.
     pub fn comment(&self) -> Option<&[u8]> {
-        self.comment.as_ref().map(|s| s.as_slice())
+        self.comment.as_ref().map(|s| &s[..])
     }
     /// Returns the `mtime` field of this gzip stream's header, if present.
     pub fn mtime(&self) -> u32 { self.mtime }
@@ -494,7 +495,7 @@ mod tests {
         let mut real = Vec::new();
         let mut w = EncoderWriter::new(Vec::new(), Default);
         let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
-        for _ in range(0, 200) {
+        for _ in 0..200 {
             let to_write = &v[..thread_rng().gen_range(0, v.len())];
             real.push_all(to_write);
             w.write_all(to_write).unwrap();

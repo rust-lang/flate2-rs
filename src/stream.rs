@@ -22,7 +22,7 @@ pub enum Flush {
 }
 
 #[doc(hidden)]
-pub trait Direction: marker::MarkerTrait {
+pub trait Direction: marker::PhantomFn<Self> {
     unsafe fn destroy(stream: *mut ffi::mz_stream) -> c_int;
 }
 
