@@ -23,7 +23,7 @@ pub struct DecoderReader<R: Read>(InnerRead<R, Decompress>);
 struct InnerRead<R, D: Direction> {
     inner: R,
     stream: Stream<D>,
-    buf: Box<[u8]>,
+    buf: Vec<u8>, // TODO: this should be Box<[u8]>
     pos: usize,
     cap: usize,
 }
@@ -161,7 +161,7 @@ impl<R: Read> EncoderReader<R> {
         EncoderReader(InnerRead {
             inner: w,
             stream: Stream::new_compress(level, raw),
-            buf: buf.into_boxed_slice(),
+            buf: buf,
             cap: 0,
             pos: 0,
         })
@@ -181,7 +181,7 @@ impl<R: Read> DecoderReader<R> {
         DecoderReader(InnerRead {
             inner: r,
             stream: Stream::new_decompress(raw),
-            buf: buf.into_boxed_slice(),
+            buf: buf,
             pos: 0,
             cap: 0,
         })

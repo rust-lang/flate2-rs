@@ -158,7 +158,7 @@ mod tests {
         let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
         for _ in 0..200 {
             let to_write = &v[..thread_rng().gen_range(0, v.len())];
-            real.push_all(to_write);
+            real.extend(to_write.iter().map(|x| *x));
             w.write_all(to_write).unwrap();
         }
         let result = w.finish().unwrap();

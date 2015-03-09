@@ -143,21 +143,21 @@ impl Builder {
                 flg |= FEXTRA;
                 header.push((v.len() >> 0) as u8);
                 header.push((v.len() >> 8) as u8);
-                header.push_all(&v);
+                header.extend(v);
             }
             None => {}
         }
         match filename {
             Some(filename) => {
                 flg |= FNAME;
-                header.push_all(filename.as_bytes_with_nul());
+                header.extend(filename.as_bytes_with_nul().iter().map(|x| *x));
             }
             None => {}
         }
         match comment {
             Some(comment) => {
                 flg |= FCOMMENT;
-                header.push_all(comment.as_bytes_with_nul());
+                header.extend(comment.as_bytes_with_nul().iter().map(|x| *x));
             }
             None => {}
         }
@@ -497,7 +497,7 @@ mod tests {
         let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
         for _ in 0..200 {
             let to_write = &v[..thread_rng().gen_range(0, v.len())];
-            real.push_all(to_write);
+            real.extend(to_write.iter().map(|x| *x));
             w.write_all(to_write).unwrap();
         }
         let result = w.finish().unwrap();
