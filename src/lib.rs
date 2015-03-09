@@ -25,9 +25,8 @@
 //! already existing stream to chain construction.
 
 #![doc(html_root_url = "http://alexcrichton.com/flate2-rs")]
-#![feature(io)]
+#![feature(io, unsafe_destructor)]
 #![deny(missing_docs)]
-#![feature(unsafe_destructor)]
 #![cfg_attr(test, deny(warnings))]
 
 extern crate libc;
