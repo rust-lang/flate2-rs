@@ -524,9 +524,9 @@ mod tests {
                               .extra(vec![0, 1, 2, 3])
                               .read(&r[..], Default);
         let mut d = DecoderReader::new(e).unwrap();
-        assert_eq!(d.header().filename(), Some(b"foo.rs"));
-        assert_eq!(d.header().comment(), Some(b"bar"));
-        assert_eq!(d.header().extra(), Some(b"\x00\x01\x02\x03"));
+        assert_eq!(d.header().filename(), Some(&b"foo.rs"[..]));
+        assert_eq!(d.header().comment(), Some(&b"bar"[..]));
+        assert_eq!(d.header().extra(), Some(&b"\x00\x01\x02\x03"[..]));
         let mut res = Vec::new();
         d.read_to_end(&mut res).unwrap();
         assert_eq!(res, vec![0, 2, 4, 6]);
