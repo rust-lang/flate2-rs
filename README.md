@@ -45,7 +45,7 @@ use std::io::prelude::*;
 use flate2::read::GzDecoder;
 
 fn main() {
-    let mut d = GzDecoder::new(b"...").unwrap();
+    let mut d = GzDecoder::new("...".as_bytes()).unwrap();
     let mut s = String::new();
     d.read_to_string(&mut s).unwrap();
     println!("{}", s);
