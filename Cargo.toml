@@ -23,4 +23,4 @@ path = "miniz-sys"
 version = "0.1.0"
 
 [dev-dependencies]
-rand = "0.1"
+rand = "0.2"
