@@ -30,7 +30,7 @@
 #![cfg_attr(test, deny(warnings))]
 
 extern crate libc;
-extern crate "miniz-sys" as ffi;
+extern crate miniz_sys as ffi;
 #[cfg(test)] extern crate rand;
 
 use std::io::prelude::*;

@@ -1,7 +1,7 @@
 [package]
 
 name = "miniz-sys"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 links = "miniz"
 build = "build.rs"
@@ -12,7 +12,7 @@ Bindings to the miniz.c library.
 """
 
 [lib]
-name = "miniz-sys"
+name = "miniz_sys"
 path = "lib.rs"
 
 [dependencies]
