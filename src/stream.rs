@@ -68,9 +68,9 @@ impl<T: Direction> Stream<T> {
 impl Stream<Decompress> {
     pub fn decompress(&mut self, input: &[u8], output: &mut [u8],
                       flush: Flush) -> c_int {
-        self.raw.next_in = input.as_ptr() as *mut _;
+        self.raw.next_in = input.as_ptr();
         self.raw.avail_in = input.len() as c_uint;
-        self.raw.next_out = output.as_mut_ptr() as *mut _;
+        self.raw.next_out = output.as_mut_ptr();
         self.raw.avail_out = output.len() as c_uint;
         unsafe { ffi::mz_inflate(&mut self.raw, flush as c_int) }
     }
@@ -84,7 +84,7 @@ impl Stream<Decompress> {
         self.raw.avail_out = (cap - len) as c_uint;
 
         unsafe {
-            self.raw.next_out = output.as_mut_ptr().offset(len as isize) as *mut _;
+            self.raw.next_out = output.as_mut_ptr().offset(len as isize);
             let before = self.total_out();
             let rc = ffi::mz_inflate(&mut self.raw, flush as c_int);
             let diff = (self.total_out() - before) as usize;
@@ -99,7 +99,7 @@ impl Stream<Compress> {
                     flush: Flush) -> c_int {
         self.raw.next_in = input.as_ptr() as *mut _;
         self.raw.avail_in = input.len() as c_uint;
-        self.raw.next_out = output.as_mut_ptr() as *mut _;
+        self.raw.next_out = output.as_mut_ptr();
         self.raw.avail_out = output.len() as c_uint;
         unsafe { ffi::mz_deflate(&mut self.raw, flush as c_int) }
     }
@@ -113,7 +113,7 @@ impl Stream<Compress> {
         self.raw.avail_out = (cap - len) as c_uint;
 
         unsafe {
-            self.raw.next_out = output.as_mut_ptr().offset(len as isize) as *mut _;
+            self.raw.next_out = output.as_mut_ptr().offset(len as isize);
 
             let before = self.total_out();
             let rc = ffi::mz_deflate(&mut self.raw, flush as c_int);
