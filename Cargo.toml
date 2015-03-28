@@ -17,10 +17,7 @@ streams.
 
 [dependencies]
 libc = "0.1"
-
-[dependencies.miniz-sys]
-path = "miniz-sys"
-version = "0.1.0"
+miniz-sys = { path = "miniz-sys", version = "0.1" }
 
 [dev-dependencies]
 rand = "0.2"
