@@ -204,7 +204,7 @@ impl<W: Write> EncoderWriter<W> {
 
     fn do_finish(&mut self) -> io::Result<W> {
         if self.header.len() != 0 {
-            try!(self.inner.write_all(&self.header));
+            try!(self.inner.write_all_raw(&self.header));
         }
         try!(self.inner.finish());
         let mut inner = self.inner.take_inner();
@@ -488,6 +488,16 @@ mod tests {
         let mut s = String::new();
         d.read_to_string(&mut s).unwrap();
         assert_eq!(s, "foo bar baz");
+    }
+
+    #[test]
+    fn roundtrip_zero() {
+        let e = EncoderWriter::new(Vec::new(), Default);
+        let inner = e.finish().unwrap();
+        let mut d = DecoderReader::new(&inner[..]).unwrap();
+        let mut s = String::new();
+        d.read_to_string(&mut s).unwrap();
+        assert_eq!(s, "");
     }
 
     #[test]
