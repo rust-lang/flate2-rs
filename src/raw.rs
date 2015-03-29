@@ -39,7 +39,7 @@ impl<W: Write> EncoderWriter<W> {
     }
 
     pub fn finish(&mut self) -> io::Result<()> {
-        self.0.finish(|stream, inner| {
+        self.0.finish(&mut |stream, inner| {
             stream.compress_vec(&[], inner, Flush::Finish)
         })
     }
@@ -59,13 +59,13 @@ impl<W: Write> EncoderWriter<W> {
 
 impl<W: Write> Write for EncoderWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.write(|stream, inner| {
+        self.0.write(&mut |stream, inner| {
             stream.compress_vec(buf, inner, Flush::None)
         })
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.0.flush(|stream, inner| {
+        self.0.flush(&mut |stream, inner| {
             stream.compress_vec(&[], inner, Flush::Sync)
         })
     }
@@ -90,7 +90,7 @@ impl<W: Write> DecoderWriter<W> {
     }
 
     pub fn finish(&mut self) -> io::Result<()> {
-        self.0.finish(|stream, inner| {
+        self.0.finish(&mut |stream, inner| {
             stream.decompress_vec(&[], inner, Flush::Finish)
         })
     }
@@ -100,20 +100,20 @@ impl<W: Write> DecoderWriter<W> {
 
 impl<W: Write> Write for DecoderWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.write(|stream, inner| {
+        self.0.write(&mut |stream, inner| {
             stream.decompress_vec(buf, inner, Flush::None)
         })
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.0.flush(|stream, inner| {
+        self.0.flush(&mut |stream, inner| {
             stream.decompress_vec(&[], inner, Flush::Sync)
         })
     }
 }
 
 impl<W: Write, D: Direction> InnerWrite<W, D> {
-    fn write<F>(&mut self, mut f: F) -> io::Result<usize>
+    fn write<F>(&mut self, f: &mut F) -> io::Result<usize>
         where F: FnMut(&mut Stream<D>, &mut Vec<u8>) -> libc::c_int
     {
         let writer = self.inner.as_mut().unwrap();
@@ -133,7 +133,7 @@ impl<W: Write, D: Direction> InnerWrite<W, D> {
         }
     }
 
-    fn flush<F>(&mut self, f: F) -> io::Result<()>
+    fn flush<F>(&mut self, f: &mut F) -> io::Result<()>
         where F: FnMut(&mut Stream<D>, &mut Vec<u8>) -> libc::c_int
     {
         try!(self.write(f));
@@ -144,13 +144,22 @@ impl<W: Write, D: Direction> InnerWrite<W, D> {
         inner.flush()
     }
 
-    fn finish<F>(&mut self, f: F) -> io::Result<()>
+    fn finish<F>(&mut self, f: &mut F) -> io::Result<()>
         where F: FnMut(&mut Stream<D>, &mut Vec<u8>) -> libc::c_int
     {
-        try!(self.write(f));
-        let inner = self.inner.as_mut().unwrap();
-        try!(inner.write_all(&self.buf));
-        self.buf.truncate(0);
+        // Unfortunately miniz doesn't actually tell us when we're done with
+        // pulling out all the data from the internal stream. To remedy this we
+        // have to continually ask the stream for more memory until it doesn't
+        // give us a chunk of memory the same size as our own internal buffer,
+        // at which point we assume it's reached the end.
+        let mut cont = true;
+        while cont {
+            try!(self.write(f));
+            let inner = self.inner.as_mut().unwrap();
+            try!(inner.write_all(&self.buf));
+            cont = self.buf.len() == self.buf.capacity();
+            self.buf.truncate(0);
+        }
         Ok(())
     }
 }
