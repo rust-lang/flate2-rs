@@ -238,7 +238,6 @@ impl<W: Write> Write for EncoderWriter<W> {
     fn flush(&mut self) -> io::Result<()> { self.inner.flush() }
 }
 
-#[unsafe_destructor]
 impl<W: Write> Drop for EncoderWriter<W> {
     fn drop(&mut self) {
         if !self.inner.unwrapped() {

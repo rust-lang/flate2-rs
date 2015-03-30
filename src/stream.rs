@@ -135,7 +135,6 @@ impl Direction for Decompress {
     }
 }
 
-#[unsafe_destructor]
 impl<D: Direction> Drop for Stream<D> {
     fn drop(&mut self) {
         unsafe {

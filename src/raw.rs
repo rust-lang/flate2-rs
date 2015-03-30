@@ -71,7 +71,6 @@ impl<W: Write> Write for EncoderWriter<W> {
     }
 }
 
-#[unsafe_destructor]
 impl<W: Write> Drop for EncoderWriter<W> {
     fn drop(&mut self) {
         if self.0.inner.is_some() {
