@@ -59,9 +59,20 @@ impl<W: Write> EncoderWriter<W> {
 
 impl<W: Write> Write for EncoderWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.write(&mut |stream, inner| {
-            stream.compress_vec(buf, inner, Flush::None)
-        })
+        // miniz isn't guaranteed to actually write any of the buffer provided,
+        // it may be in a flushing mode where it's just giving us data before
+        // we're actually giving it any data. We don't want to spuriously return
+        // `Ok(0)` when possible as it will cause calls to write_all() to fail.
+        // As a result we execute this in a loop to ensure that we try our
+        // darndest to write the data.
+        loop {
+            let n = try!(self.0.write(&mut |stream, inner| {
+                stream.compress_vec(buf, inner, Flush::None)
+            }));
+            if buf.len() == 0 || n != 0 {
+                return Ok(n)
+            }
+        }
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -99,9 +110,15 @@ impl<W: Write> DecoderWriter<W> {
 
 impl<W: Write> Write for DecoderWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.write(&mut |stream, inner| {
-            stream.decompress_vec(buf, inner, Flush::None)
-        })
+        // See EncoderWriter::write for why this is in a loop
+        loop {
+            let n = try!(self.0.write(&mut |stream, inner| {
+                stream.decompress_vec(buf, inner, Flush::None)
+            }));
+            if buf.len() == 0 || n != 0 {
+                return Ok(n)
+            }
+        }
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -125,9 +142,7 @@ impl<W: Write, D: Direction> InnerWrite<W, D> {
         let ret = f(&mut self.stream, &mut self.buf);
         let written = (self.stream.total_in() - before_in) as usize;
         match ret {
-            ffi::MZ_OK
-            | ffi::MZ_BUF_ERROR
-            | ffi::MZ_STREAM_END => Ok(written),
+            ffi::MZ_OK | ffi::MZ_BUF_ERROR | ffi::MZ_STREAM_END => Ok(written),
             n => panic!("unexpected return {}", n),
         }
     }
