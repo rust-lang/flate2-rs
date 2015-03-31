@@ -65,9 +65,9 @@ impl<W: Write> Write for EncoderWriter<W> {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.0.flush(&mut |stream, inner| {
+        self.0.finish(&mut |stream, inner| {
             stream.compress_vec(&[], inner, Flush::Sync)
-        })
+        }).and_then(|()| self.0.inner.as_mut().unwrap().flush())
     }
 }
 
@@ -105,9 +105,9 @@ impl<W: Write> Write for DecoderWriter<W> {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.0.flush(&mut |stream, inner| {
+        self.0.finish(&mut |stream, inner| {
             stream.decompress_vec(&[], inner, Flush::Sync)
-        })
+        }).and_then(|()| self.0.inner.as_mut().unwrap().flush())
     }
 }
 
@@ -132,17 +132,6 @@ impl<W: Write, D: Direction> InnerWrite<W, D> {
         }
     }
 
-    fn flush<F>(&mut self, f: &mut F) -> io::Result<()>
-        where F: FnMut(&mut Stream<D>, &mut Vec<u8>) -> libc::c_int
-    {
-        try!(self.write(f));
-        let inner = self.inner.as_mut().unwrap();
-        if self.buf.len() > 0 {
-            try!(inner.write_all(&self.buf));
-        }
-        inner.flush()
-    }
-
     fn finish<F>(&mut self, f: &mut F) -> io::Result<()>
         where F: FnMut(&mut Stream<D>, &mut Vec<u8>) -> libc::c_int
     {
@@ -155,7 +144,9 @@ impl<W: Write, D: Direction> InnerWrite<W, D> {
         while cont {
             try!(self.write(f));
             let inner = self.inner.as_mut().unwrap();
-            try!(inner.write_all(&self.buf));
+            if self.buf.len() > 0 {
+                try!(inner.write_all(&self.buf));
+            }
             cont = self.buf.len() == self.buf.capacity();
             self.buf.truncate(0);
         }
