@@ -250,7 +250,7 @@ impl<R: Read, D: Direction> InnerRead<R, D> {
                 ffi::MZ_STREAM_END => return Ok(read),
                 ffi::MZ_DATA_ERROR => {
                     Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                       "corrupt deflate stream", None))
+                                       "corrupt deflate stream"))
                 }
                 n => panic!("unexpected return {}", n),
             }

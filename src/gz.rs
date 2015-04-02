@@ -387,8 +387,7 @@ impl<R: Read> DecoderReader<R> {
         });
 
         fn bad_header() -> io::Error {
-            io::Error::new(io::ErrorKind::InvalidInput, "invalid gzip header",
-                           None)
+            io::Error::new(io::ErrorKind::InvalidInput, "invalid gzip header")
         }
 
         fn fill<R: Read>(r: &mut R, mut buf: &mut [u8]) -> io::Result<()> {
@@ -466,8 +465,7 @@ impl Header {
 
 fn corrupt() -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput,
-                   "corrupt gzip stream does not have a matching checksum",
-                   None)
+                   "corrupt gzip stream does not have a matching checksum")
 }
 
 #[cfg(test)]

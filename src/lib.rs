@@ -25,7 +25,6 @@
 //! already existing stream to chain construction.
 
 #![doc(html_root_url = "http://alexcrichton.com/flate2-rs")]
-#![feature(io)]
 #![deny(missing_docs)]
 #![allow(trivial_numeric_casts)]
 #![cfg_attr(test, deny(warnings))]
