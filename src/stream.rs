@@ -22,8 +22,9 @@ pub enum Flush {
 }
 
 #[doc(hidden)]
-pub trait Direction: marker::PhantomFn<Self> {
+pub trait Direction {
     unsafe fn destroy(stream: *mut ffi::mz_stream) -> c_int;
+    fn foo(&self) {}
 }
 
 impl Stream<Compress> {
