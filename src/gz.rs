@@ -58,6 +58,7 @@ pub struct Builder {
 pub struct DecoderReader<R: Read> {
     inner: CrcReader<raw::DecoderReader<R>>,
     header: Header,
+    finished: bool,
 }
 
 /// A structure representing the header of a gzip stream.
@@ -383,7 +384,8 @@ impl<R: Read> DecoderReader<R> {
                 filename: filename,
                 comment: comment,
                 mtime: mtime,
-            }
+            },
+            finished: false,
         });
 
         fn bad_header() -> io::Error {
@@ -411,6 +413,9 @@ impl<R: Read> DecoderReader<R> {
     pub fn header(&self) -> &Header { &self.header }
 
     fn finish(&mut self) -> io::Result<()> {
+        if self.finished {
+            return Ok(())
+        }
         let ref mut buf = [0u8; 8];
         {
             let mut len = 0;
@@ -433,6 +438,7 @@ impl<R: Read> DecoderReader<R> {
                   ((buf[7] as u32) << 24);
         if crc != self.inner.crc().sum() as u32 { return Err(corrupt()) }
         if amt != self.inner.crc().amt() { return Err(corrupt()) }
+        self.finished = true;
         Ok(())
     }
 }
@@ -538,5 +544,18 @@ mod tests {
         d.read_to_end(&mut res).unwrap();
         assert_eq!(res, vec![0, 2, 4, 6]);
 
+    }
+
+    #[test]
+    fn keep_reading_after_end() {
+        let mut e = EncoderWriter::new(Vec::new(), Default);
+        e.write_all(b"foo bar baz").unwrap();
+        let inner = e.finish().unwrap();
+        let mut d = DecoderReader::new(&inner[..]).unwrap();
+        let mut s = String::new();
+        d.read_to_string(&mut s).unwrap();
+        assert_eq!(s, "foo bar baz");
+        d.read_to_string(&mut s).unwrap();
+        assert_eq!(s, "foo bar baz");
     }
 }
