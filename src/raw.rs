@@ -106,6 +106,12 @@ impl<W: Write> DecoderWriter<W> {
         })
     }
 
+    pub fn reset(&mut self, w: W, raw: bool) -> W {
+        self.0.stream = Stream::new_decompress(raw);
+        self.0.buf.truncate(0);
+        mem::replace(&mut self.0.inner, Some(w)).unwrap()
+    }
+
     pub fn finish(&mut self) -> io::Result<()> {
         self.0.finish(&mut |stream, inner| {
             stream.decompress_vec(&[], inner, Flush::Finish)
@@ -213,6 +219,13 @@ impl<R: Read> DecoderReader<R> {
             pos: 0,
             cap: 0,
         })
+    }
+
+    pub fn reset(&mut self, r: R, raw: bool) -> R {
+        self.0.stream = Stream::new_decompress(raw);
+        self.0.cap = 0;
+        self.0.pos = 0;
+        mem::replace(&mut self.0.inner, r)
     }
 
     pub fn into_inner(self) -> R { self.0.inner }

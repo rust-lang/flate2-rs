@@ -2,7 +2,6 @@
 
 use std::io::prelude::*;
 use std::io;
-use std::iter::repeat;
 
 use raw;
 
@@ -87,8 +86,7 @@ impl<R: Read> EncoderReader<R> {
     /// stream and emit the compressed stream.
     pub fn new(r: R, level: ::Compression) -> EncoderReader<R> {
         EncoderReader {
-            inner: raw::EncoderReader::new(r, level, false,
-                                           repeat(0).take(32 * 1024).collect())
+            inner: raw::EncoderReader::new(r, level, false, vec![0; 32 * 1024]),
         }
     }
 
@@ -119,7 +117,7 @@ impl<R: Read> DecoderReader<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.
     pub fn new(r: R) -> DecoderReader<R> {
-        DecoderReader::new_with_buf(r, repeat(0).take(32 * 1024).collect())
+        DecoderReader::new_with_buf(r, vec![0; 32 * 1024])
     }
 
     /// Same as `new`, but the intermediate buffer for data is specified.
@@ -128,6 +126,17 @@ impl<R: Read> DecoderReader<R> {
     /// length. The buffer's capacity will also not grow over time.
     pub fn new_with_buf(r: R, buf: Vec<u8>) -> DecoderReader<R> {
         DecoderReader { inner: raw::DecoderReader::new(r, false, buf) }
+    }
+
+    /// Resets the state of this decoder entirely, swapping out the input
+    /// stream for another.
+    ///
+    /// This will reset the internal state of this decoder and replace the
+    /// input stream with the one provided, returning the previous input
+    /// stream. Future data read from this decoder will be the decompressed
+    /// version of `r`'s data.
+    pub fn reset(&mut self, r: R) -> R {
+        self.inner.reset(r, false)
     }
 
     /// Consumes this decoder, returning the underlying reader.
@@ -145,13 +154,25 @@ impl<R: Read> Read for DecoderReader<R> {
 impl<W: Write> DecoderWriter<W> {
     /// Creates a new decoder which will write uncompressed data to the stream.
     ///
-    /// When this encoder is dropped or unwrapped the final pieces of data will
+    /// When this decoder is dropped or unwrapped the final pieces of data will
     /// be flushed.
     pub fn new(w: W) -> DecoderWriter<W> {
         DecoderWriter {
             inner: raw::DecoderWriter::new(w, false,
                                            Vec::with_capacity(32 * 1024)),
         }
+    }
+
+    /// Resets the state of this decoder entirely, swapping out the output
+    /// stream for another.
+    ///
+    /// This will reset the internal state of this decoder and replace the
+    /// output stream with the one provided, returning the previous output
+    /// stream. Future data written to this decoder will be decompressed into
+    /// the output stream `w`.
+    pub fn reset(&mut self, w: W) -> io::Result<W> {
+        try!(self.inner.finish());
+        Ok(self.inner.reset(w, false))
     }
 
     /// Consumes this encoder, flushing the output stream.
@@ -212,6 +233,38 @@ mod tests {
         let w = w.finish().unwrap().finish().unwrap();
         assert!(w == v);
     }
+
+    #[test]
+    fn reset_decoder() {
+        let v = thread_rng().gen_iter::<u8>().take(1024 * 1024)
+                            .collect::<Vec<_>>();
+        let mut w = EncoderWriter::new(Vec::new(), Default);
+        w.write_all(&v).unwrap();
+        let data = w.finish().unwrap();
+
+        {
+            let (mut a, mut b, mut c) = (Vec::new(), Vec::new(), Vec::new());
+            let mut r = DecoderReader::new(&data[..]);
+            r.read_to_end(&mut a).unwrap();
+            r.reset(&data);
+            r.read_to_end(&mut b).unwrap();
+
+            let mut r = DecoderReader::new(&data[..]);
+            r.read_to_end(&mut c).unwrap();
+            assert!(a == b && b == c && c == v);
+        }
+
+        {
+            let mut w = DecoderWriter::new(Vec::new());
+            w.write_all(&data).unwrap();
+            let a = w.reset(Vec::new()).unwrap();
+            w.write_all(&data).unwrap();
+            let b = w.finish().unwrap();
+
+            let mut w = DecoderWriter::new(Vec::new());
+            w.write_all(&data).unwrap();
+            let c = w.finish().unwrap();
+            assert!(a == b && b == c && c == v);
+        }
+    }
 }
-
-

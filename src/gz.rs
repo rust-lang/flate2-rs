@@ -7,7 +7,6 @@ use std::env;
 use std::ffi::CString;
 use std::io::prelude::*;
 use std::io;
-use std::iter::repeat;
 use std::mem;
 
 use Compression;
@@ -127,8 +126,7 @@ impl Builder {
     pub fn read<R: Read>(self, r: R, lvl: Compression) -> EncoderReader<R> {
         let crc = CrcReader::new(r);
         EncoderReader {
-            inner: raw::EncoderReader::new(crc, lvl, true,
-                                           repeat(0).take(32 * 1024).collect()),
+            inner: raw::EncoderReader::new(crc, lvl, true, vec![0; 32 * 1024]),
             header: self.into_header(lvl),
             pos: 0,
             eof: false,
@@ -138,7 +136,7 @@ impl Builder {
     fn into_header(self, lvl: Compression) -> Vec<u8> {
         let Builder { extra, filename, comment, mtime } = self;
         let mut flg = 0;
-        let mut header = repeat(0u8).take(10).collect::<Vec<_>>();
+        let mut header = vec![0u8; 10];
         match extra {
             Some(v) => {
                 flg |= FEXTRA;
@@ -338,7 +336,7 @@ impl<R: Read> DecoderReader<R> {
 
         let extra = if flg & FEXTRA != 0 {
             let xlen = try!(read_le_u16(&mut crc_reader));
-            let mut extra = repeat(0).take(xlen as usize).collect::<Vec<_>>();
+            let mut extra = vec![0; xlen as usize];
             try!(fill(&mut crc_reader, &mut extra));
             Some(extra)
         } else {
@@ -376,7 +374,7 @@ impl<R: Read> DecoderReader<R> {
         }
 
         let flate = raw::DecoderReader::new(crc_reader.into_inner(), true,
-                                            repeat(0).take(32 * 1024).collect());
+                                            vec![0; 32 * 1024]);
         return Ok(DecoderReader {
             inner: CrcReader::new(flate),
             header: Header {
