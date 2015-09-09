@@ -2,6 +2,7 @@
 
 use std::io::prelude::*;
 use std::io;
+use std::mem;
 use libc;
 
 use Compression;
@@ -54,6 +55,12 @@ impl<W: Write> EncoderWriter<W> {
 
     pub fn unwrapped(&self) -> bool {
         self.0.inner.is_none()
+    }
+
+    pub fn reset(&mut self, w: W) -> W {
+        self.0.stream.reset();
+        self.0.buf.truncate(0);
+        mem::replace(&mut self.0.inner, Some(w)).unwrap()
     }
 }
 
@@ -182,6 +189,13 @@ impl<R: Read> EncoderReader<R> {
     }
     pub fn get_ref(&self) -> &R { &self.0.inner }
     pub fn into_inner(self) -> R { self.0.inner }
+
+    pub fn reset(&mut self, r: R) -> R {
+        self.0.stream.reset();
+        self.0.cap = 0;
+        self.0.pos = 0;
+        mem::replace(&mut self.0.inner, r)
+    }
 }
 
 impl<R: Read> Read for EncoderReader<R> {

@@ -51,6 +51,22 @@ impl<W: Write> EncoderWriter<W> {
         }
     }
 
+    /// Resets the state of this encoder entirely, swapping out the output
+    /// stream for another.
+    ///
+    /// This function will finish encoding the current stream into the current
+    /// output stream before swapping out the two output streams. If the stream
+    /// cannot be finished an error is returned.
+    ///
+    /// After the current stream has been finished, this will reset the internal
+    /// state of this encoder and replace the output stream with the one
+    /// provided, returning the previous output stream. Future data written to
+    /// this encoder will be the compressed into the stream `w` provided.
+    pub fn reset(&mut self, w: W) -> io::Result<W> {
+        try!(self.inner.finish());
+        Ok(self.inner.reset(w))
+    }
+
     /// Consumes this encoder, flushing the output stream.
     ///
     /// This will flush the underlying data stream and then return the contained
@@ -71,9 +87,19 @@ impl<R: Read> EncoderReader<R> {
     /// stream and emit the compressed stream.
     pub fn new(r: R, level: ::Compression) -> EncoderReader<R> {
         EncoderReader {
-            inner: raw::EncoderReader::new(r, level, true,
-                                           repeat(0).take(32 * 1024).collect()),
+            inner: raw::EncoderReader::new(r, level, true, vec![0; 32 * 1024]),
         }
+    }
+
+    /// Resets the state of this encoder entirely, swapping out the input
+    /// stream for another.
+    ///
+    /// This function will reset the internal state of this encoder and replace
+    /// the input stream with the one provided, returning the previous input
+    /// stream. Future data read from this encoder will be the compressed
+    /// version of `r`'s data.
+    pub fn reset(&mut self, r: R) -> R {
+        self.inner.reset(r)
     }
 
     /// Consumes this encoder, returning the underlying reader.
@@ -185,6 +211,35 @@ mod tests {
         let w = w.finish().unwrap().finish().unwrap();
         assert!(w == v);
     }
+
+    #[test]
+    fn reset_writer() {
+        let v = thread_rng().gen_iter::<u8>().take(1024 * 1024)
+                            .collect::<Vec<_>>();
+        let mut w = EncoderWriter::new(Vec::new(), Default);
+        w.write_all(&v).unwrap();
+        let a = w.reset(Vec::new()).unwrap();
+        w.write_all(&v).unwrap();
+        let b = w.finish().unwrap();
+
+        let mut w = EncoderWriter::new(Vec::new(), Default);
+        w.write_all(&v).unwrap();
+        let c = w.finish().unwrap();
+        assert!(a == b && b == c);
+    }
+
+    #[test]
+    fn reset_reader() {
+        let v = thread_rng().gen_iter::<u8>().take(1024 * 1024)
+                            .collect::<Vec<_>>();
+        let (mut a, mut b, mut c) = (Vec::new(), Vec::new(), Vec::new());
+        let mut r = EncoderReader::new(&v[..], Default);
+        r.read_to_end(&mut a).unwrap();
+        r.reset(&v[..]);
+        r.read_to_end(&mut b).unwrap();
+
+        let mut r = EncoderReader::new(&v[..], Default);
+        r.read_to_end(&mut c).unwrap();
+        assert!(a == b && b == c);
+    }
 }
-
-
