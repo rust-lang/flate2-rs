@@ -2,7 +2,7 @@
 
 name = "flate2"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
-version = "0.2.8"
+version = "0.2.9"
 license = "MIT/Apache-2.0"
 readme = "README.md"
 keywords = ["gzip", "flate", "zlib", "encoding"]
@@ -17,7 +17,7 @@ streams.
 
 [dependencies]
 libc = "0.1"
-miniz-sys = { path = "miniz-sys", version = "0.1" }
+miniz-sys = { path = "miniz-sys", version = "0.1.6" }
 
 [dev-dependencies]
 rand = "0.3"
