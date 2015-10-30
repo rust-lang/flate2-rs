@@ -61,17 +61,17 @@ extern {
                            method: c_int,
                            window_bits: c_int,
                            mem_level: c_int,
-                           strategy: c_int) -> c_int;
+                           strategy: c_int)
+                           -> c_int;
     pub fn mz_deflate(stream: *mut mz_stream, flush: c_int) -> c_int;
     pub fn mz_deflateEnd(stream: *mut mz_stream) -> c_int;
     pub fn mz_deflateReset(stream: *mut mz_stream) -> c_int;
 
     pub fn mz_inflateInit2(stream: *mut mz_stream,
-                           window_bits: c_int) -> c_int;
+                           window_bits: c_int)
+                           -> c_int;
     pub fn mz_inflate(stream: *mut mz_stream, flush: c_int) -> c_int;
     pub fn mz_inflateEnd(stream: *mut mz_stream) -> c_int;
 
-    pub fn mz_crc32(crc: c_ulong, ptr: *const u8,
-                    len: size_t) -> c_ulong;
+    pub fn mz_crc32(crc: c_ulong, ptr: *const u8, len: size_t) -> c_ulong;
 }
-
