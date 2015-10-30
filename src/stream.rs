@@ -88,7 +88,10 @@ impl Stream<Compress> {
                                            9,
                                            ffi::MZ_DEFAULT_STRATEGY);
             debug_assert_eq!(ret, 0);
-            Stream { raw: state, _marker: marker::PhantomData }
+            Stream {
+                raw: state,
+                _marker: marker::PhantomData,
+            }
         }
     }
 
@@ -96,25 +99,36 @@ impl Stream<Compress> {
         unsafe {
             let mut state: ffi::mz_stream = mem::zeroed();
             let ret = ffi::mz_inflateInit2(&mut state,
-                                          if raw {
-                                              -ffi::MZ_DEFAULT_WINDOW_BITS
-                                          } else {
-                                              ffi::MZ_DEFAULT_WINDOW_BITS
-                                          });
+                                           if raw {
+                                               -ffi::MZ_DEFAULT_WINDOW_BITS
+                                           } else {
+                                               ffi::MZ_DEFAULT_WINDOW_BITS
+                                           });
             debug_assert_eq!(ret, 0);
-            Stream { raw: state, _marker: marker::PhantomData }
+            Stream {
+                raw: state,
+                _marker: marker::PhantomData,
+            }
         }
     }
 }
 
 impl<T: Direction> Stream<T> {
-    pub fn total_in(&self) -> u64 { self.raw.total_in as u64 }
-    pub fn total_out(&self) -> u64 { self.raw.total_out as u64 }
+    pub fn total_in(&self) -> u64 {
+        self.raw.total_in as u64
+    }
+
+    pub fn total_out(&self) -> u64 {
+        self.raw.total_out as u64
+    }
 }
 
 impl Stream<Decompress> {
-    pub fn decompress(&mut self, input: &[u8], output: &mut [u8],
-                      flush: Flush) -> c_int {
+    pub fn decompress(&mut self,
+                      input: &[u8],
+                      output: &mut [u8],
+                      flush: Flush)
+                      -> c_int {
         self.raw.next_in = input.as_ptr();
         self.raw.avail_in = input.len() as c_uint;
         self.raw.next_out = output.as_mut_ptr();
@@ -122,8 +136,11 @@ impl Stream<Decompress> {
         unsafe { ffi::mz_inflate(&mut self.raw, flush as c_int) }
     }
 
-    pub fn decompress_vec(&mut self, input: &[u8], output: &mut Vec<u8>,
-                          flush: Flush) -> c_int {
+    pub fn decompress_vec(&mut self,
+                          input: &[u8],
+                          output: &mut Vec<u8>,
+                          flush: Flush)
+                          -> c_int {
         let cap = output.capacity();
         let len = output.len();
         self.raw.avail_in = input.len() as c_uint;
@@ -142,8 +159,11 @@ impl Stream<Decompress> {
 }
 
 impl Stream<Compress> {
-    pub fn compress(&mut self, input: &[u8], output: &mut [u8],
-                    flush: Flush) -> c_int {
+    pub fn compress(&mut self,
+                    input: &[u8],
+                    output: &mut [u8],
+                    flush: Flush)
+                    -> c_int {
         self.raw.next_in = input.as_ptr() as *mut _;
         self.raw.avail_in = input.len() as c_uint;
         self.raw.next_out = output.as_mut_ptr();
@@ -151,8 +171,11 @@ impl Stream<Compress> {
         unsafe { ffi::mz_deflate(&mut self.raw, flush as c_int) }
     }
 
-    pub fn compress_vec(&mut self, input: &[u8], output: &mut Vec<u8>,
-                        flush: Flush) -> c_int {
+    pub fn compress_vec(&mut self,
+                        input: &[u8],
+                        output: &mut Vec<u8>,
+                        flush: Flush)
+                        -> c_int {
         let cap = output.capacity();
         let len = output.len();
         self.raw.avail_in = input.len() as c_uint;

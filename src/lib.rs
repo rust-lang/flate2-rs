@@ -31,7 +31,8 @@
 
 extern crate libc;
 extern crate miniz_sys as ffi;
-#[cfg(test)] extern crate rand;
+#[cfg(test)]
+extern crate rand;
 
 use std::io::prelude::*;
 use std::io;
@@ -171,12 +172,14 @@ mod test {
         let rdr = &mut b"foobar";
         let mut res = Vec::new();
         rdr.gz_encode(Compression::Default)
-              .deflate_encode(Compression::Default)
-                  .zlib_encode(Compression::Default)
-                  .zlib_decode()
-              .deflate_decode()
-           .gz_decode().unwrap()
-           .read_to_end(&mut res).unwrap();
+           .deflate_encode(Compression::Default)
+           .zlib_encode(Compression::Default)
+           .zlib_decode()
+           .deflate_decode()
+           .gz_decode()
+           .unwrap()
+           .read_to_end(&mut res)
+           .unwrap();
         assert_eq!(res, b"foobar");
     }
 }

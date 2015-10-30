@@ -30,7 +30,10 @@ struct InnerRead<R, D: Direction> {
 }
 
 impl<W: Write> EncoderWriter<W> {
-    pub fn new(w: W, level: Compression, raw: bool, buf: Vec<u8>)
+    pub fn new(w: W,
+               level: Compression,
+               raw: bool,
+               buf: Vec<u8>)
                -> EncoderWriter<W> {
         EncoderWriter(InnerWrite {
             inner: Some(w),
@@ -45,9 +48,13 @@ impl<W: Write> EncoderWriter<W> {
         })
     }
 
-    pub fn into_inner(mut self) -> W { self.0.inner.take().unwrap() }
+    pub fn into_inner(mut self) -> W {
+        self.0.inner.take().unwrap()
+    }
 
-    pub fn take_inner(&mut self) -> W { self.0.inner.take().unwrap() }
+    pub fn take_inner(&mut self) -> W {
+        self.0.inner.take().unwrap()
+    }
 
     pub fn write_all_raw(&mut self, buf: &[u8]) -> io::Result<()> {
         self.0.inner.as_mut().unwrap().write_all(buf)
@@ -77,15 +84,17 @@ impl<W: Write> Write for EncoderWriter<W> {
                 stream.compress_vec(buf, inner, Flush::None)
             }));
             if buf.len() == 0 || n != 0 {
-                return Ok(n)
+                return Ok(n);
             }
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.0.finish(&mut |stream, inner| {
-            stream.compress_vec(&[], inner, Flush::Sync)
-        }).and_then(|()| self.0.inner.as_mut().unwrap().flush())
+        self.0
+            .finish(&mut |stream, inner| {
+                stream.compress_vec(&[], inner, Flush::Sync)
+            })
+            .and_then(|()| self.0.inner.as_mut().unwrap().flush())
     }
 }
 
@@ -118,7 +127,9 @@ impl<W: Write> DecoderWriter<W> {
         })
     }
 
-    pub fn into_inner(mut self) -> W { self.0.inner.take().unwrap() }
+    pub fn into_inner(mut self) -> W {
+        self.0.inner.take().unwrap()
+    }
 }
 
 impl<W: Write> Write for DecoderWriter<W> {
@@ -129,15 +140,17 @@ impl<W: Write> Write for DecoderWriter<W> {
                 stream.decompress_vec(buf, inner, Flush::None)
             }));
             if buf.len() == 0 || n != 0 {
-                return Ok(n)
+                return Ok(n);
             }
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.0.finish(&mut |stream, inner| {
-            stream.decompress_vec(&[], inner, Flush::Sync)
-        }).and_then(|()| self.0.inner.as_mut().unwrap().flush())
+        self.0
+            .finish(&mut |stream, inner| {
+                stream.decompress_vec(&[], inner, Flush::Sync)
+            })
+            .and_then(|()| self.0.inner.as_mut().unwrap().flush())
     }
 }
 
@@ -183,7 +196,10 @@ impl<W: Write, D: Direction> InnerWrite<W, D> {
 }
 
 impl<R: Read> EncoderReader<R> {
-    pub fn new(w: R, level: Compression, raw: bool, buf: Vec<u8>)
+    pub fn new(w: R,
+               level: Compression,
+               raw: bool,
+               buf: Vec<u8>)
                -> EncoderReader<R> {
         EncoderReader(InnerRead {
             inner: w,
@@ -193,8 +209,12 @@ impl<R: Read> EncoderReader<R> {
             pos: 0,
         })
     }
-    pub fn get_ref(&self) -> &R { &self.0.inner }
-    pub fn into_inner(self) -> R { self.0.inner }
+    pub fn get_ref(&self) -> &R {
+        &self.0.inner
+    }
+    pub fn into_inner(self) -> R {
+        self.0.inner
+    }
 
     pub fn reset(&mut self, r: R) -> R {
         self.0.stream.reset();
@@ -228,13 +248,18 @@ impl<R: Read> DecoderReader<R> {
         mem::replace(&mut self.0.inner, r)
     }
 
-    pub fn into_inner(self) -> R { self.0.inner }
+    pub fn into_inner(self) -> R {
+        self.0.inner
+    }
 
     pub fn read_raw(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut from = &self.0.buf[self.0.pos..self.0.cap];
         match try!(Read::read(&mut from, buf)) {
             0 => {}
-            n => { self.0.pos += n; return Ok(n) }
+            n => {
+                self.0.pos += n;
+                return Ok(n);
+            }
         }
         self.0.inner.read(buf)
     }
@@ -260,8 +285,13 @@ impl<R: Read, D: Direction> InnerRead<R, D> {
 
             let before_out = self.stream.total_out();
             let before_in = self.stream.total_in();
-            let ret = f(&mut self.stream, &self.buf[self.pos..self.cap],
-                        if eof {Flush::Finish} else {Flush::None});
+            let ret = f(&mut self.stream,
+                        &self.buf[self.pos..self.cap],
+                        if eof {
+                            Flush::Finish
+                        } else {
+                            Flush::None
+                        });
             let read = (self.stream.total_out() - before_out) as usize;
             self.pos += (self.stream.total_in() - before_in) as usize;
 
@@ -271,7 +301,9 @@ impl<R: Read, D: Direction> InnerRead<R, D> {
                     // then we need to keep asking for more data because if we
                     // return that 0 bytes of data have been read then it will
                     // be interpreted as EOF.
-                    if read == 0 && !eof { continue }
+                    if read == 0 && !eof {
+                        continue;
+                    }
                     Ok(read)
                 }
                 ffi::MZ_STREAM_END => return Ok(read),
@@ -280,7 +312,7 @@ impl<R: Read, D: Direction> InnerRead<R, D> {
                                        "corrupt deflate stream"))
                 }
                 n => panic!("unexpected return {}", n),
-            }
+            };
         }
     }
 }

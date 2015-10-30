@@ -112,7 +112,9 @@ impl Builder {
     /// written out to the supplied parameter `w`.
     pub fn write<W: Write>(self, w: W, lvl: Compression) -> EncoderWriter<W> {
         EncoderWriter {
-            inner: raw::EncoderWriter::new(w, lvl, true,
+            inner: raw::EncoderWriter::new(w,
+                                           lvl,
+                                           true,
                                            Vec::with_capacity(32 * 1024)),
             crc: Crc::new(),
             header: self.into_header(lvl),
@@ -164,8 +166,8 @@ impl Builder {
         header[1] = 0x8b;
         header[2] = 8;
         header[3] = flg;
-        header[4] = (mtime >>  0) as u8;
-        header[5] = (mtime >>  8) as u8;
+        header[4] = (mtime >> 0) as u8;
+        header[5] = (mtime >> 8) as u8;
         header[6] = (mtime >> 16) as u8;
         header[7] = (mtime >> 24) as u8;
         header[8] = match lvl {
@@ -208,16 +210,14 @@ impl<W: Write> EncoderWriter<W> {
         try!(self.inner.finish());
         let mut inner = self.inner.take_inner();
         let (sum, amt) = (self.crc.sum() as u32, self.crc.amt());
-        let buf = [
-            (sum >>  0) as u8,
-            (sum >>  8) as u8,
-            (sum >> 16) as u8,
-            (sum >> 24) as u8,
-            (amt >>  0) as u8,
-            (amt >>  8) as u8,
-            (amt >> 16) as u8,
-            (amt >> 24) as u8,
-        ];
+        let buf = [(sum >> 0) as u8,
+                   (sum >> 8) as u8,
+                   (sum >> 16) as u8,
+                   (sum >> 24) as u8,
+                   (amt >> 0) as u8,
+                   (amt >> 8) as u8,
+                   (amt >> 16) as u8,
+                   (amt >> 24) as u8];
         try!(inner.write_all(&buf));
         Ok(inner)
     }
@@ -234,7 +234,9 @@ impl<W: Write> Write for EncoderWriter<W> {
         Ok(n)
     }
 
-    fn flush(&mut self) -> io::Result<()> { self.inner.flush() }
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
 }
 
 impl<W: Write> Drop for EncoderWriter<W> {
@@ -263,18 +265,18 @@ impl<R: Read> EncoderReader<R> {
     }
 
     fn read_footer(&mut self, into: &mut [u8]) -> io::Result<usize> {
-        if self.pos == 8 { return Ok(0) }
+        if self.pos == 8 {
+            return Ok(0);
+        }
         let crc = self.inner.get_ref().crc();
-        let ref arr = [
-            (crc.sum() >>  0) as u8,
-            (crc.sum() >>  8) as u8,
-            (crc.sum() >> 16) as u8,
-            (crc.sum() >> 24) as u8,
-            (crc.amt() >>  0) as u8,
-            (crc.amt() >>  8) as u8,
-            (crc.amt() >> 16) as u8,
-            (crc.amt() >> 24) as u8,
-        ];
+        let ref arr = [(crc.sum() >> 0) as u8,
+                       (crc.sum() >> 8) as u8,
+                       (crc.sum() >> 16) as u8,
+                       (crc.sum() >> 24) as u8,
+                       (crc.amt() >> 0) as u8,
+                       (crc.amt() >> 8) as u8,
+                       (crc.amt() >> 16) as u8,
+                       (crc.amt() >> 24) as u8];
         Ok(copy(into, arr, &mut self.pos))
     }
 }
@@ -285,18 +287,21 @@ fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
         *slot = *val;
     }
     *pos += min;
-    return min
+    return min;
 }
 
 impl<R: Read> Read for EncoderReader<R> {
     fn read(&mut self, mut into: &mut [u8]) -> io::Result<usize> {
         let mut amt = 0;
         if self.eof {
-            return self.read_footer(into)
+            return self.read_footer(into);
         } else if self.pos < self.header.len() {
             amt += copy(into, &self.header, &mut self.pos);
-            if amt == into.len() { return Ok(amt) }
-            let tmp = into; into = &mut tmp[amt..];
+            if amt == into.len() {
+                return Ok(amt);
+            }
+            let tmp = into;
+            into = &mut tmp[amt..];
         }
         match try!(self.inner.read(into)) {
             0 => {
@@ -322,13 +327,16 @@ impl<R: Read> DecoderReader<R> {
 
         let id1 = header[0];
         let id2 = header[1];
-        if id1 != 0x1f || id2 != 0x8b { return Err(bad_header()) }
+        if id1 != 0x1f || id2 != 0x8b {
+            return Err(bad_header());
+        }
         let cm = header[2];
-        if cm != 8 { return Err(bad_header()) }
+        if cm != 8 {
+            return Err(bad_header());
+        }
 
         let flg = header[3];
-        let mtime = ((header[4] as u32) <<  0) |
-                    ((header[5] as u32) <<  8) |
+        let mtime = ((header[4] as u32) << 0) | ((header[5] as u32) << 8) |
                     ((header[6] as u32) << 16) |
                     ((header[7] as u32) << 24);
         let _xfl = header[8];
@@ -347,7 +355,9 @@ impl<R: Read> DecoderReader<R> {
             let mut b = Vec::new();
             for byte in crc_reader.by_ref().bytes() {
                 let byte = try!(byte);
-                if byte == 0 { break }
+                if byte == 0 {
+                    break;
+                }
                 b.push(byte);
             }
             Some(b)
@@ -359,7 +369,9 @@ impl<R: Read> DecoderReader<R> {
             let mut b = Vec::new();
             for byte in crc_reader.by_ref().bytes() {
                 let byte = try!(byte);
-                if byte == 0 { break }
+                if byte == 0 {
+                    break;
+                }
                 b.push(byte);
             }
             Some(b)
@@ -370,10 +382,13 @@ impl<R: Read> DecoderReader<R> {
         if flg & FHCRC != 0 {
             let calced_crc = crc_reader.crc().sum() as u16;
             let stored_crc = try!(read_le_u16(&mut crc_reader));
-            if calced_crc != stored_crc { return Err(corrupt()) }
+            if calced_crc != stored_crc {
+                return Err(corrupt());
+            }
         }
 
-        let flate = raw::DecoderReader::new(crc_reader.into_inner(), true,
+        let flate = raw::DecoderReader::new(crc_reader.into_inner(),
+                                            true,
                                             vec![0; 32 * 1024]);
         return Ok(DecoderReader {
             inner: CrcReader::new(flate),
@@ -408,11 +423,13 @@ impl<R: Read> DecoderReader<R> {
     }
 
     /// Returns the header associated with this stream.
-    pub fn header(&self) -> &Header { &self.header }
+    pub fn header(&self) -> &Header {
+        &self.header
+    }
 
     fn finish(&mut self) -> io::Result<()> {
         if self.finished {
-            return Ok(())
+            return Ok(());
         }
         let ref mut buf = [0u8; 8];
         {
@@ -426,16 +443,18 @@ impl<R: Read> DecoderReader<R> {
             }
         }
 
-        let crc = ((buf[0] as u32) <<  0) |
-                  ((buf[1] as u32) <<  8) |
+        let crc = ((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) |
                   ((buf[2] as u32) << 16) |
                   ((buf[3] as u32) << 24);
-        let amt = ((buf[4] as u32) <<  0) |
-                  ((buf[5] as u32) <<  8) |
+        let amt = ((buf[4] as u32) << 0) | ((buf[5] as u32) << 8) |
                   ((buf[6] as u32) << 16) |
                   ((buf[7] as u32) << 24);
-        if crc != self.inner.crc().sum() as u32 { return Err(corrupt()) }
-        if amt != self.inner.crc().amt() { return Err(corrupt()) }
+        if crc != self.inner.crc().sum() as u32 {
+            return Err(corrupt());
+        }
+        if amt != self.inner.crc().amt() {
+            return Err(corrupt());
+        }
         self.finished = true;
         Ok(())
     }
@@ -444,7 +463,10 @@ impl<R: Read> DecoderReader<R> {
 impl<R: Read> Read for DecoderReader<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         match try!(self.inner.read(into)) {
-            0 => { try!(self.finish()); Ok(0) }
+            0 => {
+                try!(self.finish());
+                Ok(0)
+            }
             n => Ok(n),
         }
     }
@@ -455,16 +477,21 @@ impl Header {
     pub fn filename(&self) -> Option<&[u8]> {
         self.filename.as_ref().map(|s| &s[..])
     }
+
     /// Returns the `extra` field of this gzip stream's header, if present.
     pub fn extra(&self) -> Option<&[u8]> {
         self.extra.as_ref().map(|s| &s[..])
     }
+
     /// Returns the `comment` field of this gzip stream's header, if present.
     pub fn comment(&self) -> Option<&[u8]> {
         self.comment.as_ref().map(|s| &s[..])
     }
+
     /// Returns the `mtime` field of this gzip stream's header, if present.
-    pub fn mtime(&self) -> u32 { self.mtime }
+    pub fn mtime(&self) -> u32 {
+        self.mtime
+    }
 }
 
 fn corrupt() -> io::Error {
@@ -520,8 +547,12 @@ mod tests {
 
     #[test]
     fn roundtrip_big2() {
-        let v = thread_rng().gen_iter::<u8>().take(1024 * 1024).collect::<Vec<_>>();
-        let mut r = DecoderReader::new(EncoderReader::new(&v[..], Default)).unwrap();
+        let v = thread_rng()
+                    .gen_iter::<u8>()
+                    .take(1024 * 1024)
+                    .collect::<Vec<_>>();
+        let mut r = DecoderReader::new(EncoderReader::new(&v[..], Default))
+                        .unwrap();
         let mut res = Vec::new();
         r.read_to_end(&mut res).unwrap();
         assert!(res == v);
@@ -530,10 +561,11 @@ mod tests {
     #[test]
     fn fields() {
         let r = vec![0, 2, 4, 6];
-        let e = Builder::new().filename(b"foo.rs")
-                              .comment(b"bar")
-                              .extra(vec![0, 1, 2, 3])
-                              .read(&r[..], Default);
+        let e = Builder::new()
+                    .filename(b"foo.rs")
+                    .comment(b"bar")
+                    .extra(vec![0, 1, 2, 3])
+                    .read(&r[..], Default);
         let mut d = DecoderReader::new(e).unwrap();
         assert_eq!(d.header().filename(), Some(&b"foo.rs"[..]));
         assert_eq!(d.header().comment(), Some(&b"bar"[..]));

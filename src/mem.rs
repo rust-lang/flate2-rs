@@ -74,11 +74,15 @@ impl Compress {
 
     /// Returns the total number of input bytes which have been processed by
     /// this compression object.
-    pub fn total_in(&self) -> u64 { self.inner.total_in() }
+    pub fn total_in(&self) -> u64 {
+        self.inner.total_in()
+    }
 
     /// Returns the total number of output bytes which have been produced by
     /// this compression object.
-    pub fn total_out(&self) -> u64 { self.inner.total_out() }
+    pub fn total_out(&self) -> u64 {
+        self.inner.total_out()
+    }
 
     /// Quickly resets this compressor without having to reallocate anything.
     ///
@@ -94,7 +98,10 @@ impl Compress {
     ///
     /// To learn how much data was consumed or how much output was produced, use
     /// the `total_in` and `total_out` functions before/after this is called.
-    pub fn compress(&mut self, input: &[u8], output: &mut [u8], flush: Flush)
+    pub fn compress(&mut self,
+                    input: &[u8],
+                    output: &mut [u8],
+                    flush: Flush)
                     -> Status {
         let rc = self.inner.compress(input, output, flush);
         self.rc(rc)
@@ -108,8 +115,11 @@ impl Compress {
     /// the vector provided or attempt to grow it, so space for the output must
     /// be reserved in the output vector by the caller before calling this
     /// function.
-    pub fn compress_vec(&mut self, input: &[u8], output: &mut Vec<u8>,
-                        flush: Flush) -> Status {
+    pub fn compress_vec(&mut self,
+                        input: &[u8],
+                        output: &mut Vec<u8>,
+                        flush: Flush)
+                        -> Status {
         let rc = self.inner.compress_vec(input, output, flush);
         self.rc(rc)
     }
@@ -135,11 +145,15 @@ impl Decompress {
 
     /// Returns the total number of input bytes which have been processed by
     /// this decompression object.
-    pub fn total_in(&self) -> u64 { self.inner.total_in() }
+    pub fn total_in(&self) -> u64 {
+        self.inner.total_in()
+    }
 
     /// Returns the total number of output bytes which have been produced by
     /// this decompression object.
-    pub fn total_out(&self) -> u64 { self.inner.total_out() }
+    pub fn total_out(&self) -> u64 {
+        self.inner.total_out()
+    }
 
     /// Decompresses the input data into the output, consuming only as much
     /// input as needed and writing as much output as possible.
@@ -155,7 +169,10 @@ impl Decompress {
     ///
     /// To learn how much data was consumed or how much output was produced, use
     /// the `total_in` and `total_out` functions before/after this is called.
-    pub fn decompress(&mut self, input: &[u8], output: &mut [u8], flush: Flush)
+    pub fn decompress(&mut self,
+                      input: &[u8],
+                      output: &mut [u8],
+                      flush: Flush)
                       -> Result<Status, DataError> {
         let rc = self.inner.decompress(input, output, flush);
         self.rc(rc)
@@ -169,8 +186,11 @@ impl Decompress {
     /// the vector provided or attempt to grow it, so space for the output must
     /// be reserved in the output vector by the caller before calling this
     /// function.
-    pub fn decompress_vec(&mut self, input: &[u8], output: &mut Vec<u8>,
-                          flush: Flush) -> Result<Status, DataError> {
+    pub fn decompress_vec(&mut self,
+                          input: &[u8],
+                          output: &mut Vec<u8>,
+                          flush: Flush)
+                          -> Result<Status, DataError> {
         let rc = self.inner.decompress_vec(input, output, flush);
         self.rc(rc)
     }

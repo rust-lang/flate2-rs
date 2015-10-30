@@ -45,8 +45,10 @@ impl<W: Write> EncoderWriter<W> {
     /// be flushed.
     pub fn new(w: W, level: ::Compression) -> EncoderWriter<W> {
         EncoderWriter {
-            inner: raw::EncoderWriter::new(w, level, false,
-                                            Vec::with_capacity(32 * 1024)),
+            inner: raw::EncoderWriter::new(w,
+                                           level,
+                                           false,
+                                           Vec::with_capacity(32 * 1024)),
         }
     }
 
@@ -77,8 +79,13 @@ impl<W: Write> EncoderWriter<W> {
 }
 
 impl<W: Write> Write for EncoderWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> { self.inner.write(buf) }
-    fn flush(&mut self) -> io::Result<()> { self.inner.flush() }
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.inner.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
 }
 
 impl<R: Read> EncoderReader<R> {
@@ -158,7 +165,8 @@ impl<W: Write> DecoderWriter<W> {
     /// be flushed.
     pub fn new(w: W) -> DecoderWriter<W> {
         DecoderWriter {
-            inner: raw::DecoderWriter::new(w, false,
+            inner: raw::DecoderWriter::new(w,
+                                           false,
                                            Vec::with_capacity(32 * 1024)),
         }
     }
@@ -186,8 +194,13 @@ impl<W: Write> DecoderWriter<W> {
 }
 
 impl<W: Write> Write for DecoderWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> { self.inner.write(buf) }
-    fn flush(&mut self) -> io::Result<()> { self.inner.flush() }
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.inner.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
 }
 
 #[cfg(test)]
@@ -218,7 +231,10 @@ mod tests {
 
     #[test]
     fn roundtrip2() {
-        let v = thread_rng().gen_iter::<u8>().take(1024 * 1024).collect::<Vec<_>>();
+        let v = thread_rng()
+                    .gen_iter::<u8>()
+                    .take(1024 * 1024)
+                    .collect::<Vec<_>>();
         let mut r = DecoderReader::new(EncoderReader::new(&v[..], Default));
         let mut ret = Vec::new();
         r.read_to_end(&mut ret).unwrap();
@@ -227,7 +243,10 @@ mod tests {
 
     #[test]
     fn roundtrip3() {
-        let v = thread_rng().gen_iter::<u8>().take(1024 * 1024).collect::<Vec<_>>();
+        let v = thread_rng()
+                    .gen_iter::<u8>()
+                    .take(1024 * 1024)
+                    .collect::<Vec<_>>();
         let mut w = EncoderWriter::new(DecoderWriter::new(Vec::new()), Default);
         w.write_all(&v).unwrap();
         let w = w.finish().unwrap().finish().unwrap();
@@ -236,8 +255,10 @@ mod tests {
 
     #[test]
     fn reset_decoder() {
-        let v = thread_rng().gen_iter::<u8>().take(1024 * 1024)
-                            .collect::<Vec<_>>();
+        let v = thread_rng()
+                    .gen_iter::<u8>()
+                    .take(1024 * 1024)
+                    .collect::<Vec<_>>();
         let mut w = EncoderWriter::new(Vec::new(), Default);
         w.write_all(&v).unwrap();
         let data = w.finish().unwrap();

@@ -21,8 +21,13 @@ impl Crc {
         Crc { crc: 0, amt: 0 }
     }
 
-    pub fn sum(&self) -> libc::c_ulong { self.crc }
-    pub fn amt(&self) -> u32 { self.amt }
+    pub fn sum(&self) -> libc::c_ulong {
+        self.crc
+    }
+
+    pub fn amt(&self) -> u32 {
+        self.amt
+    }
 
     pub fn update(&mut self, data: &[u8]) {
         self.amt += data.len() as u32;
@@ -34,11 +39,23 @@ impl Crc {
 
 impl<R: Read> CrcReader<R> {
     pub fn new(r: R) -> CrcReader<R> {
-        CrcReader { inner: r, crc: Crc::new() }
+        CrcReader {
+            inner: r,
+            crc: Crc::new(),
+        }
     }
-    pub fn crc(&self) -> &Crc { &self.crc }
-    pub fn into_inner(self) -> R { self.inner }
-    pub fn inner(&mut self) -> &mut R { &mut self.inner }
+
+    pub fn crc(&self) -> &Crc {
+        &self.crc
+    }
+
+    pub fn into_inner(self) -> R {
+        self.inner
+    }
+
+    pub fn inner(&mut self) -> &mut R {
+        &mut self.inner
+    }
 }
 
 impl<R: Read> Read for CrcReader<R> {
