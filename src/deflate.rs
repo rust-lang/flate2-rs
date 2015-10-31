@@ -150,6 +150,19 @@ impl<R: Read> DecoderReader<R> {
     pub fn into_inner(self) -> R {
         self.inner.into_inner()
     }
+
+    /// Returns the number of bytes that the decompressor has consumed.
+    ///
+    /// Note that this will likely be smaller than what the decompressor actually
+    /// read from the underlying stream due to buffering.
+    pub fn total_in(&self) -> u64 {
+        self.inner.total_in()
+    }
+
+    /// Returns the number of bytes that the decompressor has produced.
+    pub fn total_out(&self) -> u64 {
+        self.inner.total_out()
+    }
 }
 
 impl<R: Read> Read for DecoderReader<R> {
@@ -231,6 +244,31 @@ mod tests {
         let mut ret = Vec::new();
         r.read_to_end(&mut ret).unwrap();
         assert!(ret == real);
+    }
+
+    #[test]
+    fn total_in() {
+        let mut real = Vec::new();
+        let mut w = EncoderWriter::new(Vec::new(), Default);
+        let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
+        for _ in 0..200 {
+            let to_write = &v[..thread_rng().gen_range(0, v.len())];
+            real.extend(to_write.iter().map(|x| *x));
+            w.write_all(to_write).unwrap();
+        }
+        let mut result = w.finish().unwrap();
+
+        let result_len = result.len();
+
+        for _ in 0..200 {
+            result.extend(v.iter().map(|x| *x));
+        }
+
+        let mut r = DecoderReader::new(&result[..]);
+        let mut ret = Vec::new();
+        r.read_to_end(&mut ret).unwrap();
+        assert!(ret == real);
+        assert_eq!(r.total_in(), result_len as u64);
     }
 
     #[test]
