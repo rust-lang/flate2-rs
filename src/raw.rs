@@ -263,6 +263,14 @@ impl<R: Read> DecoderReader<R> {
         }
         self.0.inner.read(buf)
     }
+
+    pub fn total_in(&self) -> u64 {
+        self.0.stream.total_in()
+    }
+
+    pub fn total_out(&self) -> u64 {
+        self.0.stream.total_out()
+    }
 }
 
 impl<R: Read> Read for DecoderReader<R> {
