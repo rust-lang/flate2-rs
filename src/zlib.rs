@@ -153,8 +153,8 @@ impl<R: Read> DecoderReader<R> {
 
     /// Returns the number of bytes that the decompressor has consumed.
     ///
-    /// Note that this will likely be smaller than what the decompressor actually
-    /// read from the underlying stream due to buffering.
+    /// Note that this will likely be smaller than what the decompressor
+    /// actually read from the underlying stream due to buffering.
     pub fn total_in(&self) -> u64 {
         self.inner.total_in()
     }
@@ -203,6 +203,21 @@ impl<W: Write> DecoderWriter<W> {
     pub fn finish(mut self) -> io::Result<W> {
         try!(self.inner.finish());
         Ok(self.inner.into_inner())
+    }
+
+    /// Returns the number of bytes that the decompressor has consumed for
+    /// decompression.
+    ///
+    /// Note that this will likely be smaller than the number of bytes
+    /// successfully written to this stream due to internal buffering.
+    pub fn total_in(&self) -> u64 {
+        self.inner.total_in()
+    }
+
+    /// Returns the number of bytes that the decompressor has written to its
+    /// output stream.
+    pub fn total_out(&self) -> u64 {
+        self.inner.total_out()
     }
 }
 
