@@ -130,6 +130,14 @@ impl<W: Write> DecoderWriter<W> {
     pub fn into_inner(mut self) -> W {
         self.0.inner.take().unwrap()
     }
+
+    pub fn total_in(&self) -> u64 {
+        self.0.stream.total_in()
+    }
+
+    pub fn total_out(&self) -> u64 {
+        self.0.stream.total_out()
+    }
 }
 
 impl<W: Write> Write for DecoderWriter<W> {
