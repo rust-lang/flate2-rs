@@ -16,7 +16,7 @@ streams.
 """
 
 [dependencies]
-libc = "0.1"
+libc = "0.2"
 miniz-sys = { path = "miniz-sys", version = "0.1.6" }
 
 [dev-dependencies]
