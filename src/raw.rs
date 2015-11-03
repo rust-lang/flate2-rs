@@ -283,6 +283,11 @@ impl<R: Read> DecoderReader<R> {
 
 impl<R: Read> Read for DecoderReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        // zero-length reads currently aren't handled well here, so just punt
+        // those upstream.
+        if buf.len() == 0 {
+            return Ok(0)
+        }
         self.0.read(|stream, inner, flush| stream.decompress(inner, buf, flush))
     }
 }

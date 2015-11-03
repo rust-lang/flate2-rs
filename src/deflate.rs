@@ -380,4 +380,17 @@ mod tests {
             assert!(a == b && b == c && c == v);
         }
     }
+
+    #[test]
+    fn zero_length_read_with_data() {
+        let m = vec![3u8; 128 * 1024 + 1];
+        let mut c = EncoderReader::new(&m[..], ::Compression::Default);
+
+        let mut result = Vec::new();
+        c.read_to_end(&mut result).unwrap();
+
+        let mut d = DecoderReader::new(&result[..]);
+        let mut data = Vec::new();
+        assert!(d.read(&mut data).unwrap() == 0);
+    }
 }
