@@ -446,9 +446,9 @@ impl<R: Read> DecoderReader<R> {
         let crc = ((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) |
                   ((buf[2] as u32) << 16) |
                   ((buf[3] as u32) << 24);
-        let amt = ((buf[4] as u32) << 0) | ((buf[5] as u32) << 8) |
-                  ((buf[6] as u32) << 16) |
-                  ((buf[7] as u32) << 24);
+        let amt = ((buf[4] as usize) << 0) | ((buf[5] as usize) << 8) |
+                  ((buf[6] as usize) << 16) |
+                  ((buf[7] as usize) << 24);
         if crc != self.inner.crc().sum() as u32 {
             return Err(corrupt());
         }
