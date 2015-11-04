@@ -25,12 +25,12 @@ impl Crc {
         self.crc
     }
 
-    pub fn amt(&self) -> u32 {
+    pub fn amt_as_u32(&self) -> u32 {
         self.amt
     }
 
     pub fn update(&mut self, data: &[u8]) {
-        self.amt += data.len() as u32;
+        self.amt = self.amt.wrapping_add(data.len() as u32);
         self.crc = unsafe {
             ffi::mz_crc32(self.crc, data.as_ptr(), data.len() as libc::size_t)
         };

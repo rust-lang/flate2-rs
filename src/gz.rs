@@ -209,7 +209,7 @@ impl<W: Write> EncoderWriter<W> {
         }
         try!(self.inner.finish());
         let mut inner = self.inner.take_inner();
-        let (sum, amt) = (self.crc.sum() as u32, self.crc.amt());
+        let (sum, amt) = (self.crc.sum() as u32, self.crc.amt_as_u32());
         let buf = [(sum >> 0) as u8,
                    (sum >> 8) as u8,
                    (sum >> 16) as u8,
@@ -273,10 +273,10 @@ impl<R: Read> EncoderReader<R> {
                        (crc.sum() >> 8) as u8,
                        (crc.sum() >> 16) as u8,
                        (crc.sum() >> 24) as u8,
-                       (crc.amt() >> 0) as u8,
-                       (crc.amt() >> 8) as u8,
-                       (crc.amt() >> 16) as u8,
-                       (crc.amt() >> 24) as u8];
+                       (crc.amt_as_u32() >> 0) as u8,
+                       (crc.amt_as_u32() >> 8) as u8,
+                       (crc.amt_as_u32() >> 16) as u8,
+                       (crc.amt_as_u32() >> 24) as u8];
         Ok(copy(into, arr, &mut self.pos))
     }
 }
@@ -452,7 +452,7 @@ impl<R: Read> DecoderReader<R> {
         if crc != self.inner.crc().sum() as u32 {
             return Err(corrupt());
         }
-        if amt != self.inner.crc().amt() {
+        if amt != self.inner.crc().amt_as_u32() {
             return Err(corrupt());
         }
         self.finished = true;
