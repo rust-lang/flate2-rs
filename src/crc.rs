@@ -8,7 +8,7 @@ use ffi;
 
 pub struct Crc {
     crc: libc::c_ulong,
-    amt: u32,
+    amt: usize,
 }
 
 pub struct CrcReader<R> {
@@ -25,12 +25,12 @@ impl Crc {
         self.crc
     }
 
-    pub fn amt(&self) -> u32 {
+    pub fn amt(&self) -> usize {
         self.amt
     }
 
     pub fn update(&mut self, data: &[u8]) {
-        self.amt += data.len() as u32;
+        self.amt += data.len();
         self.crc = unsafe {
             ffi::mz_crc32(self.crc, data.as_ptr(), data.len() as libc::size_t)
         };
