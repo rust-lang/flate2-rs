@@ -71,6 +71,22 @@ pub mod write {
     pub use gz::EncoderWriter as GzEncoder;
 }
 
+fn _assert_send_sync() {
+    fn _assert_send_sync<T: Send + Sync>() {}
+
+    _assert_send_sync::<read::DeflateEncoder<&[u8]>>();
+    _assert_send_sync::<read::DeflateDecoder<&[u8]>>();
+    _assert_send_sync::<read::ZlibEncoder<&[u8]>>();
+    _assert_send_sync::<read::ZlibDecoder<&[u8]>>();
+    _assert_send_sync::<read::GzEncoder<&[u8]>>();
+    _assert_send_sync::<read::GzDecoder<&[u8]>>();
+    _assert_send_sync::<write::DeflateEncoder<Vec<u8>>>();
+    _assert_send_sync::<write::DeflateDecoder<Vec<u8>>>();
+    _assert_send_sync::<write::ZlibEncoder<Vec<u8>>>();
+    _assert_send_sync::<write::ZlibDecoder<Vec<u8>>>();
+    _assert_send_sync::<write::GzEncoder<Vec<u8>>>();
+}
+
 /// When compressing data, the compression level can be specified by a value in
 /// this enum.
 #[derive(Copy, Clone)]
