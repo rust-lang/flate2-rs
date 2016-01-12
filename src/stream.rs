@@ -12,6 +12,9 @@ pub struct Stream<D: Direction> {
     _marker: marker::PhantomData<D>,
 }
 
+unsafe impl<D: Direction> marker::Send for Stream<D> {}
+unsafe impl<D: Direction> marker::Sync for Stream<D> {}
+
 pub enum Compress {}
 pub enum Decompress {}
 
