@@ -1,6 +1,7 @@
 language: rust
 rust:
   - 1.0.0
+  - stable
   - beta
   - nightly
 sudo: false
@@ -10,6 +11,8 @@ script:
   - export CARGO_TARGET_DIR=`pwd`/target
   - cargo build --verbose
   - cargo test --verbose
+  - cargo test --verbose --features zlib
+  - cargo test --verbose --features zlib --no-default-features
   - rustdoc --test README.md -L target/debug -L target/debug/deps
   - cargo doc --no-deps
   - cargo doc --no-deps --manifest-path=miniz-sys/Cargo.toml

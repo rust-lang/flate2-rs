@@ -30,7 +30,6 @@
 #![cfg_attr(test, deny(warnings))]
 
 extern crate libc;
-extern crate miniz_sys as ffi;
 #[cfg(test)]
 extern crate rand;
 
@@ -49,6 +48,7 @@ mod raw;
 mod stream;
 mod zlib;
 mod mem;
+mod ffi;
 
 /// Types which operate over `Reader` streams, both encoders and decoders for
 /// various formats.

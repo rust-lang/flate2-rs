@@ -132,7 +132,7 @@ impl Stream<Decompress> {
                       output: &mut [u8],
                       flush: Flush)
                       -> c_int {
-        self.raw.next_in = input.as_ptr();
+        self.raw.next_in = input.as_ptr() as *mut u8;
         self.raw.avail_in = input.len() as c_uint;
         self.raw.next_out = output.as_mut_ptr();
         self.raw.avail_out = output.len() as c_uint;
