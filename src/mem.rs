@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::fmt;
+
 use libc::c_int;
 
 use {Compression, Flush};
@@ -32,6 +35,7 @@ pub struct Decompress {
 
 /// Error returned when a decompression object finds that the input stream of
 /// bytes was not a valid input stream of bytes.
+#[derive(Debug)]
 pub struct DataError(());
 
 /// Possible status results of compressing some data or successfully
@@ -203,5 +207,15 @@ impl Decompress {
             ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
             c => panic!("unknown return code: {}", c),
         }
+    }
+}
+
+impl Error for DataError {
+    fn description(&self) -> &str { "deflate data error" }
+}
+
+impl fmt::Display for DataError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.description().fmt(f)
     }
 }
