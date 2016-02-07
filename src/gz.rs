@@ -7,10 +7,11 @@ use std::env;
 use std::ffi::CString;
 use std::io::prelude::*;
 use std::io;
-use std::mem;
 
 use Compression;
+use bufreader::BufReader;
 use crc::{CrcReader, Crc};
+use deflate;
 use raw;
 
 static FHCRC: u8 = 1 << 1;
@@ -34,7 +35,16 @@ pub struct EncoderWriter<W: Write> {
 /// from the underlying reader and expose the compressed version as a `Read`
 /// interface.
 pub struct EncoderReader<R: Read> {
-    inner: raw::EncoderReader<CrcReader<R>>,
+    inner: EncoderReaderBuf<BufReader<R>>,
+}
+
+/// A gzip streaming encoder
+///
+/// This structure exposes a `Read` interface that will read uncompressed data
+/// from the underlying reader and expose the compressed version as a `Read`
+/// interface.
+pub struct EncoderReaderBuf<R: BufRead> {
+    inner: deflate::EncoderReaderBuf<CrcReader<R>>,
     header: Vec<u8>,
     pos: usize,
     eof: bool,
@@ -55,7 +65,15 @@ pub struct Builder {
 /// This structure exposes a `Read` interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
 pub struct DecoderReader<R: Read> {
-    inner: CrcReader<raw::DecoderReader<R>>,
+    inner: DecoderReaderBuf<BufReader<R>>,
+}
+
+/// A gzip streaming decoder
+///
+/// This structure exposes a `Read` interface that will consume compressed
+/// data from the underlying reader and emit uncompressed data.
+pub struct DecoderReaderBuf<R: BufRead> {
+    inner: CrcReader<deflate::DecoderReaderBuf<R>>,
     header: Header,
     finished: bool,
 }
@@ -126,9 +144,21 @@ impl Builder {
     /// Data read from the returned encoder will be the compressed version of
     /// the data read from the given reader.
     pub fn read<R: Read>(self, r: R, lvl: Compression) -> EncoderReader<R> {
-        let crc = CrcReader::new(r);
         EncoderReader {
-            inner: raw::EncoderReader::new(crc, lvl, true, vec![0; 32 * 1024]),
+            inner: self.buf_read(BufReader::new(r), lvl),
+        }
+    }
+
+    /// Consume this builder, creating a reader encoder in the process.
+    ///
+    /// Data read from the returned encoder will be the compressed version of
+    /// the data read from the given reader.
+    pub fn buf_read<R>(self, r: R, lvl: Compression) -> EncoderReaderBuf<R>
+        where R: BufRead
+    {
+        let crc = CrcReader::new(r);
+        EncoderReaderBuf {
+            inner: deflate::EncoderReaderBuf::new(crc, lvl),
             header: self.into_header(lvl),
             pos: 0,
             eof: false,
@@ -263,6 +293,39 @@ impl<R: Read> EncoderReader<R> {
     pub fn into_inner(self) -> R {
         self.inner.into_inner().into_inner()
     }
+}
+
+fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
+    let min = cmp::min(into.len(), from.len() - *pos);
+    for (slot, val) in into.iter_mut().zip(from[*pos..*pos + min].iter()) {
+        *slot = *val;
+    }
+    *pos += min;
+    return min;
+}
+
+impl<R: Read> Read for EncoderReader<R> {
+    fn read(&mut self, mut into: &mut [u8]) -> io::Result<usize> {
+        self.inner.read(into)
+    }
+}
+
+impl<R: BufRead> EncoderReaderBuf<R> {
+    /// Creates a new encoder which will use the given compression level.
+    ///
+    /// The encoder is not configured specially for the emitted header. For
+    /// header configuration, see the `Builder` type.
+    ///
+    /// The data read from the stream `r` will be compressed and available
+    /// through the returned reader.
+    pub fn new(r: R, level: Compression) -> EncoderReaderBuf<R> {
+        Builder::new().buf_read(r, level)
+    }
+
+    /// Returns the underlying stream, consuming this encoder
+    pub fn into_inner(self) -> R {
+        self.inner.into_inner().into_inner()
+    }
 
     fn read_footer(&mut self, into: &mut [u8]) -> io::Result<usize> {
         if self.pos == 8 {
@@ -281,16 +344,7 @@ impl<R: Read> EncoderReader<R> {
     }
 }
 
-fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
-    let min = cmp::min(into.len(), from.len() - *pos);
-    for (slot, val) in into.iter_mut().zip(from[*pos..*pos + min].iter()) {
-        *slot = *val;
-    }
-    *pos += min;
-    return min;
-}
-
-impl<R: Read> Read for EncoderReader<R> {
+impl<R: BufRead> Read for EncoderReaderBuf<R> {
     fn read(&mut self, mut into: &mut [u8]) -> io::Result<usize> {
         let mut amt = 0;
         if self.eof {
@@ -321,9 +375,33 @@ impl<R: Read> DecoderReader<R> {
     /// If an error is encountered when parsing the gzip header, an error is
     /// returned.
     pub fn new(r: R) -> io::Result<DecoderReader<R>> {
+        DecoderReaderBuf::new(BufReader::new(r)).map(|r| {
+            DecoderReader { inner: r }
+        })
+    }
+
+    /// Returns the header associated with this stream.
+    pub fn header(&self) -> &Header {
+        self.inner.header()
+    }
+}
+
+impl<R: Read> Read for DecoderReader<R> {
+    fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
+        self.inner.read(into)
+    }
+}
+
+impl<R: BufRead> DecoderReaderBuf<R> {
+    /// Creates a new decoder from the given reader, immediately parsing the
+    /// gzip header.
+    ///
+    /// If an error is encountered when parsing the gzip header, an error is
+    /// returned.
+    pub fn new(r: R) -> io::Result<DecoderReaderBuf<R>> {
         let mut crc_reader = CrcReader::new(r);
         let mut header = [0; 10];
-        try!(fill(&mut crc_reader, &mut header));
+        try!(crc_reader.read_exact(&mut header));
 
         let id1 = header[0];
         let id2 = header[1];
@@ -345,7 +423,7 @@ impl<R: Read> DecoderReader<R> {
         let extra = if flg & FEXTRA != 0 {
             let xlen = try!(read_le_u16(&mut crc_reader));
             let mut extra = vec![0; xlen as usize];
-            try!(fill(&mut crc_reader, &mut extra));
+            try!(crc_reader.read_exact(&mut extra));
             Some(extra)
         } else {
             None
@@ -387,10 +465,8 @@ impl<R: Read> DecoderReader<R> {
             }
         }
 
-        let flate = raw::DecoderReader::new(crc_reader.into_inner(),
-                                            true,
-                                            vec![0; 32 * 1024]);
-        return Ok(DecoderReader {
+        let flate = deflate::DecoderReaderBuf::new(crc_reader.into_inner());
+        return Ok(DecoderReaderBuf {
             inner: CrcReader::new(flate),
             header: Header {
                 extra: extra,
@@ -405,19 +481,9 @@ impl<R: Read> DecoderReader<R> {
             io::Error::new(io::ErrorKind::InvalidInput, "invalid gzip header")
         }
 
-        fn fill<R: Read>(r: &mut R, mut buf: &mut [u8]) -> io::Result<()> {
-            while buf.len() > 0 {
-                match try!(r.read(buf)) {
-                    0 => return Err(corrupt()),
-                    n => buf = &mut mem::replace(&mut buf, &mut [])[n..],
-                }
-            }
-            Ok(())
-        }
-
         fn read_le_u16<R: Read>(r: &mut R) -> io::Result<u16> {
             let mut b = [0; 2];
-            try!(fill(r, &mut b));
+            try!(r.read_exact(&mut b));
             Ok((b[0] as u16) | ((b[1] as u16) << 8))
         }
     }
@@ -436,7 +502,7 @@ impl<R: Read> DecoderReader<R> {
             let mut len = 0;
 
             while len < buf.len() {
-                match try!(self.inner.inner().read_raw(&mut buf[len..])) {
+                match try!(self.inner.inner().get_mut().read(&mut buf[len..])) {
                     0 => return Err(corrupt()),
                     n => len += n,
                 }
@@ -460,7 +526,7 @@ impl<R: Read> DecoderReader<R> {
     }
 }
 
-impl<R: Read> Read for DecoderReader<R> {
+impl<R: BufRead> Read for DecoderReaderBuf<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         match try!(self.inner.read(into)) {
             0 => {

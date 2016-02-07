@@ -80,6 +80,8 @@ pub mod bufread {
     pub use deflate::DecoderReaderBuf as DeflateDecoder;
     pub use zlib::EncoderReaderBuf as ZlibEncoder;
     pub use zlib::DecoderReaderBuf as ZlibDecoder;
+    pub use gz::EncoderReaderBuf as GzEncoder;
+    pub use gz::DecoderReaderBuf as GzDecoder;
 }
 
 fn _assert_send_sync() {
