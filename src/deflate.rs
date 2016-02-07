@@ -2,7 +2,10 @@
 
 use std::io::prelude::*;
 use std::io;
+use std::mem;
 
+use {Compress, Decompress};
+use bufreader::BufReader;
 use raw;
 
 /// A DEFLATE encoder, or compressor.
@@ -18,7 +21,16 @@ pub struct EncoderWriter<W: Write> {
 /// This structure implements a `Read` interface and will read uncompressed
 /// data from an underlying stream and emit a stream of compressed data.
 pub struct EncoderReader<R: Read> {
-    inner: raw::EncoderReader<R>,
+    inner: EncoderReaderBuf<BufReader<R>>,
+}
+
+/// A DEFLATE encoder, or compressor.
+///
+/// This structure implements a `BufRead` interface and will read uncompressed
+/// data from an underlying stream and emit a stream of compressed data.
+pub struct EncoderReaderBuf<R: BufRead> {
+    obj: R,
+    data: Compress,
 }
 
 /// A DEFLATE decoder, or decompressor.
@@ -26,7 +38,16 @@ pub struct EncoderReader<R: Read> {
 /// This structure implements a `Read` interface and takes a stream of
 /// compressed data as input, providing the decompressed data when read from.
 pub struct DecoderReader<R: Read> {
-    inner: raw::DecoderReader<R>,
+    inner: DecoderReaderBuf<BufReader<R>>,
+}
+
+/// A DEFLATE decoder, or decompressor.
+///
+/// This structure implements a `BufRead` interface and takes a stream of
+/// compressed data as input, providing the decompressed data when read from.
+pub struct DecoderReaderBuf<R: BufRead> {
+    obj: R,
+    data: Decompress,
 }
 
 /// A DEFLATE decoder, or decompressor.
@@ -93,7 +114,7 @@ impl<R: Read> EncoderReader<R> {
     /// stream and emit the compressed stream.
     pub fn new(r: R, level: ::Compression) -> EncoderReader<R> {
         EncoderReader {
-            inner: raw::EncoderReader::new(r, level, true, vec![0; 32 * 1024]),
+            inner: EncoderReaderBuf::new(BufReader::new(r), level),
         }
     }
 
@@ -105,18 +126,53 @@ impl<R: Read> EncoderReader<R> {
     /// stream. Future data read from this encoder will be the compressed
     /// version of `r`'s data.
     pub fn reset(&mut self, r: R) -> R {
-        self.inner.reset(r)
+        self.inner.data.reset();
+        self.inner.obj.reset(r)
     }
 
     /// Consumes this encoder, returning the underlying reader.
     pub fn into_inner(self) -> R {
-        self.inner.into_inner()
+        self.inner.into_inner().into_inner()
     }
 }
 
 impl<R: Read> Read for EncoderReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
+    }
+}
+
+impl<R: BufRead> EncoderReaderBuf<R> {
+    /// Creates a new encoder which will read uncompressed data from the given
+    /// stream and emit the compressed stream.
+    pub fn new(r: R, level: ::Compression) -> EncoderReaderBuf<R> {
+        EncoderReaderBuf {
+            obj: r,
+            data: Compress::new(level, false),
+        }
+    }
+
+    /// Resets the state of this encoder entirely, swapping out the input
+    /// stream for another.
+    ///
+    /// This function will reset the internal state of this encoder and replace
+    /// the input stream with the one provided, returning the previous input
+    /// stream. Future data read from this encoder will be the compressed
+    /// version of `r`'s data.
+    pub fn reset(&mut self, r: R) -> R {
+        self.data.reset();
+        mem::replace(&mut self.obj, r)
+    }
+
+    /// Consumes this encoder, returning the underlying reader.
+    pub fn into_inner(self) -> R {
+        self.obj
+    }
+}
+
+impl<R: BufRead> Read for EncoderReaderBuf<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        ::zio::read(&mut self.obj, &mut self.data, buf)
     }
 }
 
@@ -132,7 +188,9 @@ impl<R: Read> DecoderReader<R> {
     /// Note that the capacity of the intermediate buffer is never increased,
     /// and it is recommended for it to be large.
     pub fn new_with_buf(r: R, buf: Vec<u8>) -> DecoderReader<R> {
-        DecoderReader { inner: raw::DecoderReader::new(r, true, buf) }
+        DecoderReader {
+            inner: DecoderReaderBuf::new(BufReader::with_buf(buf, r))
+        }
     }
 
     /// Resets the state of this decoder entirely, swapping out the input
@@ -143,12 +201,13 @@ impl<R: Read> DecoderReader<R> {
     /// stream. Future data read from this decoder will be the decompressed
     /// version of `r`'s data.
     pub fn reset(&mut self, r: R) -> R {
-        self.inner.reset(r, true)
+        self.inner.data = Decompress::new(false);
+        self.inner.obj.reset(r)
     }
 
     /// Consumes this decoder, returning the underlying reader.
     pub fn into_inner(self) -> R {
-        self.inner.into_inner()
+        self.inner.into_inner().into_inner()
     }
 
     /// Returns the number of bytes that the decompressor has consumed.
@@ -168,6 +227,53 @@ impl<R: Read> DecoderReader<R> {
 impl<R: Read> Read for DecoderReader<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         self.inner.read(into)
+    }
+}
+
+impl<R: BufRead> DecoderReaderBuf<R> {
+    /// Creates a new decoder which will decompress data read from the given
+    /// stream.
+    pub fn new(r: R) -> DecoderReaderBuf<R> {
+        DecoderReaderBuf {
+            obj: r,
+            data: Decompress::new(false),
+        }
+    }
+
+    /// Resets the state of this decoder entirely, swapping out the input
+    /// stream for another.
+    ///
+    /// This will reset the internal state of this decoder and replace the
+    /// input stream with the one provided, returning the previous input
+    /// stream. Future data read from this decoder will be the decompressed
+    /// version of `r`'s data.
+    pub fn reset(&mut self, r: R) -> R {
+        self.data = Decompress::new(false);
+        mem::replace(&mut self.obj, r)
+    }
+
+    /// Consumes this decoder, returning the underlying reader.
+    pub fn into_inner(self) -> R {
+        self.obj
+    }
+
+    /// Returns the number of bytes that the decompressor has consumed.
+    ///
+    /// Note that this will likely be smaller than what the decompressor
+    /// actually read from the underlying stream due to buffering.
+    pub fn total_in(&self) -> u64 {
+        self.data.total_in()
+    }
+
+    /// Returns the number of bytes that the decompressor has produced.
+    pub fn total_out(&self) -> u64 {
+        self.data.total_out()
+    }
+}
+
+impl<R: BufRead> Read for DecoderReaderBuf<R> {
+    fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
+        ::zio::read(&mut self.obj, &mut self.data, into)
     }
 }
 

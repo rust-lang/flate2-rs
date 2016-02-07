@@ -41,16 +41,18 @@ pub use gz::Header as GzHeader;
 pub use mem::{Compress, Decompress, DataError, Status};
 pub use stream::Flush;
 
+mod bufreader;
 mod crc;
 mod deflate;
+mod ffi;
 mod gz;
+mod zio;
+mod mem;
 mod raw;
 mod stream;
 mod zlib;
-mod mem;
-mod ffi;
 
-/// Types which operate over `Reader` streams, both encoders and decoders for
+/// Types which operate over `Read` streams, both encoders and decoders for
 /// various formats.
 pub mod read {
     pub use deflate::EncoderReader as DeflateEncoder;
@@ -61,7 +63,7 @@ pub mod read {
     pub use gz::DecoderReader as GzDecoder;
 }
 
-/// Types which operate over `Writer` streams, both encoders and decoders for
+/// Types which operate over `Write` streams, both encoders and decoders for
 /// various formats.
 pub mod write {
     pub use deflate::EncoderWriter as DeflateEncoder;
@@ -69,6 +71,15 @@ pub mod write {
     pub use zlib::EncoderWriter as ZlibEncoder;
     pub use zlib::DecoderWriter as ZlibDecoder;
     pub use gz::EncoderWriter as GzEncoder;
+}
+
+/// Types which operate over `BufRead` streams, both encoders and decoders for
+/// various formats.
+pub mod bufread {
+    pub use deflate::EncoderReaderBuf as DeflateEncoder;
+    pub use deflate::DecoderReaderBuf as DeflateDecoder;
+    pub use zlib::EncoderReaderBuf as ZlibEncoder;
+    pub use zlib::DecoderReaderBuf as ZlibDecoder;
 }
 
 fn _assert_send_sync() {
