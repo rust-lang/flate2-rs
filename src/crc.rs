@@ -21,8 +21,8 @@ impl Crc {
         Crc { crc: 0, amt: 0 }
     }
 
-    pub fn sum(&self) -> libc::c_ulong {
-        self.crc
+    pub fn sum(&self) -> u32 {
+        self.crc as u32
     }
 
     pub fn amt_as_u32(&self) -> u32 {
