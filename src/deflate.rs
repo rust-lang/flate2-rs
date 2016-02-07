@@ -417,6 +417,16 @@ mod tests {
     }
 
     #[test]
+    fn drop_writes() {
+        let mut data = Vec::new();
+        EncoderWriter::new(&mut data, Default).write_all(b"foo").unwrap();
+        let mut r = DecoderReader::new(&data[..]);
+        let mut ret = Vec::new();
+        r.read_to_end(&mut ret).unwrap();
+        assert!(ret == b"foo");
+    }
+
+    #[test]
     fn total_in() {
         let mut real = Vec::new();
         let mut w = EncoderWriter::new(Vec::new(), Default);

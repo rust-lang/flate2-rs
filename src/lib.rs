@@ -48,7 +48,6 @@ mod ffi;
 mod gz;
 mod zio;
 mod mem;
-mod raw;
 mod stream;
 mod zlib;
 

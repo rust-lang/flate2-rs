@@ -102,13 +102,21 @@ impl<W: Write, D: Ops> Writer<W, D> {
         }
     }
 
-    pub fn into_inner(mut self) -> W {
-        self.obj.take().unwrap()
-    }
-
     pub fn replace(&mut self, w: W) -> W {
         self.buf.truncate(0);
         mem::replace(&mut self.obj, Some(w)).unwrap()
+    }
+
+    pub fn get_mut(&mut self) -> Option<&mut W> {
+        self.obj.as_mut()
+    }
+
+    pub fn take_inner(&mut self) -> Option<W> {
+        self.obj.take()
+    }
+
+    pub fn into_inner(mut self) -> W {
+        self.take_inner().unwrap()
     }
 
     fn dump(&mut self) -> io::Result<()> {
@@ -166,5 +174,13 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
         }
 
         self.obj.as_mut().unwrap().flush()
+    }
+}
+
+impl<W: Write, D: Ops> Drop for Writer<W, D> {
+    fn drop(&mut self) {
+        if self.obj.is_some() {
+            let _ = self.finish();
+        }
     }
 }

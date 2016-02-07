@@ -8,11 +8,11 @@ use std::ffi::CString;
 use std::io::prelude::*;
 use std::io;
 
-use Compression;
+use {Compression, Compress};
 use bufreader::BufReader;
 use crc::{CrcReader, Crc};
 use deflate;
-use raw;
+use zio;
 
 static FHCRC: u8 = 1 << 1;
 static FEXTRA: u8 = 1 << 2;
@@ -24,7 +24,7 @@ static FCOMMENT: u8 = 1 << 4;
 /// This structure exposes a `Write` interface that will emit compressed data
 /// to the underlying writer `W`.
 pub struct EncoderWriter<W: Write> {
-    inner: raw::EncoderWriter<W>,
+    inner: zio::Writer<W, Compress>,
     crc: Crc,
     header: Vec<u8>,
 }
@@ -130,10 +130,7 @@ impl Builder {
     /// written out to the supplied parameter `w`.
     pub fn write<W: Write>(self, w: W, lvl: Compression) -> EncoderWriter<W> {
         EncoderWriter {
-            inner: raw::EncoderWriter::new(w,
-                                           lvl,
-                                           true,
-                                           Vec::with_capacity(32 * 1024)),
+            inner: zio::Writer::new(w, Compress::new(lvl, false)),
             crc: Crc::new(),
             header: self.into_header(lvl),
         }
@@ -230,15 +227,16 @@ impl<W: Write> EncoderWriter<W> {
     /// Finish encoding this stream, returning the underlying writer once the
     /// encoding is done.
     pub fn finish(mut self) -> io::Result<W> {
-        self.do_finish()
+        try!(self.do_finish());
+        Ok(self.inner.take_inner().unwrap())
     }
 
-    fn do_finish(&mut self) -> io::Result<W> {
+    fn do_finish(&mut self) -> io::Result<()> {
         if self.header.len() != 0 {
-            try!(self.inner.write_all_raw(&self.header));
+            try!(self.inner.get_mut().unwrap().write_all(&self.header));
         }
         try!(self.inner.finish());
-        let mut inner = self.inner.take_inner();
+        let mut inner = self.inner.get_mut().unwrap();
         let (sum, amt) = (self.crc.sum() as u32, self.crc.amt_as_u32());
         let buf = [(sum >> 0) as u8,
                    (sum >> 8) as u8,
@@ -248,15 +246,14 @@ impl<W: Write> EncoderWriter<W> {
                    (amt >> 8) as u8,
                    (amt >> 16) as u8,
                    (amt >> 24) as u8];
-        try!(inner.write_all(&buf));
-        Ok(inner)
+        inner.write_all(&buf)
     }
 }
 
 impl<W: Write> Write for EncoderWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.header.len() != 0 {
-            try!(self.inner.write_all_raw(&self.header));
+            try!(self.inner.get_mut().unwrap().write_all(&self.header));
             self.header.truncate(0);
         }
         let n = try!(self.inner.write(buf));
@@ -271,7 +268,7 @@ impl<W: Write> Write for EncoderWriter<W> {
 
 impl<W: Write> Drop for EncoderWriter<W> {
     fn drop(&mut self) {
-        if !self.inner.unwrapped() {
+        if self.inner.get_mut().is_some() {
             let _ = self.do_finish();
         }
     }
