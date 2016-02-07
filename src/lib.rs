@@ -38,8 +38,7 @@ use std::io;
 
 pub use gz::Builder as GzBuilder;
 pub use gz::Header as GzHeader;
-pub use mem::{Compress, Decompress, DataError, Status};
-pub use stream::Flush;
+pub use mem::{Compress, Decompress, DataError, Status, Flush};
 
 mod bufreader;
 mod crc;
@@ -48,7 +47,6 @@ mod ffi;
 mod gz;
 mod zio;
 mod mem;
-mod stream;
 mod zlib;
 
 /// Types which operate over `Read` streams, both encoders and decoders for
