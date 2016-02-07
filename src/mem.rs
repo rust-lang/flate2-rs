@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt;
 use std::marker;
 use std::mem;
+use std::slice;
 
 use libc::{c_int, c_uint};
 
@@ -201,8 +202,12 @@ impl Compress {
         self.inner.raw.next_out = output.as_mut_ptr();
         self.inner.raw.avail_out = output.len() as c_uint;
         unsafe {
-            let rc = ffi::mz_deflate(&mut self.inner.raw, flush as c_int);
-            self.rc(rc)
+            match ffi::mz_deflate(&mut self.inner.raw, flush as c_int) {
+                ffi::MZ_OK => Status::Ok,
+                ffi::MZ_BUF_ERROR => Status::BufError,
+                ffi::MZ_STREAM_END => Status::StreamEnd,
+                c => panic!("unknown return code: {}", c),
+            }
         }
     }
 
@@ -221,27 +226,16 @@ impl Compress {
                         -> Status {
         let cap = output.capacity();
         let len = output.len();
-        self.inner.raw.avail_in = input.len() as c_uint;
-        self.inner.raw.next_in = input.as_ptr() as *mut _;
-        self.inner.raw.avail_out = (cap - len) as c_uint;
 
         unsafe {
-            self.inner.raw.next_out = output.as_mut_ptr().offset(len as isize);
-
             let before = self.total_out();
-            let rc = ffi::mz_deflate(&mut self.inner.raw, flush as c_int);
-            let diff = (self.total_out() - before) as usize;
-            output.set_len(len + diff);
-            self.rc(rc)
-        }
-    }
-
-    fn rc(&self, rc: c_int) -> Status {
-        match rc {
-            ffi::MZ_OK => Status::Ok,
-            ffi::MZ_BUF_ERROR => Status::BufError,
-            ffi::MZ_STREAM_END => Status::StreamEnd,
-            c => panic!("unknown return code: {}", c),
+            let ret = {
+                let ptr = output.as_mut_ptr().offset(len as isize);
+                let out = slice::from_raw_parts_mut(ptr, cap - len);
+                self.compress(input, out, flush)
+            };
+            output.set_len((self.total_out() - before) as usize);
+            return ret
         }
     }
 }
@@ -306,8 +300,13 @@ impl Decompress {
         self.inner.raw.next_out = output.as_mut_ptr();
         self.inner.raw.avail_out = output.len() as c_uint;
         unsafe {
-            let rc = ffi::mz_inflate(&mut self.inner.raw, flush as c_int);
-            self.rc(rc)
+            match ffi::mz_inflate(&mut self.inner.raw, flush as c_int) {
+                ffi::MZ_DATA_ERROR => Err(DataError(())),
+                ffi::MZ_OK => Ok(Status::Ok),
+                ffi::MZ_BUF_ERROR => Ok(Status::BufError),
+                ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
+                c => panic!("unknown return code: {}", c),
+            }
         }
     }
 
@@ -326,27 +325,16 @@ impl Decompress {
                           -> Result<Status, DataError> {
         let cap = output.capacity();
         let len = output.len();
-        self.inner.raw.next_in = input.as_ptr() as *mut _;
-        self.inner.raw.avail_in = input.len() as c_uint;
-        self.inner.raw.avail_out = (cap - len) as c_uint;
 
         unsafe {
-            self.inner.raw.next_out = output.as_mut_ptr().offset(len as isize);
             let before = self.total_out();
-            let rc = ffi::mz_inflate(&mut self.inner.raw, flush as c_int);
-            let diff = (self.total_out() - before) as usize;
-            output.set_len(len + diff);
-            self.rc(rc)
-        }
-    }
-
-    fn rc(&self, rc: c_int) -> Result<Status, DataError> {
-        match rc {
-            ffi::MZ_DATA_ERROR => Err(DataError(())),
-            ffi::MZ_OK => Ok(Status::Ok),
-            ffi::MZ_BUF_ERROR => Ok(Status::BufError),
-            ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
-            c => panic!("unknown return code: {}", c),
+            let ret = {
+                let ptr = output.as_mut_ptr().offset(len as isize);
+                let out = slice::from_raw_parts_mut(ptr, cap - len);
+                self.decompress(input, out, flush)
+            };
+            output.set_len((self.total_out() - before) as usize);
+            return ret
         }
     }
 }
