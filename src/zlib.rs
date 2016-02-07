@@ -130,6 +130,19 @@ impl<R: Read> EncoderReader<R> {
         self.inner.obj.reset(r)
     }
 
+    /// Acquires a reference to the underlying stream
+    pub fn get_ref(&self) -> &R {
+        self.inner.get_ref().get_ref()
+    }
+
+    /// Acquires a mutable reference to the underlying stream
+    ///
+    /// Note that mutation of the stream may result in surprising results if
+    /// this encoder is continued to be used.
+    pub fn get_mut(&mut self) -> &mut R {
+        self.inner.get_mut().get_mut()
+    }
+
     /// Consumes this encoder, returning the underlying reader.
     pub fn into_inner(self) -> R {
         self.inner.into_inner().into_inner()
@@ -162,6 +175,19 @@ impl<R: BufRead> EncoderReaderBuf<R> {
     pub fn reset(&mut self, r: R) -> R {
         self.data.reset();
         mem::replace(&mut self.obj, r)
+    }
+
+    /// Acquires a reference to the underlying stream
+    pub fn get_ref(&self) -> &R {
+        &self.obj
+    }
+
+    /// Acquires a mutable reference to the underlying stream
+    ///
+    /// Note that mutation of the stream may result in surprising results if
+    /// this encoder is continued to be used.
+    pub fn get_mut(&mut self) -> &mut R {
+        &mut self.obj
     }
 
     /// Consumes this encoder, returning the underlying reader.
@@ -203,6 +229,19 @@ impl<R: Read> DecoderReader<R> {
     pub fn reset(&mut self, r: R) -> R {
         self.inner.data = Decompress::new(true);
         self.inner.obj.reset(r)
+    }
+
+    /// Acquires a reference to the underlying stream
+    pub fn get_ref(&self) -> &R {
+        self.inner.get_ref().get_ref()
+    }
+
+    /// Acquires a mutable reference to the underlying stream
+    ///
+    /// Note that mutation of the stream may result in surprising results if
+    /// this encoder is continued to be used.
+    pub fn get_mut(&mut self) -> &mut R {
+        self.inner.get_mut().get_mut()
     }
 
     /// Consumes this decoder, returning the underlying reader.
@@ -250,6 +289,19 @@ impl<R: BufRead> DecoderReaderBuf<R> {
     pub fn reset(&mut self, r: R) -> R {
         self.data = Decompress::new(true);
         mem::replace(&mut self.obj, r)
+    }
+
+    /// Acquires a reference to the underlying stream
+    pub fn get_ref(&self) -> &R {
+        &self.obj
+    }
+
+    /// Acquires a mutable reference to the underlying stream
+    ///
+    /// Note that mutation of the stream may result in surprising results if
+    /// this encoder is continued to be used.
+    pub fn get_mut(&mut self) -> &mut R {
+        &mut self.obj
     }
 
     /// Consumes this decoder, returning the underlying reader.
