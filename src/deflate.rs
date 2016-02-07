@@ -4,16 +4,16 @@ use std::io::prelude::*;
 use std::io;
 use std::mem;
 
-use {Compress, Decompress};
 use bufreader::BufReader;
-use raw;
+use zio;
+use {Compress, Decompress};
 
 /// A DEFLATE encoder, or compressor.
 ///
 /// This structure implements a `Write` interface and takes a stream of
 /// uncompressed data, writing the compressed data to the wrapped writer.
 pub struct EncoderWriter<W: Write> {
-    inner: raw::EncoderWriter<W>,
+    inner: zio::Writer<W, Compress>,
 }
 
 /// A DEFLATE encoder, or compressor.
@@ -55,7 +55,7 @@ pub struct DecoderReaderBuf<R: BufRead> {
 /// This structure implements a `Write` and will emit a stream of decompressed
 /// data when fed a stream of compressed data.
 pub struct DecoderWriter<W: Write> {
-    inner: raw::DecoderWriter<W>,
+    inner: zio::Writer<W, Decompress>,
 }
 
 impl<W: Write> EncoderWriter<W> {
@@ -66,10 +66,7 @@ impl<W: Write> EncoderWriter<W> {
     /// be flushed.
     pub fn new(w: W, level: ::Compression) -> EncoderWriter<W> {
         EncoderWriter {
-            inner: raw::EncoderWriter::new(w,
-                                           level,
-                                           true,
-                                           Vec::with_capacity(32 * 1024)),
+            inner: zio::Writer::new(w, Compress::new(level, false)),
         }
     }
 
@@ -86,7 +83,8 @@ impl<W: Write> EncoderWriter<W> {
     /// this encoder will be the compressed into the stream `w` provided.
     pub fn reset(&mut self, w: W) -> io::Result<W> {
         try!(self.inner.finish());
-        Ok(self.inner.reset(w))
+        self.inner.data.reset();
+        Ok(self.inner.replace(w))
     }
 
     /// Consumes this encoder, flushing the output stream.
@@ -198,7 +196,7 @@ impl<R: BufRead> EncoderReaderBuf<R> {
 
 impl<R: BufRead> Read for EncoderReaderBuf<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        ::zio::read(&mut self.obj, &mut self.data, buf)
+        zio::read(&mut self.obj, &mut self.data, buf)
     }
 }
 
@@ -325,7 +323,7 @@ impl<R: BufRead> DecoderReaderBuf<R> {
 
 impl<R: BufRead> Read for DecoderReaderBuf<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
-        ::zio::read(&mut self.obj, &mut self.data, into)
+        zio::read(&mut self.obj, &mut self.data, into)
     }
 }
 
@@ -336,9 +334,7 @@ impl<W: Write> DecoderWriter<W> {
     /// be flushed.
     pub fn new(w: W) -> DecoderWriter<W> {
         DecoderWriter {
-            inner: raw::DecoderWriter::new(w,
-                                           true,
-                                           Vec::with_capacity(32 * 1024)),
+            inner: zio::Writer::new(w, Decompress::new(false)),
         }
     }
 
@@ -355,7 +351,8 @@ impl<W: Write> DecoderWriter<W> {
     /// the output stream `w`.
     pub fn reset(&mut self, w: W) -> io::Result<W> {
         try!(self.inner.finish());
-        Ok(self.inner.reset(w, true))
+        self.inner.data = Decompress::new(false);
+        Ok(self.inner.replace(w))
     }
 
     /// Consumes this encoder, flushing the output stream.
@@ -373,13 +370,13 @@ impl<W: Write> DecoderWriter<W> {
     /// Note that this will likely be smaller than the number of bytes
     /// successfully written to this stream due to internal buffering.
     pub fn total_in(&self) -> u64 {
-        self.inner.total_in()
+        self.inner.data.total_in()
     }
 
     /// Returns the number of bytes that the decompressor has written to its
     /// output stream.
     pub fn total_out(&self) -> u64 {
-        self.inner.total_out()
+        self.inner.data.total_out()
     }
 }
 

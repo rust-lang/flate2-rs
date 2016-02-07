@@ -30,7 +30,7 @@ pub enum Flush {
     /// aligned on a byte boundary so that the decompressor can get all input
     /// data available so far.
     ///
-    /// Flushing may degrade comperssion for some compression algorithms and so
+    /// Flushing may degrade compression for some compression algorithms and so
     /// it should only be used when necessary. This will complete the current
     /// deflate block and follow it with an empty stored block.
     Sync = ffi::MZ_SYNC_FLUSH as isize,
