@@ -234,7 +234,7 @@ impl Compress {
                 let out = slice::from_raw_parts_mut(ptr, cap - len);
                 self.compress(input, out, flush)
             };
-            output.set_len((self.total_out() - before) as usize);
+            output.set_len((self.total_out() - before) as usize + len);
             return ret
         }
     }
@@ -333,7 +333,7 @@ impl Decompress {
                 let out = slice::from_raw_parts_mut(ptr, cap - len);
                 self.decompress(input, out, flush)
             };
-            output.set_len((self.total_out() - before) as usize);
+            output.set_len((self.total_out() - before) as usize + len);
             return ret
         }
     }
