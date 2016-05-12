@@ -651,4 +651,17 @@ mod tests {
         d.read_to_string(&mut s).unwrap();
         assert_eq!(s, "foo bar baz");
     }
+
+    #[test]
+    fn qc_reader() {
+        ::quickcheck::quickcheck(test as fn(_) -> _);
+
+        fn test(v: Vec<u8>) -> bool {
+            let r = EncoderReader::new(&v[..], Default);
+            let mut r = DecoderReader::new(r).unwrap();
+            let mut v2 = Vec::new();
+            r.read_to_end(&mut v2).unwrap();
+            v == v2
+        }
+    }
 }

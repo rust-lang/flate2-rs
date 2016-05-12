@@ -32,6 +32,8 @@
 extern crate libc;
 #[cfg(test)]
 extern crate rand;
+#[cfg(test)]
+extern crate quickcheck;
 
 use std::io::prelude::*;
 use std::io;

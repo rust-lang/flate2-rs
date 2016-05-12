@@ -558,4 +558,27 @@ mod tests {
         let mut data = Vec::new();
         assert!(d.read(&mut data).unwrap() == 0);
     }
+
+    #[test]
+    fn qc_reader() {
+        ::quickcheck::quickcheck(test as fn(_) -> _);
+
+        fn test(v: Vec<u8>) -> bool {
+            let mut r = DecoderReader::new(EncoderReader::new(&v[..], Default));
+            let mut v2 = Vec::new();
+            r.read_to_end(&mut v2).unwrap();
+            v == v2
+        }
+    }
+
+    #[test]
+    fn qc_writer() {
+        ::quickcheck::quickcheck(test as fn(_) -> _);
+
+        fn test(v: Vec<u8>) -> bool {
+            let mut w = EncoderWriter::new(DecoderWriter::new(Vec::new()), Default);
+            w.write_all(&v).unwrap();
+            v == w.finish().unwrap().finish().unwrap()
+        }
+    }
 }
