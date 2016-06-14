@@ -7,6 +7,7 @@ use std::env;
 use std::ffi::CString;
 use std::io::prelude::*;
 use std::io;
+use std::mem;
 
 use {Compression, Compress};
 use bufreader::BufReader;
@@ -68,11 +69,29 @@ pub struct DecoderReader<R: Read> {
     inner: DecoderReaderBuf<BufReader<R>>,
 }
 
-/// A gzip streaming decoder
+/// A gzip streaming decoder that decodes all members of a multistream
 ///
 /// This structure exposes a `Read` interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
+pub struct MultiDecoderReader<R: Read> {
+    inner: MultiDecoderReaderBuf<BufReader<R>>,
+}
+
+/// A gzip streaming decoder
+///
+/// This structure exposes a `Read` interface that will consume all
+/// compressed gzip members from the underlying reader and emit uncompressed data.
 pub struct DecoderReaderBuf<R: BufRead> {
+    inner: CrcReader<deflate::DecoderReaderBuf<R>>,
+    header: Header,
+    finished: bool,
+}
+
+/// A gzip streaming decoder that decodes all members of a multistream
+///
+/// This structure exposes a `Read` interface that will consume all
+/// compressed gzip members from the underlying reader and emit uncompressed data.
+pub struct MultiDecoderReaderBuf<R: BufRead> {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
     header: Header,
     finished: bool,
@@ -389,101 +408,48 @@ impl<R: Read> Read for DecoderReader<R> {
     }
 }
 
+impl<R: Read> MultiDecoderReader<R> {
+    /// Creates a new decoder from the given reader, immediately parsing the
+    /// gzip header. If the gzip stream contains multiple members all will be
+    /// decoded.
+    ///
+    /// If an error is encountered when parsing the gzip header, an error is
+    /// returned.
+    pub fn new(r: R) -> io::Result<MultiDecoderReader<R>> {
+        MultiDecoderReaderBuf::new(BufReader::new(r)).map(|r| {
+            MultiDecoderReader { inner: r }
+        })
+    }
+
+    /// Returns the current header associated with this stream.
+    pub fn header(&self) -> &Header {
+        self.inner.header()
+    }
+}
+
+impl<R: Read> Read for MultiDecoderReader<R> {
+    fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
+        self.inner.read(into)
+    }
+}
+
 impl<R: BufRead> DecoderReaderBuf<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// gzip header.
     ///
     /// If an error is encountered when parsing the gzip header, an error is
     /// returned.
-    pub fn new(r: R) -> io::Result<DecoderReaderBuf<R>> {
-        let mut crc_reader = CrcReader::new(r);
-        let mut header = [0; 10];
-        try!(crc_reader.read_exact(&mut header));
+    pub fn new(mut r: R) -> io::Result<DecoderReaderBuf<R>> {
+        let header = try!(read_gz_header(&mut r));
 
-        let id1 = header[0];
-        let id2 = header[1];
-        if id1 != 0x1f || id2 != 0x8b {
-            return Err(bad_header());
-        }
-        let cm = header[2];
-        if cm != 8 {
-            return Err(bad_header());
-        }
-
-        let flg = header[3];
-        let mtime = ((header[4] as u32) << 0) | ((header[5] as u32) << 8) |
-                    ((header[6] as u32) << 16) |
-                    ((header[7] as u32) << 24);
-        let _xfl = header[8];
-        let _os = header[9];
-
-        let extra = if flg & FEXTRA != 0 {
-            let xlen = try!(read_le_u16(&mut crc_reader));
-            let mut extra = vec![0; xlen as usize];
-            try!(crc_reader.read_exact(&mut extra));
-            Some(extra)
-        } else {
-            None
-        };
-        let filename = if flg & FNAME != 0 {
-            // wow this is slow
-            let mut b = Vec::new();
-            for byte in crc_reader.by_ref().bytes() {
-                let byte = try!(byte);
-                if byte == 0 {
-                    break;
-                }
-                b.push(byte);
-            }
-            Some(b)
-        } else {
-            None
-        };
-        let comment = if flg & FCOMMENT != 0 {
-            // wow this is slow
-            let mut b = Vec::new();
-            for byte in crc_reader.by_ref().bytes() {
-                let byte = try!(byte);
-                if byte == 0 {
-                    break;
-                }
-                b.push(byte);
-            }
-            Some(b)
-        } else {
-            None
-        };
-
-        if flg & FHCRC != 0 {
-            let calced_crc = crc_reader.crc().sum() as u16;
-            let stored_crc = try!(read_le_u16(&mut crc_reader));
-            if calced_crc != stored_crc {
-                return Err(corrupt());
-            }
-        }
-
-        let flate = deflate::DecoderReaderBuf::new(crc_reader.into_inner());
+        let flate = deflate::DecoderReaderBuf::new(r);
         return Ok(DecoderReaderBuf {
             inner: CrcReader::new(flate),
-            header: Header {
-                extra: extra,
-                filename: filename,
-                comment: comment,
-                mtime: mtime,
-            },
+            header: header,
             finished: false,
         });
-
-        fn bad_header() -> io::Error {
-            io::Error::new(io::ErrorKind::InvalidInput, "invalid gzip header")
-        }
-
-        fn read_le_u16<R: Read>(r: &mut R) -> io::Result<u16> {
-            let mut b = [0; 2];
-            try!(r.read_exact(&mut b));
-            Ok((b[0] as u16) | ((b[1] as u16) << 8))
-        }
     }
+
 
     /// Returns the header associated with this stream.
     pub fn header(&self) -> &Header {
@@ -535,6 +501,94 @@ impl<R: BufRead> Read for DecoderReaderBuf<R> {
     }
 }
 
+impl<R: BufRead> MultiDecoderReaderBuf<R> {
+    /// Creates a new decoder from the given reader, immediately parsing the
+    /// gzip header. If the gzip stream contains multiple members all will be
+    /// decoded.
+    ///
+    /// If an error is encountered when parsing the gzip header, an error is
+    /// returned.
+    pub fn new(mut r: R) -> io::Result<MultiDecoderReaderBuf<R>> {
+        let header = try!(read_gz_header(&mut r));
+
+        let flate = deflate::DecoderReaderBuf::new(r);
+        return Ok(MultiDecoderReaderBuf {
+            inner: CrcReader::new(flate),
+            header: header,
+            finished: false,
+        });
+    }
+
+
+    /// Returns the current header associated with this stream.
+    pub fn header(&self) -> &Header {
+        &self.header
+    }
+
+    fn finish_member(&mut self) -> io::Result<usize> {
+        if self.finished {
+            return Ok(0);
+        }
+        let ref mut buf = [0u8; 8];
+        {
+            let mut len = 0;
+
+            while len < buf.len() {
+                match try!(self.inner.inner().get_mut().read(&mut buf[len..])) {
+                    0 => return Err(corrupt()),
+                    n => len += n,
+                }
+            }
+        }
+
+        let crc = ((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) |
+                  ((buf[2] as u32) << 16) |
+                  ((buf[3] as u32) << 24);
+        let amt = ((buf[4] as u32) << 0) | ((buf[5] as u32) << 8) |
+                  ((buf[6] as u32) << 16) |
+                  ((buf[7] as u32) << 24);
+        if crc != self.inner.crc().sum() as u32 {
+            return Err(corrupt());
+        }
+        if amt != self.inner.crc().amt_as_u32() {
+            return Err(corrupt());
+        }
+        let remaining = match self.inner.inner().get_mut().fill_buf() {
+            Ok(b) => {
+                if b.is_empty() {
+                    self.finished = true;
+                    return Ok(0);
+                } else {
+                    b.len()
+                }
+            },
+            Err(e) => return Err(e)
+        };
+
+        let next_header = try!(read_gz_header(self.inner.inner().get_mut()));
+        mem::replace(&mut self.header, next_header);
+        self.inner.reset();
+        self.inner.inner().reset_data();
+
+        Ok(remaining)
+    }
+}
+
+impl<R: BufRead> Read for MultiDecoderReaderBuf<R> {
+    fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
+        match try!(self.inner.read(into)) {
+            0 => {
+                match self.finish_member() {
+                    Ok(0) => Ok(0),
+                    Ok(_) => self.read(into),
+                    Err(e) => Err(e)
+                }
+            },
+            n => Ok(n),
+        }
+    }
+}
+
 impl Header {
     /// Returns the `filename` field of this gzip stream's header, if present.
     pub fn filename(&self) -> Option<&[u8]> {
@@ -560,6 +614,91 @@ impl Header {
 fn corrupt() -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput,
                    "corrupt gzip stream does not have a matching checksum")
+}
+
+fn bad_header() -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidInput, "invalid gzip header")
+}
+
+fn read_le_u16<R: Read>(r: &mut R) -> io::Result<u16> {
+    let mut b = [0; 2];
+    try!(r.read_exact(&mut b));
+    Ok((b[0] as u16) | ((b[1] as u16) << 8))
+}
+
+fn read_gz_header<R: Read>(r: &mut R) -> io::Result<Header> {
+    let mut crc_reader = CrcReader::new(r);
+    let mut header = [0; 10];
+    try!(crc_reader.read_exact(&mut header));
+
+    let id1 = header[0];
+    let id2 = header[1];
+    if id1 != 0x1f || id2 != 0x8b {
+        return Err(bad_header());
+    }
+    let cm = header[2];
+    if cm != 8 {
+        return Err(bad_header());
+    }
+
+    let flg = header[3];
+    let mtime = ((header[4] as u32) << 0) | ((header[5] as u32) << 8) |
+        ((header[6] as u32) << 16) |
+        ((header[7] as u32) << 24);
+    let _xfl = header[8];
+    let _os = header[9];
+
+    let extra = if flg & FEXTRA != 0 {
+        let xlen = try!(read_le_u16(&mut crc_reader));
+        let mut extra = vec![0; xlen as usize];
+        try!(crc_reader.read_exact(&mut extra));
+        Some(extra)
+    } else {
+        None
+    };
+    let filename = if flg & FNAME != 0 {
+        // wow this is slow
+        let mut b = Vec::new();
+        for byte in crc_reader.by_ref().bytes() {
+            let byte = try!(byte);
+            if byte == 0 {
+                break;
+            }
+            b.push(byte);
+        }
+        Some(b)
+    } else {
+        None
+    };
+    let comment = if flg & FCOMMENT != 0 {
+        // wow this is slow
+        let mut b = Vec::new();
+        for byte in crc_reader.by_ref().bytes() {
+            let byte = try!(byte);
+            if byte == 0 {
+                break;
+            }
+            b.push(byte);
+        }
+        Some(b)
+    } else {
+        None
+    };
+
+    if flg & FHCRC != 0 {
+        let calced_crc = crc_reader.crc().sum() as u16;
+        let stored_crc = try!(read_le_u16(&mut crc_reader));
+        if calced_crc != stored_crc {
+            return Err(corrupt());
+        }
+    }
+
+    Ok(Header {
+        extra: extra,
+        filename: filename,
+        comment: comment,
+        mtime: mtime,
+    })
 }
 
 #[cfg(test)]

@@ -35,6 +35,11 @@ impl Crc {
             ffi::mz_crc32(self.crc, data.as_ptr(), data.len() as libc::size_t)
         };
     }
+
+    pub fn reset(&mut self) {
+        self.crc = 0;
+        self.amt = 0;
+    }
 }
 
 impl<R: Read> CrcReader<R> {
@@ -55,6 +60,10 @@ impl<R: Read> CrcReader<R> {
 
     pub fn inner(&mut self) -> &mut R {
         &mut self.inner
+    }
+
+    pub fn reset(&mut self) {
+        self.crc.reset();
     }
 }
 
