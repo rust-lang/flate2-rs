@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fmt;
+use std::io;
 use std::marker;
 use std::mem;
 use std::slice;
@@ -341,6 +342,12 @@ impl Decompress {
 
 impl Error for DataError {
     fn description(&self) -> &str { "deflate data error" }
+}
+
+impl From<DataError> for io::Error {
+    fn from(data: DataError) -> io::Error {
+        io::Error::new(io::ErrorKind::Other, data)
+    }
 }
 
 impl fmt::Display for DataError {

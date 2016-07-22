@@ -95,7 +95,7 @@ impl<W: Write, D: Ops> Writer<W, D> {
             try!(self.dump());
 
             let before = self.data.total_out();
-            self.data.run_vec(&[], &mut self.buf, Flush::Finish).unwrap();
+            try!(self.data.run_vec(&[], &mut self.buf, Flush::Finish));
             if before == self.data.total_out() {
                 return Ok(())
             }
