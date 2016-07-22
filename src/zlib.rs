@@ -389,6 +389,7 @@ impl<W: Write> Write for DecoderWriter<W> {
 #[cfg(test)]
 mod tests {
     use std::io::prelude::*;
+    use std::io;
 
     use rand::{thread_rng, Rng};
 
@@ -504,6 +505,18 @@ mod tests {
             w.write_all(&data).unwrap();
             let c = w.finish().unwrap();
             assert!(a == b && b == c && c == v);
+        }
+    }
+
+    #[test]
+    fn bad_input() {
+        // regress tests: previously caused a panic on drop
+        let mut out: Vec<u8> = Vec::new();
+        let data: Vec<u8> = (0..255).cycle().take(1024).collect();
+        let mut w = DecoderWriter::new(&mut out);
+        match w.write_all(&data[..]) {
+            Ok(_) => panic!("Expected an error to be returned!"),
+            Err(e) => assert_eq!(e.kind(), io::ErrorKind::InvalidInput),
         }
     }
 
