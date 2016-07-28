@@ -7,7 +7,7 @@
 
 A streaming compression/decompression library for Rust. The underlying
 implementation by default uses [`miniz`](https://code.google.com/p/miniz/) but
-can optionally be get configured to use the system zlib, if available.
+can optionally be configured to use the system zlib, if available.
 
 Supported formats:
 
