@@ -2,7 +2,7 @@
 //!
 //! This library is meant to supplement/replace the standard distributon's
 //! libflate library by providing a streaming encoder/decoder rather than purely
-//! in in-memory encoder/decoder.
+//! an in-memory encoder/decoder.
 //!
 //! Like with libflate, flate2 is based on [`miniz.c`][1]
 //!
