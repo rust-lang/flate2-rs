@@ -16,11 +16,11 @@
 //! whereas all types in the `reader` module work on instances of `Reader`.
 //!
 //! Other various types are provided at the top-level of the crate for
-//! mangement and dealing with encoders/decoders.
+//! management and dealing with encoders/decoders.
 //!
 //! # Helper traits
 //!
-//! There are two helper traits, provided, `FlateReader` and `FlateWriter`.
+//! There are two helper traits provided: `FlateReader` and `FlateWriter`.
 //! These provide convenience methods for creating a decoder/encoder out of an
 //! already existing stream to chain construction.
 
