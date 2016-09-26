@@ -26,6 +26,7 @@ mod imp {
     pub use self::z::Z_PARTIAL_FLUSH as MZ_PARTIAL_FLUSH;
     pub use self::z::Z_STREAM_END as MZ_STREAM_END;
     pub use self::z::Z_SYNC_FLUSH as MZ_SYNC_FLUSH;
+    pub use self::z::Z_STREAM_ERROR as MZ_STREAM_ERROR;
 
     pub const MZ_DEFAULT_WINDOW_BITS: c_int = 15;
 

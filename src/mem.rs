@@ -402,7 +402,8 @@ mod tests {
         // decompressed whole deflate stream
         assert!(d.decompress_vec(&data[10..], &mut decoded, Flush::Finish).is_ok());
 
-        // decompress data that has nothing to do with the deflate stream (this panics)
-        assert!(d.decompress_vec(&[0], &mut decoded, Flush::None).is_err());
+        // decompress data that has nothing to do with the deflate stream (this
+        // used to panic)
+        drop(d.decompress_vec(&[0], &mut decoded, Flush::None));
     }
 }
