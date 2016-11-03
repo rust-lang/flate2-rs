@@ -20,7 +20,7 @@ pub struct EncoderWriter<W: Write> {
 ///
 /// This structure implements a `Read` interface and will read uncompressed
 /// data from an underlying stream and emit a stream of compressed data.
-pub struct EncoderReader<R: Read> {
+pub struct EncoderReader<R> {
     inner: EncoderReaderBuf<BufReader<R>>,
 }
 
@@ -28,7 +28,7 @@ pub struct EncoderReader<R: Read> {
 ///
 /// This structure implements a `BufRead` interface and will read uncompressed
 /// data from an underlying stream and emit a stream of compressed data.
-pub struct EncoderReaderBuf<R: BufRead> {
+pub struct EncoderReaderBuf<R> {
     obj: R,
     data: Compress,
 }
@@ -37,7 +37,7 @@ pub struct EncoderReaderBuf<R: BufRead> {
 ///
 /// This structure implements a `Read` interface and takes a stream of
 /// compressed data as input, providing the decompressed data when read from.
-pub struct DecoderReader<R: Read> {
+pub struct DecoderReader<R> {
     inner: DecoderReaderBuf<BufReader<R>>,
 }
 
@@ -45,7 +45,7 @@ pub struct DecoderReader<R: Read> {
 ///
 /// This structure implements a `BufRead` interface and takes a stream of
 /// compressed data as input, providing the decompressed data when read from.
-pub struct DecoderReaderBuf<R: BufRead> {
+pub struct DecoderReaderBuf<R> {
     obj: R,
     data: Decompress,
 }
