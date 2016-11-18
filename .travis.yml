@@ -12,6 +12,7 @@ script:
   - cargo test --verbose
   - cargo test --verbose --features zlib
   - cargo test --verbose --features zlib --no-default-features
+  - cargo clean && cargo build
   - rustdoc --test README.md -L target/debug -L target/debug/deps
   - cargo doc --no-deps
   - cargo doc --no-deps --manifest-path=miniz-sys/Cargo.toml
