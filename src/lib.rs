@@ -10,10 +10,10 @@
 //!
 //! # Organization
 //!
-//! This crate consists mainly of two modules, `reader` and `writer`. Each
+//! This crate consists mainly of two modules, `read` and `write`. Each
 //! module contains a number of types used to encode and decode various streams
-//! of data. All types in the `writer` module work on instances of `Writer`,
-//! whereas all types in the `reader` module work on instances of `Reader`.
+//! of data. All types in the `write` module work on instances of `Write`,
+//! whereas all types in the `read` module work on instances of `Read`.
 //!
 //! Other various types are provided at the top-level of the crate for
 //! management and dealing with encoders/decoders.
