@@ -38,6 +38,8 @@ pub struct Decompress {
 
 struct Stream<D: Direction> {
     raw: ffi::mz_stream,
+    total_in: u64,
+    total_out: u64,
     _marker: marker::PhantomData<D>,
 }
 
@@ -160,6 +162,8 @@ impl Compress {
             Compress {
                 inner: Stream {
                     raw: state,
+                    total_in: 0,
+                    total_out: 0,
                     _marker: marker::PhantomData,
                 },
             }
@@ -169,13 +173,13 @@ impl Compress {
     /// Returns the total number of input bytes which have been processed by
     /// this compression object.
     pub fn total_in(&self) -> u64 {
-        self.inner.raw.total_in as u64
+        self.inner.total_in
     }
 
     /// Returns the total number of output bytes which have been produced by
     /// this compression object.
     pub fn total_out(&self) -> u64 {
-        self.inner.raw.total_out as u64
+        self.inner.total_out
     }
 
     /// Quickly resets this compressor without having to reallocate anything.
@@ -184,6 +188,9 @@ impl Compress {
     pub fn reset(&mut self) {
         let rc = unsafe { ffi::mz_deflateReset(&mut self.inner.raw) };
         assert_eq!(rc, ffi::MZ_OK);
+
+        self.inner.total_in = 0;
+        self.inner.total_out = 0;
     }
 
     /// Compresses the input data into the output, consuming only as much
@@ -202,13 +209,21 @@ impl Compress {
         self.inner.raw.avail_in = input.len() as c_uint;
         self.inner.raw.next_out = output.as_mut_ptr();
         self.inner.raw.avail_out = output.len() as c_uint;
-        unsafe {
-            match ffi::mz_deflate(&mut self.inner.raw, flush as c_int) {
-                ffi::MZ_OK => Status::Ok,
-                ffi::MZ_BUF_ERROR => Status::BufError,
-                ffi::MZ_STREAM_END => Status::StreamEnd,
-                c => panic!("unknown return code: {}", c),
-            }
+
+        let rc = unsafe { ffi::mz_deflate(&mut self.inner.raw, flush as c_int) };
+
+        // Unfortunately the total counters provided by zlib might be only
+        // 32 bits wide and overflow while processing large amounts of data.
+        self.inner.total_in += (self.inner.raw.next_in as usize -
+                                input.as_ptr() as usize) as u64;
+        self.inner.total_out += (self.inner.raw.next_out as usize -
+                                 output.as_ptr() as usize) as u64;
+
+        match rc {
+            ffi::MZ_OK => Status::Ok,
+            ffi::MZ_BUF_ERROR => Status::BufError,
+            ffi::MZ_STREAM_END => Status::StreamEnd,
+            c => panic!("unknown return code: {}", c),
         }
     }
 
@@ -259,6 +274,8 @@ impl Decompress {
             Decompress {
                 inner: Stream {
                     raw: state,
+                    total_in: 0,
+                    total_out: 0,
                     _marker: marker::PhantomData,
                 },
             }
@@ -268,13 +285,13 @@ impl Decompress {
     /// Returns the total number of input bytes which have been processed by
     /// this decompression object.
     pub fn total_in(&self) -> u64 {
-        self.inner.raw.total_in as u64
+        self.inner.total_in
     }
 
     /// Returns the total number of output bytes which have been produced by
     /// this decompression object.
     pub fn total_out(&self) -> u64 {
-        self.inner.raw.total_out as u64
+        self.inner.total_out
     }
 
     /// Decompresses the input data into the output, consuming only as much
@@ -300,15 +317,23 @@ impl Decompress {
         self.inner.raw.avail_in = input.len() as c_uint;
         self.inner.raw.next_out = output.as_mut_ptr();
         self.inner.raw.avail_out = output.len() as c_uint;
-        unsafe {
-            match ffi::mz_inflate(&mut self.inner.raw, flush as c_int) {
-                ffi::MZ_DATA_ERROR |
-                ffi::MZ_STREAM_ERROR => Err(DataError(())),
-                ffi::MZ_OK => Ok(Status::Ok),
-                ffi::MZ_BUF_ERROR => Ok(Status::BufError),
-                ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
-                c => panic!("unknown return code: {}", c),
-            }
+
+        let rc = unsafe { ffi::mz_inflate(&mut self.inner.raw, flush as c_int) };
+
+        // Unfortunately the total counters provided by zlib might be only
+        // 32 bits wide and overflow while processing large amounts of data.
+        self.inner.total_in += (self.inner.raw.next_in as usize -
+                                input.as_ptr() as usize) as u64;
+        self.inner.total_out += (self.inner.raw.next_out as usize -
+                                 output.as_ptr() as usize) as u64;
+
+        match rc {
+            ffi::MZ_DATA_ERROR |
+            ffi::MZ_STREAM_ERROR => Err(DataError(())),
+            ffi::MZ_OK => Ok(Status::Ok),
+            ffi::MZ_BUF_ERROR => Ok(Status::BufError),
+            ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
+            c => panic!("unknown return code: {}", c),
         }
     }
 
