@@ -664,4 +664,11 @@ mod tests {
             v == v2
         }
     }
+
+    #[test]
+    fn flush_after_write() {
+		let mut f = EncoderWriter::new(Vec::new(), Default);
+		write!(f, "Hello world").unwrap();
+		f.flush().unwrap();
+    }
 }

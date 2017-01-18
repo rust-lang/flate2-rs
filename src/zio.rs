@@ -158,6 +158,8 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
     }
 
     fn flush(&mut self) -> io::Result<()> {
+        self.data.run_vec(&[], &mut self.buf, Flush::Sync).unwrap();
+
         // Unfortunately miniz doesn't actually tell us when we're done with
         // pulling out all the data from the internal stream. To remedy this we
         // have to continually ask the stream for more memory until it doesn't
@@ -165,9 +167,8 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
         // at which point we assume it's reached the end.
         loop {
             try!(self.dump());
-
             let before = self.data.total_out();
-            self.data.run_vec(&[], &mut self.buf, Flush::Sync).unwrap();
+            self.data.run_vec(&[], &mut self.buf, Flush::None).unwrap();
             if before == self.data.total_out() {
                 break
             }
