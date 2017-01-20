@@ -1,4 +1,4 @@
-#![doc(html_root_url = "http://alexcrichton.com/flate2-rs")]
+#![doc(html_root_url = "https://docs.rs/miniz-sys/0.1")]
 #![allow(bad_style)]
 
 extern crate libc;
