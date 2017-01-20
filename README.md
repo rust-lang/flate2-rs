@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/alexcrichton/flate2-rs.svg?branch=master)](https://travis-ci.org/alexcrichton/flate2-rs)
 [![Build status](https://ci.appveyor.com/api/projects/status/9tatexq47i3ee13k?svg=true)](https://ci.appveyor.com/project/alexcrichton/flate2-rs)
 
-[Documentation](http://alexcrichton.com/flate2-rs/flate2/index.html)
+[Documentation](https://docs.rs/flate2)
 
 A streaming compression/decompression library for Rust. The underlying
 implementation by default uses [`miniz`](https://code.google.com/p/miniz/) but
