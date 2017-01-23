@@ -83,6 +83,11 @@ pub mod bufread {
     pub use gz::DecoderReaderBuf as GzDecoder;
 }
 
+/// Raw C structs from miniz or libz.
+pub mod raw {
+    pub use ffi::mz_stream;
+}
+
 fn _assert_send_sync() {
     fn _assert_send_sync<T: Send + Sync>() {}
 
