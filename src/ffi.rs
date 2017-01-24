@@ -7,6 +7,7 @@ mod imp {
     use std::mem;
     use libc::{c_int, size_t, c_ulong, c_uint, c_char};
 
+    pub use self::z::*;
     pub use self::z::deflateEnd as mz_deflateEnd;
     pub use self::z::inflateEnd as mz_inflateEnd;
     pub use self::z::deflateReset as mz_deflateReset;

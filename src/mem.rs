@@ -364,6 +364,35 @@ impl Decompress {
             return ret
         }
     }
+
+    /// Performs the equivalent of replacing this decompression state with a
+    /// freshly allocated copy.
+    ///
+    /// This function may not allocate memory, though, and attempts to reuse any
+    /// previously existing resources.
+    ///
+    /// The argument provided here indicates whether the reset state will
+    /// attempt to decode a zlib header first or not.
+    pub fn reset(&mut self, zlib_header: bool) {
+        self._reset(zlib_header)
+    }
+
+    #[cfg(feature = "zlib")]
+    fn _reset(&mut self, zlib_header: bool) {
+        let bits = if zlib_header {
+            ffi::MZ_DEFAULT_WINDOW_BITS
+        } else {
+            -ffi::MZ_DEFAULT_WINDOW_BITS
+        };
+        unsafe {
+            ffi::inflateReset2(&mut self.inner.raw, bits);
+        }
+    }
+
+    #[cfg(not(feature = "zlib"))]
+    fn _reset(&mut self, zlib_header: bool) {
+        *self = Decompress::new(zlib_header);
+    }
 }
 
 impl Error for DataError {
@@ -403,7 +432,10 @@ impl<D: Direction> Drop for Stream<D> {
 
 #[cfg(test)]
 mod tests {
-    use {Decompress, Flush};
+    use std::io::Write;
+
+    use write;
+    use {Compression, Decompress, Flush};
 
     #[test]
     fn issue51() {
@@ -430,5 +462,27 @@ mod tests {
         // decompress data that has nothing to do with the deflate stream (this
         // used to panic)
         drop(d.decompress_vec(&[0], &mut decoded, Flush::None));
+    }
+
+    #[test]
+    fn reset() {
+        let string = "hello world".as_bytes();
+        let mut zlib = Vec::new();
+        let mut deflate = Vec::new();
+
+        let comp = Compression::Default;
+        write::ZlibEncoder::new(&mut zlib, comp).write_all(string).unwrap();
+        write::DeflateEncoder::new(&mut deflate, comp).write_all(string).unwrap();
+
+        let mut dst = [0; 1024];
+        let mut decoder = Decompress::new(true);
+        decoder.decompress(&zlib, &mut dst, Flush::Finish).unwrap();
+        assert_eq!(decoder.total_out(), string.len() as u64);
+        assert!(dst.starts_with(string));
+
+        decoder.reset(false);
+        decoder.decompress(&deflate, &mut dst, Flush::Finish).unwrap();
+        assert_eq!(decoder.total_out(), string.len() as u64);
+        assert!(dst.starts_with(string));
     }
 }
