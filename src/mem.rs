@@ -374,7 +374,7 @@ impl Decompress {
     /// The argument provided here indicates whether the reset state will
     /// attempt to decode a zlib header first or not.
     pub fn reset(&mut self, zlib_header: bool) {
-        self._reset(zlib_header)
+        self._reset(zlib_header);
     }
 
     #[cfg(feature = "zlib")]
@@ -387,6 +387,8 @@ impl Decompress {
         unsafe {
             ffi::inflateReset2(&mut self.inner.raw, bits);
         }
+        self.inner.total_out = 0;
+        self.inner.total_in = 0;
     }
 
     #[cfg(not(feature = "zlib"))]
