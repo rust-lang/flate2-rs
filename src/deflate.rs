@@ -289,6 +289,14 @@ impl<R: BufRead> DecoderReaderBuf<R> {
         mem::replace(&mut self.obj, r)
     }
 
+    /// Resets the state of this decoder's data
+    ///
+    /// This will reset the internal state of this decoder. It will continue
+    /// reading from the same stream.
+    pub fn reset_data(&mut self) {
+        self.data = Decompress::new(false);
+    }
+
     /// Acquires a reference to the underlying stream
     pub fn get_ref(&self) -> &R {
         &self.obj

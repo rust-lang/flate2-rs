@@ -60,6 +60,7 @@ pub mod read {
     pub use zlib::DecoderReader as ZlibDecoder;
     pub use gz::EncoderReader as GzEncoder;
     pub use gz::DecoderReader as GzDecoder;
+    pub use gz::MultiDecoderReader as MultiGzDecoder;
 }
 
 /// Types which operate over `Write` streams, both encoders and decoders for
@@ -81,6 +82,7 @@ pub mod bufread {
     pub use zlib::DecoderReaderBuf as ZlibDecoder;
     pub use gz::EncoderReaderBuf as GzEncoder;
     pub use gz::DecoderReaderBuf as GzDecoder;
+    pub use gz::MultiDecoderReaderBuf as MultiGzDecoder;
 }
 
 fn _assert_send_sync() {
@@ -92,6 +94,7 @@ fn _assert_send_sync() {
     _assert_send_sync::<read::ZlibDecoder<&[u8]>>();
     _assert_send_sync::<read::GzEncoder<&[u8]>>();
     _assert_send_sync::<read::GzDecoder<&[u8]>>();
+    _assert_send_sync::<read::MultiGzDecoder<&[u8]>>();
     _assert_send_sync::<write::DeflateEncoder<Vec<u8>>>();
     _assert_send_sync::<write::DeflateDecoder<Vec<u8>>>();
     _assert_send_sync::<write::ZlibEncoder<Vec<u8>>>();
