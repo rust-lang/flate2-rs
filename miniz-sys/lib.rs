@@ -1,8 +1,7 @@
 #![doc(html_root_url = "https://docs.rs/miniz-sys/0.1")]
 #![allow(bad_style)]
 
-extern crate libc;
-use libc::*;
+use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 
 pub const MZ_NO_FLUSH: c_int = 0;
 pub const MZ_PARTIAL_FLUSH: c_int = 1;
@@ -51,8 +50,8 @@ pub struct mz_stream {
 pub enum mz_internal_state {}
 
 pub type mz_alloc_func = extern fn(*mut c_void,
-                                   size_t,
-                                   size_t) -> *mut c_void;
+                                   usize,
+                                   usize) -> *mut c_void;
 pub type mz_free_func = extern fn(*mut c_void, *mut c_void);
 
 extern {
@@ -73,5 +72,5 @@ extern {
     pub fn mz_inflate(stream: *mut mz_stream, flush: c_int) -> c_int;
     pub fn mz_inflateEnd(stream: *mut mz_stream) -> c_int;
 
-    pub fn mz_crc32(crc: c_ulong, ptr: *const u8, len: size_t) -> c_ulong;
+    pub fn mz_crc32(crc: c_ulong, ptr: *const u8, len: usize) -> c_ulong;
 }
