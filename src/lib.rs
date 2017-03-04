@@ -29,7 +29,6 @@
 #![allow(trivial_numeric_casts)]
 #![cfg_attr(test, deny(warnings))]
 
-extern crate libc;
 #[cfg(test)]
 extern crate rand;
 #[cfg(test)]
