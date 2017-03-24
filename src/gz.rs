@@ -465,7 +465,7 @@ impl<R: BufRead> DecoderReaderBuf<R> {
             let mut len = 0;
 
             while len < buf.len() {
-                match try!(self.inner.inner().get_mut().read(&mut buf[len..])) {
+                match try!(self.inner.get_mut().get_mut().read(&mut buf[len..])) {
                     0 => return Err(corrupt()),
                     n => len += n,
                 }
@@ -534,7 +534,7 @@ impl<R: BufRead> MultiDecoderReaderBuf<R> {
             let mut len = 0;
 
             while len < buf.len() {
-                match try!(self.inner.inner().get_mut().read(&mut buf[len..])) {
+                match try!(self.inner.get_mut().get_mut().read(&mut buf[len..])) {
                     0 => return Err(corrupt()),
                     n => len += n,
                 }
@@ -553,7 +553,7 @@ impl<R: BufRead> MultiDecoderReaderBuf<R> {
         if amt != self.inner.crc().amt_as_u32() {
             return Err(corrupt());
         }
-        let remaining = match self.inner.inner().get_mut().fill_buf() {
+        let remaining = match self.inner.get_mut().get_mut().fill_buf() {
             Ok(b) => {
                 if b.is_empty() {
                     self.finished = true;
@@ -565,10 +565,10 @@ impl<R: BufRead> MultiDecoderReaderBuf<R> {
             Err(e) => return Err(e)
         };
 
-        let next_header = try!(read_gz_header(self.inner.inner().get_mut()));
+        let next_header = try!(read_gz_header(self.inner.get_mut().get_mut()));
         mem::replace(&mut self.header, next_header);
         self.inner.reset();
-        self.inner.inner().reset_data();
+        self.inner.get_mut().reset_data();
 
         Ok(remaining)
     }
