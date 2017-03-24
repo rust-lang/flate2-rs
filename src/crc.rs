@@ -58,7 +58,11 @@ impl<R: Read> CrcReader<R> {
         self.inner
     }
 
-    pub fn inner(&mut self) -> &mut R {
+    pub fn get_ref(&self) -> &R {
+        &self.inner
+    }
+
+    pub fn get_mut(&mut self) -> &mut R {
         &mut self.inner
     }
 
