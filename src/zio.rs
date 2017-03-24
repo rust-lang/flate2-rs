@@ -107,6 +107,10 @@ impl<W: Write, D: Ops> Writer<W, D> {
         mem::replace(&mut self.obj, Some(w)).unwrap()
     }
 
+    pub fn get_ref(&self) -> Option<&W> {
+        self.obj.as_ref()
+    }
+
     pub fn get_mut(&mut self) -> Option<&mut W> {
         self.obj.as_mut()
     }
