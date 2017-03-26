@@ -2,12 +2,12 @@
 
 use std::io::prelude::*;
 use std::io;
-use libc;
+use std::os::raw::c_ulong;
 
 use ffi;
 
 pub struct Crc {
-    crc: libc::c_ulong,
+    crc: c_ulong,
     amt: u32,
 }
 
@@ -32,7 +32,7 @@ impl Crc {
     pub fn update(&mut self, data: &[u8]) {
         self.amt = self.amt.wrapping_add(data.len() as u32);
         self.crc = unsafe {
-            ffi::mz_crc32(self.crc, data.as_ptr(), data.len() as libc::size_t)
+            ffi::mz_crc32(self.crc, data.as_ptr(), data.len())
         };
     }
 

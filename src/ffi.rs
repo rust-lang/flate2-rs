@@ -5,7 +5,7 @@ pub use self::imp::*;
 mod imp {
     extern crate libz_sys as z;
     use std::mem;
-    use libc::{c_int, size_t, c_ulong, c_uint, c_char};
+    use std::os::raw::{c_int, c_ulong, c_uint, c_char};
 
     pub use self::z::*;
     pub use self::z::deflateEnd as mz_deflateEnd;
@@ -33,7 +33,7 @@ mod imp {
 
     pub unsafe extern fn mz_crc32(crc: c_ulong,
                                   ptr: *const u8,
-                                  len: size_t) -> c_ulong {
+                                  len: usize) -> c_ulong {
         z::crc32(crc, ptr, len as c_uint)
     }
 
