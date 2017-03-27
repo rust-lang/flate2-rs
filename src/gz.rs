@@ -269,7 +269,7 @@ impl<W: Write> EncoderWriter<W> {
         }
         try!(self.inner.finish());
         let mut inner = self.inner.get_mut().unwrap();
-        let (sum, amt) = (self.crc.sum() as u32, self.crc.amt_as_u32());
+        let (sum, amt) = (self.crc.sum() as u32, self.crc.amount());
         let buf = [(sum >> 0) as u8,
                    (sum >> 8) as u8,
                    (sum >> 16) as u8,
@@ -391,10 +391,10 @@ impl<R: BufRead> EncoderReaderBuf<R> {
                        (crc.sum() >> 8) as u8,
                        (crc.sum() >> 16) as u8,
                        (crc.sum() >> 24) as u8,
-                       (crc.amt_as_u32() >> 0) as u8,
-                       (crc.amt_as_u32() >> 8) as u8,
-                       (crc.amt_as_u32() >> 16) as u8,
-                       (crc.amt_as_u32() >> 24) as u8];
+                       (crc.amount() >> 0) as u8,
+                       (crc.amount() >> 8) as u8,
+                       (crc.amount() >> 16) as u8,
+                       (crc.amount() >> 24) as u8];
         Ok(copy(into, arr, &mut self.pos))
     }
 }
@@ -574,7 +574,7 @@ impl<R: BufRead> DecoderReaderBuf<R> {
         if crc != self.inner.crc().sum() as u32 {
             return Err(corrupt());
         }
-        if amt != self.inner.crc().amt_as_u32() {
+        if amt != self.inner.crc().amount() {
             return Err(corrupt());
         }
         self.finished = true;
@@ -661,7 +661,7 @@ impl<R: BufRead> MultiDecoderReaderBuf<R> {
         if crc != self.inner.crc().sum() as u32 {
             return Err(corrupt());
         }
-        if amt != self.inner.crc().amt_as_u32() {
+        if amt != self.inner.crc().amount() {
             return Err(corrupt());
         }
         let remaining = match self.inner.get_mut().get_mut().fill_buf() {
