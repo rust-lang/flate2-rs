@@ -89,6 +89,7 @@ mod imp {
 #[cfg(not(feature = "zlib"))]
 mod imp {
     extern crate miniz_sys;
+    use std::mem;
     use std::ops::{Deref, DerefMut};
 
     pub use self::miniz_sys::*;
