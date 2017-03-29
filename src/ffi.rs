@@ -5,6 +5,7 @@ pub use self::imp::*;
 mod imp {
     extern crate libz_sys as z;
     use std::mem;
+    use std::ops::{Deref, DerefMut};
     use libc::{c_int, size_t, c_ulong, c_uint, c_char};
 
     pub use self::z::*;
@@ -57,11 +58,64 @@ mod imp {
                          ZLIB_VERSION.as_ptr() as *const c_char,
                          mem::size_of::<mz_stream>() as c_int)
     }
+
+    pub struct StreamWrapper{
+        inner: Box<mz_stream>,
+    }
+
+    impl Default for StreamWrapper {
+        fn default() -> StreamWrapper {
+            StreamWrapper {
+                inner: Box::new(unsafe{ mem::zeroed() })
+            }
+        }
+    }
+
+    impl Deref for StreamWrapper {
+        type Target = mz_stream;
+
+        fn deref(&self) -> &Self::Target {
+            & *self.inner
+        }
+    }
+
+    impl DerefMut for StreamWrapper {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut *self.inner
+        }
+    }
 }
 
 #[cfg(not(feature = "zlib"))]
 mod imp {
     extern crate miniz_sys;
+    use std::ops::{Deref, DerefMut};
 
     pub use self::miniz_sys::*;
+
+    pub struct StreamWrapper {
+        inner: mz_stream,
+    }
+
+    impl Default for StreamWrapper {
+        fn default() -> StreamWrapper {
+            StreamWrapper {
+                inner : unsafe{ mem::zeroed() }
+            }
+        }
+    }
+
+    impl Deref for StreamWrapper {
+        type Target = mz_stream;
+
+        fn deref(&self) -> &Self::Target {
+            &self.inner
+        }
+    }
+
+    impl DerefMut for StreamWrapper {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.inner
+        }
+    }
 }
