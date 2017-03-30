@@ -75,6 +75,9 @@ pub fn read<R, D>(obj: &mut R, data: &mut D, dst: &mut [u8]) -> io::Result<usize
             Ok(Status::BufError) |
             Ok(Status::StreamEnd) => return Ok(read),
 
+            Ok(Status::NeedDictionary { adler }) => return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                                                 format!("an inflate dictionary with Adler-32 '{}' is required", adler))),
+
             Err(..) => return Err(io::Error::new(io::ErrorKind::InvalidInput,
                                                  "corrupt deflate stream"))
         }
@@ -154,6 +157,9 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
                 Ok(Status::Ok) |
                 Ok(Status::BufError) |
                 Ok(Status::StreamEnd) => Ok(written),
+
+                Ok(Status::NeedDictionary { adler }) => return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                                                 format!("an inflate dictionary with Adler-32 '{}'is required", adler))),
 
                 Err(..) => Err(io::Error::new(io::ErrorKind::InvalidInput,
                                               "corrupt deflate stream"))
