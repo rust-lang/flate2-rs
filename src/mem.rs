@@ -2,7 +2,6 @@ use std::error::Error;
 use std::fmt;
 use std::io;
 use std::marker;
-use std::mem;
 use std::slice;
 
 use libc::{c_int, c_uint};
@@ -37,7 +36,7 @@ pub struct Decompress {
 }
 
 struct Stream<D: Direction> {
-    raw: ffi::mz_stream,
+    stream_wrapper: ffi::StreamWrapper,
     total_in: u64,
     total_out: u64,
     _marker: marker::PhantomData<D>,
@@ -147,8 +146,8 @@ impl Compress {
     /// output data should have a zlib header or not.
     pub fn new(level: Compression, zlib_header: bool) -> Compress {
         unsafe {
-            let mut state: ffi::mz_stream = mem::zeroed();
-            let ret = ffi::mz_deflateInit2(&mut state,
+            let mut state = ffi::StreamWrapper::default();
+            let ret = ffi::mz_deflateInit2(&mut *state,
                                            level as c_int,
                                            ffi::MZ_DEFLATED,
                                            if zlib_header {
@@ -161,7 +160,7 @@ impl Compress {
             debug_assert_eq!(ret, 0);
             Compress {
                 inner: Stream {
-                    raw: state,
+                    stream_wrapper: state,
                     total_in: 0,
                     total_out: 0,
                     _marker: marker::PhantomData,
@@ -186,7 +185,7 @@ impl Compress {
     ///
     /// This is equivalent to dropping this object and then creating a new one.
     pub fn reset(&mut self) {
-        let rc = unsafe { ffi::mz_deflateReset(&mut self.inner.raw) };
+        let rc = unsafe { ffi::mz_deflateReset(&mut *self.inner.stream_wrapper) };
         assert_eq!(rc, ffi::MZ_OK);
 
         self.inner.total_in = 0;
@@ -205,18 +204,19 @@ impl Compress {
                     output: &mut [u8],
                     flush: Flush)
                     -> Status {
-        self.inner.raw.next_in = input.as_ptr() as *mut _;
-        self.inner.raw.avail_in = input.len() as c_uint;
-        self.inner.raw.next_out = output.as_mut_ptr();
-        self.inner.raw.avail_out = output.len() as c_uint;
+        let raw = &mut *self.inner.stream_wrapper;
+        raw.next_in = input.as_ptr() as *mut _;
+        raw.avail_in = input.len() as c_uint;
+        raw.next_out = output.as_mut_ptr();
+        raw.avail_out = output.len() as c_uint;
 
-        let rc = unsafe { ffi::mz_deflate(&mut self.inner.raw, flush as c_int) };
+        let rc = unsafe { ffi::mz_deflate(raw, flush as c_int) };
 
         // Unfortunately the total counters provided by zlib might be only
         // 32 bits wide and overflow while processing large amounts of data.
-        self.inner.total_in += (self.inner.raw.next_in as usize -
+        self.inner.total_in += (raw.next_in as usize -
                                 input.as_ptr() as usize) as u64;
-        self.inner.total_out += (self.inner.raw.next_out as usize -
+        self.inner.total_out += (raw.next_out as usize -
                                  output.as_ptr() as usize) as u64;
 
         match rc {
@@ -263,8 +263,8 @@ impl Decompress {
     /// to have a zlib header or not.
     pub fn new(zlib_header: bool) -> Decompress {
         unsafe {
-            let mut state: ffi::mz_stream = mem::zeroed();
-            let ret = ffi::mz_inflateInit2(&mut state,
+            let mut state = ffi::StreamWrapper::default();
+            let ret = ffi::mz_inflateInit2(&mut *state,
                                            if zlib_header {
                                                ffi::MZ_DEFAULT_WINDOW_BITS
                                            } else {
@@ -273,7 +273,7 @@ impl Decompress {
             debug_assert_eq!(ret, 0);
             Decompress {
                 inner: Stream {
-                    raw: state,
+                    stream_wrapper: state,
                     total_in: 0,
                     total_out: 0,
                     _marker: marker::PhantomData,
@@ -313,18 +313,19 @@ impl Decompress {
                       output: &mut [u8],
                       flush: Flush)
                       -> Result<Status, DataError> {
-        self.inner.raw.next_in = input.as_ptr() as *mut u8;
-        self.inner.raw.avail_in = input.len() as c_uint;
-        self.inner.raw.next_out = output.as_mut_ptr();
-        self.inner.raw.avail_out = output.len() as c_uint;
+        let raw = &mut *self.inner.stream_wrapper;
+        raw.next_in = input.as_ptr() as *mut u8;
+        raw.avail_in = input.len() as c_uint;
+        raw.next_out = output.as_mut_ptr();
+        raw.avail_out = output.len() as c_uint;
 
-        let rc = unsafe { ffi::mz_inflate(&mut self.inner.raw, flush as c_int) };
+        let rc = unsafe { ffi::mz_inflate(raw, flush as c_int) };
 
         // Unfortunately the total counters provided by zlib might be only
         // 32 bits wide and overflow while processing large amounts of data.
-        self.inner.total_in += (self.inner.raw.next_in as usize -
+        self.inner.total_in += (raw.next_in as usize -
                                 input.as_ptr() as usize) as u64;
-        self.inner.total_out += (self.inner.raw.next_out as usize -
+        self.inner.total_out += (raw.next_out as usize -
                                  output.as_ptr() as usize) as u64;
 
         match rc {
@@ -385,7 +386,7 @@ impl Decompress {
             -ffi::MZ_DEFAULT_WINDOW_BITS
         };
         unsafe {
-            ffi::inflateReset2(&mut self.inner.raw, bits);
+            ffi::inflateReset2(&mut *self.inner.stream_wrapper, bits);
         }
         self.inner.total_out = 0;
         self.inner.total_in = 0;
@@ -427,7 +428,7 @@ impl Direction for DirDecompress {
 impl<D: Direction> Drop for Stream<D> {
     fn drop(&mut self) {
         unsafe {
-            let _ = D::destroy(&mut self.raw);
+            let _ = D::destroy(&mut *self.stream_wrapper);
         }
     }
 }
