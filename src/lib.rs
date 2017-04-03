@@ -41,6 +41,7 @@ use std::io;
 pub use gz::Builder as GzBuilder;
 pub use gz::Header as GzHeader;
 pub use mem::{Compress, Decompress, DataError, Status, Flush};
+pub use crc::{Crc, CrcReader};
 
 mod bufreader;
 mod crc;

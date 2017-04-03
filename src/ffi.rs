@@ -38,6 +38,12 @@ mod imp {
         z::crc32(crc, ptr, len as c_uint)
     }
 
+    pub unsafe extern fn mz_crc32_combine(crc1: c_ulong,
+                                          crc2: c_ulong,
+                                          len2: z_off_t) -> c_ulong {
+          z::crc32_combine(crc1, crc2, len2)
+    }
+
     const ZLIB_VERSION: &'static str = "1.2.8\0";
 
     pub unsafe extern fn mz_deflateInit2(stream: *mut mz_stream,
@@ -92,6 +98,7 @@ mod imp {
     use std::mem;
     use std::ops::{Deref, DerefMut};
 
+    use libc::{c_ulong, off_t};
     pub use self::miniz_sys::*;
 
     pub struct StreamWrapper {
@@ -119,4 +126,98 @@ mod imp {
             &mut self.inner
         }
     }
+
+    pub unsafe extern fn mz_crc32_combine(crc1: c_ulong,
+                                          crc2: c_ulong,
+                                          len2: off_t) -> c_ulong {
+          crc32_combine_(crc1, crc2, len2)
+    }
+
+    // gf2_matrix_times, gf2_matrix_square and crc32_combine_ are ported from
+    // zlib.
+
+    fn gf2_matrix_times(mat: &[c_ulong; 32], mut vec: c_ulong) -> c_ulong {
+        let mut sum = 0;
+        let mut mat_pos = 0;
+        while vec != 0 {
+            if vec & 1 == 1 {
+                sum ^= mat[mat_pos];
+            }
+            vec >>= 1;
+            mat_pos += 1;
+        }
+        sum
+    }
+
+    fn gf2_matrix_square(square: &mut [c_ulong; 32], mat: &[c_ulong; 32]) {
+        for n in 0..32 {
+            square[n] = gf2_matrix_times(mat, mat[n]);
+        }
+    }
+
+    fn crc32_combine_(mut crc1: c_ulong, crc2: c_ulong, mut len2: off_t) -> c_ulong {
+        let mut row;
+
+        let mut even = [0; 32]; /* even-power-of-two zeros operator */
+        let mut odd = [0; 32]; /* odd-power-of-two zeros operator */
+
+        /* degenerate case (also disallow negative lengths) */
+        if len2 <= 0 {
+            return crc1;
+        }
+
+        /* put operator for one zero bit in odd */
+        odd[0] = 0xedb88320;          /* CRC-32 polynomial */
+        row = 1;
+        for n in 1..32 {
+            odd[n] = row;
+            row <<= 1;
+        }
+
+        /* put operator for two zero bits in even */
+        gf2_matrix_square(&mut even, &odd);
+
+        /* put operator for four zero bits in odd */
+        gf2_matrix_square(&mut odd, &even);
+
+        /* apply len2 zeros to crc1 (first square will put the operator for one
+           zero byte, eight zero bits, in even) */
+        loop {
+            /* apply zeros operator for this bit of len2 */
+            gf2_matrix_square(&mut even, &odd);
+            if len2 & 1 == 1 {
+                crc1 = gf2_matrix_times(&even, crc1);
+            }
+            len2 >>= 1;
+
+            /* if no more bits set, then done */
+            if len2 == 0 {
+                break;
+            }
+
+            /* another iteration of the loop with odd and even swapped */
+            gf2_matrix_square(&mut odd, &even);
+            if len2 & 1 == 1 {
+                crc1 = gf2_matrix_times(&odd, crc1);
+            }
+            len2 >>= 1;
+
+            /* if no more bits set, then done */
+            if len2 == 0 {
+                break;
+            }
+        }
+
+        /* return combined crc */
+        crc1 ^= crc2;
+        crc1
+    }
+}
+
+#[test]
+fn crc32_combine() {
+    let crc32 = unsafe {
+        imp::mz_crc32_combine(1, 2, 3)
+    };
+    assert_eq!(crc32, 29518389);
 }
