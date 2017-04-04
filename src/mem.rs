@@ -354,7 +354,7 @@ impl Decompress {
             ffi::MZ_BUF_ERROR => Ok(Status::BufError),
             ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
             ffi::MZ_NEED_DICT => Ok(Status::NeedDictionary { 
-                adler: raw.adler 
+                adler: raw.adler as u32
             }),
             c => panic!("unknown return code: {}", c),
         }
