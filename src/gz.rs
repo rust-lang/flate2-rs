@@ -298,6 +298,12 @@ impl<W: Write> Write for EncoderWriter<W> {
     }
 }
 
+impl<R: Read + Write> Read for EncoderWriter<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.get_mut().read(buf)
+    }
+}
+
 impl<W: Write> Drop for EncoderWriter<W> {
     fn drop(&mut self) {
         if self.inner.get_mut().is_some() {
@@ -349,6 +355,16 @@ fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
 impl<R: Read> Read for EncoderReader<R> {
     fn read(&mut self, mut into: &mut [u8]) -> io::Result<usize> {
         self.inner.read(into)
+    }
+}
+
+impl<R: Read + Write> Write for EncoderReader<R> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.get_mut().write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.get_mut().flush()
     }
 }
 
@@ -423,6 +439,16 @@ impl<R: BufRead> Read for EncoderReaderBuf<R> {
     }
 }
 
+impl<R: BufRead + Write> Write for EncoderReaderBuf<R> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.get_mut().write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.get_mut().flush()
+    }
+}
+
 impl<R: Read> DecoderReader<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// gzip header.
@@ -462,6 +488,16 @@ impl<R: Read> DecoderReader<R> {
 impl<R: Read> Read for DecoderReader<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         self.inner.read(into)
+    }
+}
+
+impl<R: Read + Write> Write for DecoderReader<R> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.get_mut().write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.get_mut().flush()
     }
 }
 
@@ -505,6 +541,16 @@ impl<R: Read> MultiDecoderReader<R> {
 impl<R: Read> Read for MultiDecoderReader<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         self.inner.read(into)
+    }
+}
+
+impl<R: Read + Write> Write for MultiDecoderReader<R> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.get_mut().write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.get_mut().flush()
     }
 }
 
@@ -591,6 +637,16 @@ impl<R: BufRead> Read for DecoderReaderBuf<R> {
             }
             n => Ok(n),
         }
+    }
+}
+
+impl<R: BufRead + Write> Write for DecoderReaderBuf<R> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.get_mut().write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.get_mut().flush()
     }
 }
 
@@ -697,6 +753,16 @@ impl<R: BufRead> Read for MultiDecoderReaderBuf<R> {
             },
             n => Ok(n),
         }
+    }
+}
+
+impl<R: BufRead + Write> Write for MultiDecoderReaderBuf<R> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.get_mut().write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.get_mut().flush()
     }
 }
 

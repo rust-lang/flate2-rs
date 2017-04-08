@@ -107,6 +107,12 @@ impl<W: Write> Write for EncoderWriter<W> {
     }
 }
 
+impl<W: Read + Write> Read for EncoderWriter<W> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.inner.get_mut().unwrap().read(buf)
+    }
+}
+
 impl<R: Read> EncoderReader<R> {
     /// Creates a new encoder which will read uncompressed data from the given
     /// stream and emit the compressed stream.
@@ -150,6 +156,16 @@ impl<R: Read> EncoderReader<R> {
 impl<R: Read> Read for EncoderReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
+    }
+}
+
+impl<R: Read + Write> Write for EncoderReader<R> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.get_mut().write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.get_mut().flush()
     }
 }
 
@@ -197,6 +213,16 @@ impl<R: BufRead> EncoderReaderBuf<R> {
 impl<R: BufRead> Read for EncoderReaderBuf<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         zio::read(&mut self.obj, &mut self.data, buf)
+    }
+}
+
+impl<R: BufRead + Write> Write for EncoderReaderBuf<R> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.get_mut().write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.get_mut().flush()
     }
 }
 
@@ -267,6 +293,16 @@ impl<R: Read> Read for DecoderReader<R> {
     }
 }
 
+impl<R: Read + Write> Write for DecoderReader<R> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.get_mut().write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.get_mut().flush()
+    }
+}
+
 impl<R: BufRead> DecoderReaderBuf<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.
@@ -327,6 +363,16 @@ impl<R: BufRead> Read for DecoderReaderBuf<R> {
     }
 }
 
+impl<R: BufRead + Write> Write for DecoderReaderBuf<R> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.get_mut().write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.get_mut().flush()
+    }
+}
+
 impl<W: Write> DecoderWriter<W> {
     /// Creates a new decoder which will write uncompressed data to the stream.
     ///
@@ -383,6 +429,12 @@ impl<W: Write> Write for DecoderWriter<W> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.inner.flush()
+    }
+}
+
+impl<W: Read + Write> Read for DecoderWriter<W> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.inner.get_mut().unwrap().read(buf)
     }
 }
 
