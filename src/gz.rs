@@ -71,16 +71,23 @@ pub struct DecoderReader<R: Read> {
 
 /// A gzip streaming decoder that decodes all members of a multistream
 ///
-/// This structure exposes a `Read` interface that will consume compressed
-/// data from the underlying reader and emit uncompressed data.
+/// A gzip member consists of a header, compressed data and a trailer. The [gzip
+/// specification](https://tools.ietf.org/html/rfc1952), however, allows multiple
+/// gzip members to be joined in a single stream.  `MultiDecoderReader` will
+/// decode all consecutive members while `DecoderReader` will only decompress the
+/// first gzip member. The multistream format is commonly used in bioinformatics,
+/// for example when using the BGZF compressed data.
+///
+/// This structure exposes a `Read` interface that will consume all gzip members
+/// from the underlying reader and emit uncompressed data.
 pub struct MultiDecoderReader<R: Read> {
     inner: MultiDecoderReaderBuf<BufReader<R>>,
 }
 
 /// A gzip streaming decoder
 ///
-/// This structure exposes a `Read` interface that will consume all
-/// compressed gzip members from the underlying reader and emit uncompressed data.
+/// This structure exposes a `Read` interface that will consume compressed
+/// data from the underlying reader and emit uncompressed data.
 pub struct DecoderReaderBuf<R: BufRead> {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
     header: Header,
@@ -89,8 +96,15 @@ pub struct DecoderReaderBuf<R: BufRead> {
 
 /// A gzip streaming decoder that decodes all members of a multistream
 ///
-/// This structure exposes a `Read` interface that will consume all
-/// compressed gzip members from the underlying reader and emit uncompressed data.
+/// A gzip member consists of a header, compressed data and a trailer. The [gzip
+/// specification](https://tools.ietf.org/html/rfc1952), however, allows multiple
+/// gzip members to be joined in a single stream. `MultiDecoderReaderBuf` will
+/// decode all consecutive members while `DecoderReaderBuf` will only decompress
+/// the first gzip member. The multistream format is commonly used in
+/// bioinformatics, for example when using the BGZF compressed data.
+///
+/// This structure exposes a `Read` interface that will consume all gzip members
+/// from the underlying reader and emit uncompressed data.
 pub struct MultiDecoderReaderBuf<R: BufRead> {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
     header: Header,
@@ -503,8 +517,8 @@ impl<R: Read + Write> Write for DecoderReader<R> {
 
 impl<R: Read> MultiDecoderReader<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
-    /// gzip header. If the gzip stream contains multiple members all will be
-    /// decoded.
+    /// (first) gzip header. If the gzip stream contains multiple members all will
+    /// be decoded.
     ///
     /// If an error is encountered when parsing the gzip header, an error is
     /// returned.
@@ -652,8 +666,8 @@ impl<R: BufRead + Write> Write for DecoderReaderBuf<R> {
 
 impl<R: BufRead> MultiDecoderReaderBuf<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
-    /// gzip header. If the gzip stream contains multiple members all will be
-    /// decoded.
+    /// (first) gzip header. If the gzip stream contains multiple members all will
+    /// be decoded.
     ///
     /// If an error is encountered when parsing the gzip header, an error is
     /// returned.
