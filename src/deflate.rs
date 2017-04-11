@@ -4,6 +4,11 @@ use std::io::prelude::*;
 use std::io;
 use std::mem;
 
+#[cfg(feature = "tokio")]
+use futures::Poll;
+#[cfg(feature = "tokio")]
+use tokio_io::{AsyncRead, AsyncWrite};
+
 use bufreader::BufReader;
 use zio;
 use {Compress, Decompress};
@@ -70,6 +75,19 @@ impl<W: Write> EncoderWriter<W> {
         }
     }
 
+    /// Acquires a reference to the underlying writer.
+    pub fn get_ref(&self) -> &W {
+        self.inner.get_ref()
+    }
+
+    /// Acquires a mutable reference to the underlying writer.
+    ///
+    /// Note that mutating the output/input state of the stream may corrupt this
+    /// object, so care must be taken when using this method.
+    pub fn get_mut(&mut self) -> &mut W {
+        self.inner.get_mut()
+    }
+
     /// Resets the state of this encoder entirely, swapping out the output
     /// stream for another.
     ///
@@ -87,13 +105,33 @@ impl<W: Write> EncoderWriter<W> {
         Ok(self.inner.replace(w))
     }
 
+    /// Attempt to finish this output stream, writing out final chunks of data.
+    ///
+    /// Note that this function can only be used once data has finished being
+    /// written to the output stream. After this function is called then further
+    /// calls to `write` may result in a panic.
+    ///
+    /// # Panics
+    ///
+    /// Attempts to write data to this stream may result in a panic after this
+    /// function is called.
+    pub fn try_finish(&mut self) -> io::Result<()> {
+        self.inner.finish()
+    }
+
     /// Consumes this encoder, flushing the output stream.
     ///
     /// This will flush the underlying data stream, close off the compressed
     /// stream and, if successful, return the contained writer.
+    ///
+    /// Note that this function may not be suitable to call in a situation where
+    /// the underlying stream is an asynchronous I/O stream. To finish a stream
+    /// the `try_finish` (or `shutdown`) method should be used instead. To
+    /// re-acquire ownership of a stream it is safe to call this method after
+    /// `try_finish` or `shutdown` has returned `Ok`.
     pub fn finish(mut self) -> io::Result<W> {
         try!(self.inner.finish());
-        Ok(self.inner.into_inner())
+        Ok(self.inner.take_inner())
     }
 
     /// Consumes this encoder, flushing the output stream.
@@ -105,7 +143,23 @@ impl<W: Write> EncoderWriter<W> {
     /// stream. To close the stream add the two bytes 0x3 and 0x0.
     pub fn flush_finish(mut self) -> io::Result<W> {
         try!(self.inner.flush());
-        Ok(self.inner.into_inner())
+        Ok(self.inner.take_inner())
+    }
+
+    /// Returns the number of bytes that have been written to this compresor.
+    ///
+    /// Note that not all bytes written to this object may be accounted for,
+    /// there may still be some active buffering.
+    pub fn total_in(&self) -> u64 {
+        self.inner.data.total_in()
+    }
+
+    /// Returns the number of bytes that the compressor has produced.
+    ///
+    /// Note that not all bytes may have been written yet, some may still be
+    /// buffered.
+    pub fn total_out(&self) -> u64 {
+        self.inner.data.total_out()
     }
 }
 
@@ -119,10 +173,22 @@ impl<W: Write> Write for EncoderWriter<W> {
     }
 }
 
+#[cfg(feature = "tokio")]
+impl<W: AsyncWrite> AsyncWrite for EncoderWriter<W> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        try_nb!(self.inner.finish());
+        self.inner.get_mut().shutdown()
+    }
+}
+
 impl<W: Read + Write> Read for EncoderWriter<W> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.inner.get_mut().unwrap().read(buf)
+        self.inner.get_mut().read(buf)
     }
+}
+
+#[cfg(feature = "tokio")]
+impl<W: AsyncRead + AsyncWrite> AsyncRead for EncoderWriter<W> {
 }
 
 impl<R: Read> EncoderReader<R> {
@@ -141,6 +207,9 @@ impl<R: Read> EncoderReader<R> {
     /// the input stream with the one provided, returning the previous input
     /// stream. Future data read from this encoder will be the compressed
     /// version of `r`'s data.
+    ///
+    /// Note that there may be currently buffered data when this function is
+    /// called, and in that case the buffered data is discarded.
     pub fn reset(&mut self, r: R) -> R {
         self.inner.data.reset();
         self.inner.obj.reset(r)
@@ -160,8 +229,28 @@ impl<R: Read> EncoderReader<R> {
     }
 
     /// Consumes this encoder, returning the underlying reader.
+    ///
+    /// Note that there may be buffered bytes which are not re-acquired as part
+    /// of this transition. It's recommended to only call this function after
+    /// EOF has been reached.
     pub fn into_inner(self) -> R {
         self.inner.into_inner().into_inner()
+    }
+
+    /// Returns the number of bytes that have been read into this compressor.
+    ///
+    /// Note that not all bytes read from the underlying object may be accounted
+    /// for, there may still be some active buffering.
+    pub fn total_in(&self) -> u64 {
+        self.inner.data.total_in()
+    }
+
+    /// Returns the number of bytes that the compressor has produced.
+    ///
+    /// Note that not all bytes may have been read yet, some may still be
+    /// buffered.
+    pub fn total_out(&self) -> u64 {
+        self.inner.data.total_out()
     }
 }
 
@@ -171,6 +260,10 @@ impl<R: Read> Read for EncoderReader<R> {
     }
 }
 
+#[cfg(feature = "tokio")]
+impl<R: AsyncRead> AsyncRead for EncoderReader<R> {
+}
+
 impl<W: Read + Write> Write for EncoderReader<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.get_mut().write(buf)
@@ -178,6 +271,13 @@ impl<W: Read + Write> Write for EncoderReader<W> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.get_mut().flush()
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<R: AsyncRead + AsyncWrite> AsyncWrite for EncoderReader<R> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        self.get_mut().shutdown()
     }
 }
 
@@ -220,12 +320,32 @@ impl<R: BufRead> EncoderReaderBuf<R> {
     pub fn into_inner(self) -> R {
         self.obj
     }
+
+    /// Returns the number of bytes that have been read into this compressor.
+    ///
+    /// Note that not all bytes read from the underlying object may be accounted
+    /// for, there may still be some active buffering.
+    pub fn total_in(&self) -> u64 {
+        self.data.total_in()
+    }
+
+    /// Returns the number of bytes that the compressor has produced.
+    ///
+    /// Note that not all bytes may have been read yet, some may still be
+    /// buffered.
+    pub fn total_out(&self) -> u64 {
+        self.data.total_out()
+    }
 }
 
 impl<R: BufRead> Read for EncoderReaderBuf<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         zio::read(&mut self.obj, &mut self.data, buf)
     }
+}
+
+#[cfg(feature = "tokio")]
+impl<R: AsyncRead + BufRead> AsyncRead for EncoderReaderBuf<R> {
 }
 
 impl<W: BufRead + Write> Write for EncoderReaderBuf<W> {
@@ -235,6 +355,13 @@ impl<W: BufRead + Write> Write for EncoderReaderBuf<W> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.get_mut().flush()
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<R: AsyncWrite + BufRead> AsyncWrite for EncoderReaderBuf<R> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        self.get_mut().shutdown()
     }
 }
 
@@ -262,6 +389,9 @@ impl<R: Read> DecoderReader<R> {
     /// input stream with the one provided, returning the previous input
     /// stream. Future data read from this decoder will be the decompressed
     /// version of `r`'s data.
+    ///
+    /// Note that there may be currently buffered data when this function is
+    /// called, and in that case the buffered data is discarded.
     pub fn reset(&mut self, r: R) -> R {
         self.inner.data = Decompress::new(false);
         self.inner.obj.reset(r)
@@ -281,6 +411,10 @@ impl<R: Read> DecoderReader<R> {
     }
 
     /// Consumes this decoder, returning the underlying reader.
+    ///
+    /// Note that there may be buffered bytes which are not re-acquired as part
+    /// of this transition. It's recommended to only call this function after
+    /// EOF has been reached.
     pub fn into_inner(self) -> R {
         self.inner.into_inner().into_inner()
     }
@@ -305,6 +439,10 @@ impl<R: Read> Read for DecoderReader<R> {
     }
 }
 
+#[cfg(feature = "tokio")]
+impl<R: AsyncRead> AsyncRead for DecoderReader<R> {
+}
+
 impl<W: Read + Write> Write for DecoderReader<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.get_mut().write(buf)
@@ -312,6 +450,13 @@ impl<W: Read + Write> Write for DecoderReader<W> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.get_mut().flush()
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<R: AsyncWrite + AsyncRead> AsyncWrite for DecoderReader<R> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        self.get_mut().shutdown()
     }
 }
 
@@ -383,6 +528,10 @@ impl<R: BufRead> Read for DecoderReaderBuf<R> {
     }
 }
 
+#[cfg(feature = "tokio")]
+impl<R: AsyncRead + BufRead> AsyncRead for DecoderReaderBuf<R> {
+}
+
 impl<W: BufRead + Write> Write for DecoderReaderBuf<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.get_mut().write(buf)
@@ -390,6 +539,13 @@ impl<W: BufRead + Write> Write for DecoderReaderBuf<W> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.get_mut().flush()
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<R: AsyncWrite + BufRead> AsyncWrite for DecoderReaderBuf<R> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        self.get_mut().shutdown()
     }
 }
 
@@ -402,6 +558,19 @@ impl<W: Write> DecoderWriter<W> {
         DecoderWriter {
             inner: zio::Writer::new(w, Decompress::new(false)),
         }
+    }
+
+    /// Acquires a reference to the underlying writer.
+    pub fn get_ref(&self) -> &W {
+        self.inner.get_ref()
+    }
+
+    /// Acquires a mutable reference to the underlying writer.
+    ///
+    /// Note that mutating the output/input state of the stream may corrupt this
+    /// object, so care must be taken when using this method.
+    pub fn get_mut(&mut self) -> &mut W {
+        self.inner.get_mut()
     }
 
     /// Resets the state of this decoder entirely, swapping out the output
@@ -421,13 +590,33 @@ impl<W: Write> DecoderWriter<W> {
         Ok(self.inner.replace(w))
     }
 
+    /// Attempt to finish this output stream, writing out final chunks of data.
+    ///
+    /// Note that this function can only be used once data has finished being
+    /// written to the output stream. After this function is called then further
+    /// calls to `write` may result in a panic.
+    ///
+    /// # Panics
+    ///
+    /// Attempts to write data to this stream may result in a panic after this
+    /// function is called.
+    pub fn try_finish(&mut self) -> io::Result<()> {
+        self.inner.finish()
+    }
+
     /// Consumes this encoder, flushing the output stream.
     ///
     /// This will flush the underlying data stream and then return the contained
     /// writer if the flush succeeded.
+    ///
+    /// Note that this function may not be suitable to call in a situation where
+    /// the underlying stream is an asynchronous I/O stream. To finish a stream
+    /// the `try_finish` (or `shutdown`) method should be used instead. To
+    /// re-acquire ownership of a stream it is safe to call this method after
+    /// `try_finish` or `shutdown` has returned `Ok`.
     pub fn finish(mut self) -> io::Result<W> {
         try!(self.inner.finish());
-        Ok(self.inner.into_inner())
+        Ok(self.inner.take_inner())
     }
 
     /// Returns the number of bytes that the decompressor has consumed for
@@ -456,10 +645,22 @@ impl<W: Write> Write for DecoderWriter<W> {
     }
 }
 
+#[cfg(feature = "tokio")]
+impl<W: AsyncWrite> AsyncWrite for DecoderWriter<W> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        try_nb!(self.inner.finish());
+        self.inner.get_mut().shutdown()
+    }
+}
+
 impl<W: Read + Write> Read for DecoderWriter<W> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.inner.get_mut().unwrap().read(buf)
+        self.inner.get_mut().read(buf)
     }
+}
+
+#[cfg(feature = "tokio")]
+impl<W: AsyncRead + AsyncWrite> AsyncRead for DecoderWriter<W> {
 }
 
 #[cfg(test)]

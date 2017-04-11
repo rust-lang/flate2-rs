@@ -23,6 +23,26 @@
 //! There are two helper traits provided: `FlateReader` and `FlateWriter`.
 //! These provide convenience methods for creating a decoder/encoder out of an
 //! already existing stream to chain construction.
+//!
+//! # Async I/O
+//!
+//! This crate optionally can support async I/O streams with the Tokio stack via
+//! the `tokio` feature of this crate:
+//!
+//! ```toml
+//! flate2 = { version = "0.2", features = ["tokio"] }
+//! ```
+//!
+//! All methods are internally capable of working with streams that may return
+//! `ErrorKind::WouldBlock` when they're not ready to perform the particular
+//! operation.
+//!
+//! Note that care needs to be taken when using these objects, however. The
+//! Tokio runtime, in particular, requires that data is fully flushed before
+//! dropping streams. For compatibility with blocking streams all streams are
+//! flushed/written when they are dropped, and this is not always a suitable
+//! time to perform I/O. If I/O streams are flushed before drop, however, then
+//! these operations will be a noop.
 
 #![doc(html_root_url = "https://docs.rs/flate2/0.2")]
 #![deny(missing_docs)]
@@ -34,6 +54,11 @@ extern crate libc;
 extern crate rand;
 #[cfg(test)]
 extern crate quickcheck;
+#[cfg(feature = "tokio")]
+#[macro_use]
+extern crate tokio_io;
+#[cfg(feature = "tokio")]
+extern crate futures;
 
 use std::io::prelude::*;
 use std::io;

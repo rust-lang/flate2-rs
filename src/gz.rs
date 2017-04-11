@@ -9,6 +9,11 @@ use std::io::prelude::*;
 use std::io;
 use std::mem;
 
+#[cfg(feature = "tokio")]
+use futures::Poll;
+#[cfg(feature = "tokio")]
+use tokio_io::{AsyncRead, AsyncWrite};
+
 use {Compression, Compress};
 use bufreader::BufReader;
 use crc::{CrcReader, Crc};
@@ -27,6 +32,7 @@ static FCOMMENT: u8 = 1 << 4;
 pub struct EncoderWriter<W: Write> {
     inner: zio::Writer<W, Compress>,
     crc: Crc,
+    crc_bytes_written: usize,
     header: Vec<u8>,
 }
 
@@ -166,6 +172,7 @@ impl Builder {
             inner: zio::Writer::new(w, Compress::new(lvl, false)),
             crc: Crc::new(),
             header: self.into_header(lvl),
+            crc_bytes_written: 0,
         }
     }
 
@@ -257,16 +264,9 @@ impl<W: Write> EncoderWriter<W> {
         Builder::new().write(w, level)
     }
 
-    /// Finish encoding this stream, returning the underlying writer once the
-    /// encoding is done.
-    pub fn finish(mut self) -> io::Result<W> {
-        try!(self.do_finish());
-        Ok(self.inner.take_inner().unwrap())
-    }
-
     /// Acquires a reference to the underlying writer.
     pub fn get_ref(&self) -> &W {
-        self.inner.get_ref().unwrap()
+        self.inner.get_ref()
     }
 
     /// Acquires a mutable reference to the underlying writer.
@@ -274,41 +274,82 @@ impl<W: Write> EncoderWriter<W> {
     /// Note that mutation of the writer may result in surprising results if
     /// this encoder is continued to be used.
     pub fn get_mut(&mut self) -> &mut W {
-        self.inner.get_mut().unwrap()
+        self.inner.get_mut()
     }
 
-    fn do_finish(&mut self) -> io::Result<()> {
-        if self.header.len() != 0 {
-            try!(self.inner.get_mut().unwrap().write_all(&self.header));
-        }
+    /// Attempt to finish this output stream, writing out final chunks of data.
+    ///
+    /// Note that this function can only be used once data has finished being
+    /// written to the output stream. After this function is called then further
+    /// calls to `write` may result in a panic.
+    ///
+    /// # Panics
+    ///
+    /// Attempts to write data to this stream may result in a panic after this
+    /// function is called.
+    pub fn try_finish(&mut self) -> io::Result<()> {
+        try!(self.write_header());
         try!(self.inner.finish());
-        let mut inner = self.inner.get_mut().unwrap();
-        let (sum, amt) = (self.crc.sum() as u32, self.crc.amount());
-        let buf = [(sum >> 0) as u8,
-                   (sum >> 8) as u8,
-                   (sum >> 16) as u8,
-                   (sum >> 24) as u8,
-                   (amt >> 0) as u8,
-                   (amt >> 8) as u8,
-                   (amt >> 16) as u8,
-                   (amt >> 24) as u8];
-        inner.write_all(&buf)
+
+        while self.crc_bytes_written < 8 {
+            let (sum, amt) = (self.crc.sum() as u32, self.crc.amount());
+            let buf = [(sum >> 0) as u8,
+                       (sum >> 8) as u8,
+                       (sum >> 16) as u8,
+                       (sum >> 24) as u8,
+                       (amt >> 0) as u8,
+                       (amt >> 8) as u8,
+                       (amt >> 16) as u8,
+                       (amt >> 24) as u8];
+            let mut inner = self.inner.get_mut();
+            let n = try!(inner.write(&buf[self.crc_bytes_written..]));
+            self.crc_bytes_written += n;
+        }
+        Ok(())
+    }
+
+    /// Finish encoding this stream, returning the underlying writer once the
+    /// encoding is done.
+    ///
+    /// Note that this function may not be suitable to call in a situation where
+    /// the underlying stream is an asynchronous I/O stream. To finish a stream
+    /// the `try_finish` (or `shutdown`) method should be used instead. To
+    /// re-acquire ownership of a stream it is safe to call this method after
+    /// `try_finish` or `shutdown` has returned `Ok`.
+    pub fn finish(mut self) -> io::Result<W> {
+        try!(self.try_finish());
+        Ok(self.inner.take_inner())
+    }
+
+    fn write_header(&mut self) -> io::Result<()> {
+        while self.header.len() > 0 {
+            let n = try!(self.inner.get_mut().write(&self.header));
+            self.header.drain(..n);
+        }
+        Ok(())
     }
 }
 
 impl<W: Write> Write for EncoderWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        if self.header.len() != 0 {
-            try!(self.inner.get_mut().unwrap().write_all(&self.header));
-            self.header.truncate(0);
-        }
+        assert_eq!(self.crc_bytes_written, 0);
+        try!(self.write_header());
         let n = try!(self.inner.write(buf));
         self.crc.update(&buf[..n]);
         Ok(n)
     }
 
     fn flush(&mut self) -> io::Result<()> {
+        assert_eq!(self.crc_bytes_written, 0);
         self.inner.flush()
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<W: AsyncWrite> AsyncWrite for EncoderWriter<W> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        try_nb!(self.try_finish());
+        self.get_mut().shutdown()
     }
 }
 
@@ -318,10 +359,14 @@ impl<R: Read + Write> Read for EncoderWriter<R> {
     }
 }
 
+#[cfg(feature = "tokio")]
+impl<R: AsyncRead + AsyncWrite> AsyncRead for EncoderWriter<R> {
+}
+
 impl<W: Write> Drop for EncoderWriter<W> {
     fn drop(&mut self) {
-        if self.inner.get_mut().is_some() {
-            let _ = self.do_finish();
+        if self.inner.is_present() {
+            let _ = self.try_finish();
         }
     }
 }

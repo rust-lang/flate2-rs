@@ -104,29 +104,35 @@ impl<W: Write, D: Ops> Writer<W, D> {
 
     pub fn replace(&mut self, w: W) -> W {
         self.buf.truncate(0);
-        mem::replace(&mut self.obj, Some(w)).unwrap()
+        mem::replace(self.get_mut(), w)
     }
 
-    pub fn get_ref(&self) -> Option<&W> {
-        self.obj.as_ref()
+    pub fn get_ref(&self) -> &W {
+        self.obj.as_ref().unwrap()
     }
 
-    pub fn get_mut(&mut self) -> Option<&mut W> {
-        self.obj.as_mut()
+    pub fn get_mut(&mut self) -> &mut W {
+        self.obj.as_mut().unwrap()
     }
 
-    pub fn take_inner(&mut self) -> Option<W> {
-        self.obj.take()
+    // Note that this should only be called if the outer object is just about
+    // to be consumed!
+    //
+    // (e.g. an implementation of `into_inner`)
+    pub fn take_inner(&mut self) -> W {
+        self.obj.take().unwrap()
     }
 
-    pub fn into_inner(mut self) -> W {
-        self.take_inner().unwrap()
+    pub fn is_present(&self) -> bool {
+        self.obj.is_some()
     }
 
     fn dump(&mut self) -> io::Result<()> {
-        if self.buf.len() > 0 {
-            try!(self.obj.as_mut().unwrap().write_all(&self.buf));
-            self.buf.truncate(0);
+        // TODO: should manage this buffer not with `drain` but probably more of
+        // a deque-like strategy.
+        while self.buf.len() > 0 {
+            let n = try!(self.obj.as_mut().unwrap().write(&self.buf));
+            self.buf.drain(..n);
         }
         Ok(())
     }
