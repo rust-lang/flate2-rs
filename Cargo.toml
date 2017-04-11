@@ -2,7 +2,7 @@
 
 name = "flate2"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
-version = "0.2.17"
+version = "0.2.18"
 license = "MIT/Apache-2.0"
 readme = "README.md"
 keywords = ["gzip", "flate", "zlib", "encoding"]
