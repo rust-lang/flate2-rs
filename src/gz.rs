@@ -841,7 +841,15 @@ impl Header {
         self.comment.as_ref().map(|s| &s[..])
     }
 
-    /// Returns the `mtime` field of this gzip stream's header, if present.
+    /// This gives the most recent modification time of the original file being compressed.
+    ///
+    /// The time is in Unix format, i.e., seconds since 00:00:00 GMT, Jan. 1, 1970.
+    /// (Note that this may cause problems for MS-DOS and other systems that use local
+    /// rather than Universal time.) If the compressed data did not come from a file,
+    /// `mtime` is set to the time at which compression started.
+    /// `mtime` = 0 means no time stamp is available.
+    #[deprecated(since = "0.2.20",
+        note="The usage of `mtime` is discouraged because of Year 2038 problem.")]
     pub fn mtime(&self) -> u32 {
         self.mtime
     }
