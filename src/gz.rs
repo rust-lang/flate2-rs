@@ -848,8 +848,8 @@ impl Header {
     /// rather than Universal time.) If the compressed data did not come from a file,
     /// `mtime` is set to the time at which compression started.
     /// `mtime` = 0 means no time stamp is available.
-    #[deprecated(since = "0.2.20",
-        note="The usage of `mtime` is discouraged because of Year 2038 problem.")]
+    ///
+    /// The usage of `mtime` is discouraged because of Year 2038 problem.
     pub fn mtime(&self) -> u32 {
         self.mtime
     }
