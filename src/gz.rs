@@ -155,17 +155,17 @@ impl Builder {
     ///
     /// # Panics
     ///
-    /// Panics if `filename` argument is empty slice.
+    /// Panics if the `filename` slice contains a zero.
     pub fn filename(mut self, filename: &[u8]) -> Builder {
         self.filename = Some(CString::new(filename).unwrap());
         self
     }
 
     /// Configure the `comment` field in the gzip header.
-    /// 
+    ///
     /// # Panics
     ///
-    /// Panics if `filename` argument is empty slice.
+    /// Panics if the `comment` slice contains a zero.
     pub fn comment(mut self, comment: &[u8]) -> Builder {
         self.comment = Some(CString::new(comment).unwrap());
         self
