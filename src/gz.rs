@@ -146,8 +146,8 @@ impl Builder {
     }
 
     /// Configure the `extra` field in the gzip header.
-    pub fn extra(mut self, extra: Vec<u8>) -> Builder {
-        self.extra = Some(extra);
+    pub fn extra<T: Into<Vec<u8>>>(mut self, extra: T) -> Builder {
+        self.extra = Some(extra.into());
         self
     }
 
@@ -156,8 +156,8 @@ impl Builder {
     /// # Panics
     ///
     /// Panics if the `filename` slice contains a zero.
-    pub fn filename(mut self, filename: &[u8]) -> Builder {
-        self.filename = Some(CString::new(filename).unwrap());
+    pub fn filename<T: Into<Vec<u8>>>(mut self, filename: T) -> Builder {
+        self.filename = Some(CString::new(filename.into()).unwrap());
         self
     }
 
@@ -166,8 +166,8 @@ impl Builder {
     /// # Panics
     ///
     /// Panics if the `comment` slice contains a zero.
-    pub fn comment(mut self, comment: &[u8]) -> Builder {
-        self.comment = Some(CString::new(comment).unwrap());
+    pub fn comment<T: Into<Vec<u8>>>(mut self, comment: T) -> Builder {
+        self.comment = Some(CString::new(comment.into()).unwrap());
         self
     }
 
@@ -1016,8 +1016,8 @@ mod tests {
     fn fields() {
         let r = vec![0, 2, 4, 6];
         let e = Builder::new()
-                    .filename(b"foo.rs")
-                    .comment(b"bar")
+                    .filename("foo.rs")
+                    .comment("bar")
                     .extra(vec![0, 1, 2, 3])
                     .read(&r[..], Default);
         let mut d = DecoderReader::new(e).unwrap();
