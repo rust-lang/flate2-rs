@@ -121,6 +121,7 @@ pub struct MultiDecoderReaderBuf<R: BufRead> {
 ///
 /// The header can contain metadata about the file that was compressed, if
 /// present.
+#[derive(PartialEq)]
 pub struct Header {
     extra: Option<Vec<u8>>,
     filename: Option<Vec<u8>>,

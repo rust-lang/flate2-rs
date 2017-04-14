@@ -54,6 +54,7 @@ enum DirDecompress {}
 
 /// Values which indicate the form of flushing to be used when compressing or
 /// decompressing in-memory data.
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Flush {
     /// A typical parameter for passing to compression/decompression functions,
     /// this indicates that the underlying stream to decide how much data to
@@ -112,6 +113,7 @@ pub struct DataError(());
 
 /// Possible status results of compressing some data or successfully
 /// decompressing a block of data.
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Status {
     /// Indicates success.
     ///
