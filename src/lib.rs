@@ -130,7 +130,7 @@ fn _assert_send_sync() {
 
 /// When compressing data, the compression level can be specified by a value in
 /// this enum.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Compression {
     /// No compression is to be performed, this may actually inflate data
     /// slightly when encoding.
@@ -141,6 +141,13 @@ pub enum Compression {
     Best = 9,
     /// Choose the default compression, a balance between speed and size.
     Default = 6,
+}
+
+///Default to Compression::Default.
+impl Default for Compression {
+    fn default() -> Compression {
+        Compression::Default
+    }
 }
 
 /// A helper trait to create encoder/decoders with method syntax.
