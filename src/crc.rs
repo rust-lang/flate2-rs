@@ -60,7 +60,7 @@ impl Crc {
     }
 }
 
-impl<R: Read> CrcReader<R> {
+impl<R> CrcReader<R> {
     /// Create a new CrcReader.
     pub fn new(r: R) -> CrcReader<R> {
         CrcReader {
