@@ -8,6 +8,7 @@ use std::ffi::CString;
 use std::io::prelude::*;
 use std::io;
 use std::mem;
+use std::time;
 
 #[cfg(feature = "tokio")]
 use futures::Poll;
@@ -861,6 +862,17 @@ impl Header {
     /// The usage of `mtime` is discouraged because of Year 2038 problem.
     pub fn mtime(&self) -> u32 {
         self.mtime
+    }
+
+    /// Returns the most recent modification time as a datetime if time stamp is available.
+    pub fn datetime(&self) -> Option<time::SystemTime> {
+        if self.mtime == 0 {
+            None
+        } else {
+            let duration = time::Duration::new(u64::from(self.mtime), 0);
+            let datetime = time::UNIX_EPOCH + duration;
+            Some(datetime)
+        }
     }
 }
 
