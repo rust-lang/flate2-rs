@@ -18,6 +18,7 @@ use ffi;
 ///
 /// It is recommended to use the I/O stream adaptors over this type as they're
 /// easier to use.
+#[derive(Debug)]
 pub struct Compress {
     inner: Stream<DirCompress>,
 }
@@ -31,10 +32,12 @@ pub struct Compress {
 ///
 /// It is recommended to use the I/O stream adaptors over this type as they're
 /// easier to use.
+#[derive(Debug)]
 pub struct Decompress {
     inner: Stream<DirDecompress>,
 }
 
+#[derive(Debug)]
 struct Stream<D: Direction> {
     stream_wrapper: ffi::StreamWrapper,
     total_in: u64,
@@ -49,12 +52,14 @@ trait Direction {
     unsafe fn destroy(stream: *mut ffi::mz_stream) -> c_int;
 }
 
+#[derive(Debug)]
 enum DirCompress {}
+#[derive(Debug)]
 enum DirDecompress {}
 
 /// Values which indicate the form of flushing to be used when compressing or
 /// decompressing in-memory data.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Flush {
     /// A typical parameter for passing to compression/decompression functions,
     /// this indicates that the underlying stream to decide how much data to
@@ -113,7 +118,7 @@ pub struct DataError(());
 
 /// Possible status results of compressing some data or successfully
 /// decompressing a block of data.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Status {
     /// Indicates success.
     ///

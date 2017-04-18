@@ -4,6 +4,7 @@ use std::mem;
 
 use {Decompress, Compress, Status, Flush, DataError};
 
+#[derive(Debug)]
 pub struct Writer<W: Write, D: Ops> {
     obj: Option<W>,
     pub data: D,

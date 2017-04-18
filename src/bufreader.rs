@@ -13,6 +13,7 @@ use std::io;
 use std::io::prelude::*;
 use std::mem;
 
+#[derive(Debug)]
 pub struct BufReader<R> {
     inner: R,
     buf: Box<[u8]>,

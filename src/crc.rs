@@ -7,12 +7,14 @@ use libc;
 use ffi;
 
 /// The CRC calculated by a CrcReader.
+#[derive(Debug)]
 pub struct Crc {
     crc: libc::c_ulong,
     amt: u32,
 }
 
 /// A wrapper around a `std::io::Read` that calculates the CRC.
+#[derive(Debug)]
 pub struct CrcReader<R> {
     inner: R,
     crc: Crc,

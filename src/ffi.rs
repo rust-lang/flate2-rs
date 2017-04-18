@@ -65,6 +65,7 @@ mod imp {
                          mem::size_of::<mz_stream>() as c_int)
     }
 
+    #[derive(Debug)]
     pub struct StreamWrapper{
         inner: Box<mz_stream>,
     }
@@ -103,6 +104,12 @@ mod imp {
 
     pub struct StreamWrapper {
         inner: mz_stream,
+    }
+
+    impl ::std::fmt::Debug for StreamWrapper{
+        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
+            write!(f, "StreamWrapper")
+        }
     }
 
     impl Default for StreamWrapper {
