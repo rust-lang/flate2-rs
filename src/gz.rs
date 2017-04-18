@@ -864,8 +864,14 @@ impl Header {
         self.mtime
     }
 
-    /// Returns the most recent modification time as a datetime if time stamp is available.
-    pub fn datetime(&self) -> Option<time::SystemTime> {
+    /// Returns the most recent modification time represented by a date-time type.
+    /// Returns `None` if the value of the underlying counter is 0,
+    /// indicating no time stamp is available.
+    ///
+    ///
+    /// The time is measured as seconds since 00:00:00 GMT, Jan. 1 1970.
+    /// See [`mtime`](#method.mtime) for more detail.
+    pub fn mtime_as_datetime(&self) -> Option<time::SystemTime> {
         if self.mtime == 0 {
             None
         } else {
