@@ -28,8 +28,10 @@ static FCOMMENT: u8 = 1 << 4;
 
 /// A gzip streaming encoder
 ///
-/// This structure exposes a `Write` interface that will emit compressed data
+/// This structure exposes a [`Write`] interface that will emit compressed data
 /// to the underlying writer `W`.
+///
+/// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 pub struct EncoderWriter<W: Write> {
     inner: zio::Writer<W, Compress>,
     crc: Crc,
@@ -39,18 +41,22 @@ pub struct EncoderWriter<W: Write> {
 
 /// A gzip streaming encoder
 ///
-/// This structure exposes a `Read` interface that will read uncompressed data
-/// from the underlying reader and expose the compressed version as a `Read`
+/// This structure exposes a [`Read`] interface that will read uncompressed data
+/// from the underlying reader and expose the compressed version as a [`Read`]
 /// interface.
+///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub struct EncoderReader<R: Read> {
     inner: EncoderReaderBuf<BufReader<R>>,
 }
 
 /// A gzip streaming encoder
 ///
-/// This structure exposes a `Read` interface that will read uncompressed data
-/// from the underlying reader and expose the compressed version as a `Read`
+/// This structure exposes a [`Read`] interface that will read uncompressed data
+/// from the underlying reader and expose the compressed version as a [`Read`]
 /// interface.
+///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub struct EncoderReaderBuf<R: BufRead> {
     inner: deflate::EncoderReaderBuf<CrcReader<R>>,
     header: Vec<u8>,
@@ -70,8 +76,10 @@ pub struct Builder {
 
 /// A gzip streaming decoder
 ///
-/// This structure exposes a `Read` interface that will consume compressed
+/// This structure exposes a [`Read`] interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
+///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub struct DecoderReader<R: Read> {
     inner: DecoderReaderBuf<BufReader<R>>,
 }
@@ -85,16 +93,20 @@ pub struct DecoderReader<R: Read> {
 /// first gzip member. The multistream format is commonly used in bioinformatics,
 /// for example when using the BGZF compressed data.
 ///
-/// This structure exposes a `Read` interface that will consume all gzip members
+/// This structure exposes a [`Read`] interface that will consume all gzip members
 /// from the underlying reader and emit uncompressed data.
+///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub struct MultiDecoderReader<R: Read> {
     inner: MultiDecoderReaderBuf<BufReader<R>>,
 }
 
 /// A gzip streaming decoder
 ///
-/// This structure exposes a `Read` interface that will consume compressed
+/// This structure exposes a [`Read`] interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
+///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub struct DecoderReaderBuf<R: BufRead> {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
     header: Header,
@@ -110,8 +122,10 @@ pub struct DecoderReaderBuf<R: BufRead> {
 /// the first gzip member. The multistream format is commonly used in
 /// bioinformatics, for example when using the BGZF compressed data.
 ///
-/// This structure exposes a `Read` interface that will consume all gzip members
+/// This structure exposes a [`Read`] interface that will consume all gzip members
 /// from the underlying reader and emit uncompressed data.
+///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub struct MultiDecoderReaderBuf<R: BufRead> {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
     header: Header,
