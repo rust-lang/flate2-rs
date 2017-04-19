@@ -42,7 +42,7 @@ pub struct EncoderWriter<W: Write> {
 /// This structure exposes a `Read` interface that will read uncompressed data
 /// from the underlying reader and expose the compressed version as a `Read`
 /// interface.
-pub struct EncoderReader<R: Read> {
+pub struct EncoderReader {
     inner: EncoderReaderBuf<BufReader<R>>,
 }
 
@@ -51,7 +51,7 @@ pub struct EncoderReader<R: Read> {
 /// This structure exposes a `Read` interface that will read uncompressed data
 /// from the underlying reader and expose the compressed version as a `Read`
 /// interface.
-pub struct EncoderReaderBuf<R: BufRead> {
+pub struct EncoderReaderBuf {
     inner: deflate::EncoderReaderBuf<CrcReader<R>>,
     header: Vec<u8>,
     pos: usize,
@@ -72,7 +72,7 @@ pub struct Builder {
 ///
 /// This structure exposes a `Read` interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
-pub struct DecoderReader<R: Read> {
+pub struct DecoderReader {
     inner: DecoderReaderBuf<BufReader<R>>,
 }
 
@@ -87,7 +87,7 @@ pub struct DecoderReader<R: Read> {
 ///
 /// This structure exposes a `Read` interface that will consume all gzip members
 /// from the underlying reader and emit uncompressed data.
-pub struct MultiDecoderReader<R: Read> {
+pub struct MultiDecoderReader {
     inner: MultiDecoderReaderBuf<BufReader<R>>,
 }
 
@@ -95,7 +95,7 @@ pub struct MultiDecoderReader<R: Read> {
 ///
 /// This structure exposes a `Read` interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
-pub struct DecoderReaderBuf<R: BufRead> {
+pub struct DecoderReaderBuf {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
     header: Header,
     finished: bool,
@@ -112,7 +112,7 @@ pub struct DecoderReaderBuf<R: BufRead> {
 ///
 /// This structure exposes a `Read` interface that will consume all gzip members
 /// from the underlying reader and emit uncompressed data.
-pub struct MultiDecoderReaderBuf<R: BufRead> {
+pub struct MultiDecoderReaderBuf {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
     header: Header,
     finished: bool,
