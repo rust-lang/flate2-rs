@@ -13,12 +13,20 @@ use std::io;
 use std::io::prelude::*;
 use std::mem;
 
-#[derive(Debug)]
 pub struct BufReader<R> {
     inner: R,
     buf: Box<[u8]>,
     pos: usize,
     cap: usize,
+}
+
+impl<R> ::std::fmt::Debug for BufReader<R> where R: ::std::fmt::Debug {
+    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
+        fmt.debug_struct("BufReader")
+            .field("reader", &self.inner)
+            .field("buffer", &format_args!("{}/{}", self.cap - self.pos, self.buf.len()))
+            .finish()
+    }
 }
 
 impl<R: Read> BufReader<R> {
