@@ -92,13 +92,16 @@ impl<W: Write> EncoderWriter<W> {
     /// stream for another.
     ///
     /// This function will finish encoding the current stream into the current
-    /// output stream before swapping out the two output streams. If the stream
-    /// cannot be finished an error is returned.
+    /// output stream before swapping out the two output streams.
     ///
     /// After the current stream has been finished, this will reset the internal
     /// state of this encoder and replace the output stream with the one
     /// provided, returning the previous output stream. Future data written to
     /// this encoder will be the compressed into the stream `w` provided.
+    ///
+    /// # Errors
+    ///
+    /// If the stream cannot be finished an error is returned.
     pub fn reset(&mut self, w: W) -> io::Result<W> {
         try!(self.inner.finish());
         self.inner.data.reset();
