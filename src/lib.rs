@@ -59,6 +59,7 @@
 
 #![doc(html_root_url = "https://docs.rs/flate2/0.2")]
 #![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
 #![allow(trivial_numeric_casts)]
 #![cfg_attr(test, deny(warnings))]
 
@@ -149,7 +150,7 @@ fn _assert_send_sync() {
 
 /// When compressing data, the compression level can be specified by a value in
 /// this enum.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Compression {
     /// No compression is to be performed, this may actually inflate data
     /// slightly when encoding.
