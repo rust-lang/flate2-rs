@@ -603,13 +603,16 @@ impl<W: Write> DecoderWriter<W> {
     /// stream for another.
     ///
     /// This function will finish encoding the current stream into the current
-    /// output stream before swapping out the two output streams. If the stream
-    /// cannot be finished an error is returned.
+    /// output stream before swapping out the two output streams.
     ///
     /// This will then reset the internal state of this decoder and replace the
     /// output stream with the one provided, returning the previous output
     /// stream. Future data written to this decoder will be decompressed into
     /// the output stream `w`.
+    ///
+    /// # Errors
+    ///
+    /// If the stream cannot be finished an error is returned.
     pub fn reset(&mut self, w: W) -> io::Result<W> {
         try!(self.inner.finish());
         self.inner.data = Decompress::new(false);

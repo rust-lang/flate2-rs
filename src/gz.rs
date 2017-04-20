@@ -548,6 +548,8 @@ impl<R: Read> DecoderReader<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// gzip header.
     ///
+    /// # Errors
+    ///
     /// If an error is encountered when parsing the gzip header, an error is
     /// returned.
     pub fn new(r: R) -> io::Result<DecoderReader<R>> {
@@ -603,6 +605,8 @@ impl<R: Read> MultiDecoderReader<R> {
     /// (first) gzip header. If the gzip stream contains multiple members all will
     /// be decoded.
     ///
+    /// # Errors
+    ///
     /// If an error is encountered when parsing the gzip header, an error is
     /// returned.
     pub fn new(r: R) -> io::Result<MultiDecoderReader<R>> {
@@ -656,6 +660,8 @@ impl<R: Read + Write> Write for MultiDecoderReader<R> {
 impl<R: BufRead> DecoderReaderBuf<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// gzip header.
+    ///
+    /// # Errors
     ///
     /// If an error is encountered when parsing the gzip header, an error is
     /// returned.
@@ -754,6 +760,8 @@ impl<R: BufRead> MultiDecoderReaderBuf<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// (first) gzip header. If the gzip stream contains multiple members all will
     /// be decoded.
+    ///
+    /// # Errors
     ///
     /// If an error is encountered when parsing the gzip header, an error is
     /// returned.
