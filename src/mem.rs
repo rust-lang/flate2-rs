@@ -12,12 +12,15 @@ use ffi;
 /// Raw in-memory compression stream for blocks of data.
 ///
 /// This type is the building block for the I/O streams in the rest of this
-/// crate. It requires more management than the `Read`/`Write` API but is
+/// crate. It requires more management than the [`Read`]/[`Write`] API but is
 /// maximally flexible in terms of accepting input from any source and being
 /// able to produce output to any memory location.
 ///
 /// It is recommended to use the I/O stream adaptors over this type as they're
 /// easier to use.
+///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+/// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 pub struct Compress {
     inner: Stream<DirCompress>,
 }
@@ -25,12 +28,15 @@ pub struct Compress {
 /// Raw in-memory decompression stream for blocks of data.
 ///
 /// This type is the building block for the I/O streams in the rest of this
-/// crate. It requires more management than the `Read`/`Write` API but is
+/// crate. It requires more management than the [`Read`]/[`Write`] API but is
 /// maximally flexible in terms of accepting input from any source and being
 /// able to produce output to any memory location.
 ///
 /// It is recommended to use the I/O stream adaptors over this type as they're
 /// easier to use.
+///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+/// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 pub struct Decompress {
     inner: Stream<DirDecompress>,
 }

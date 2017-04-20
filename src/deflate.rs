@@ -15,24 +15,30 @@ use {Compress, Decompress};
 
 /// A DEFLATE encoder, or compressor.
 ///
-/// This structure implements a `Write` interface and takes a stream of
+/// This structure implements a [`Write`] interface and takes a stream of
 /// uncompressed data, writing the compressed data to the wrapped writer.
+///
+/// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 pub struct EncoderWriter<W: Write> {
     inner: zio::Writer<W, Compress>,
 }
 
 /// A DEFLATE encoder, or compressor.
 ///
-/// This structure implements a `Read` interface and will read uncompressed
+/// This structure implements a [`Read`] interface and will read uncompressed
 /// data from an underlying stream and emit a stream of compressed data.
+///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub struct EncoderReader<R: Read> {
     inner: EncoderReaderBuf<BufReader<R>>,
 }
 
 /// A DEFLATE encoder, or compressor.
 ///
-/// This structure implements a `BufRead` interface and will read uncompressed
+/// This structure implements a [`BufRead`] interface and will read uncompressed
 /// data from an underlying stream and emit a stream of compressed data.
+///
+/// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 pub struct EncoderReaderBuf<R: BufRead> {
     obj: R,
     data: Compress,
@@ -40,16 +46,20 @@ pub struct EncoderReaderBuf<R: BufRead> {
 
 /// A DEFLATE decoder, or decompressor.
 ///
-/// This structure implements a `Read` interface and takes a stream of
+/// This structure implements a [`Read`] interface and takes a stream of
 /// compressed data as input, providing the decompressed data when read from.
+///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub struct DecoderReader<R: Read> {
     inner: DecoderReaderBuf<BufReader<R>>,
 }
 
 /// A DEFLATE decoder, or decompressor.
 ///
-/// This structure implements a `BufRead` interface and takes a stream of
+/// This structure implements a [`BufRead`] interface and takes a stream of
 /// compressed data as input, providing the decompressed data when read from.
+///
+/// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 pub struct DecoderReaderBuf<R: BufRead> {
     obj: R,
     data: Decompress,
@@ -57,8 +67,10 @@ pub struct DecoderReaderBuf<R: BufRead> {
 
 /// A DEFLATE decoder, or decompressor.
 ///
-/// This structure implements a `Write` and will emit a stream of decompressed
+/// This structure implements a [`Write`] and will emit a stream of decompressed
 /// data when fed a stream of compressed data.
+///
+/// [`Write`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub struct DecoderWriter<W: Write> {
     inner: zio::Writer<W, Decompress>,
 }

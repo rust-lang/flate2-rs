@@ -6,13 +6,17 @@ use libc;
 
 use ffi;
 
-/// The CRC calculated by a CrcReader.
+/// The CRC calculated by a [`CrcReader`].
+///
+/// [`CrcReader`]: struct.CrcReader.html
 pub struct Crc {
     crc: libc::c_ulong,
     amt: u32,
 }
 
-/// A wrapper around a `std::io::Read` that calculates the CRC.
+/// A wrapper around a [`Read`] that calculates the CRC.
+///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub struct CrcReader<R> {
     inner: R,
     crc: Crc,
