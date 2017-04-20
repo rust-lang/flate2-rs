@@ -32,6 +32,7 @@ static FCOMMENT: u8 = 1 << 4;
 /// to the underlying writer `W`.
 ///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
+#[derive(Debug)]
 pub struct EncoderWriter<W: Write> {
     inner: zio::Writer<W, Compress>,
     crc: Crc,
@@ -46,6 +47,7 @@ pub struct EncoderWriter<W: Write> {
 /// interface.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+#[derive(Debug)]
 pub struct EncoderReader<R> {
     inner: EncoderReaderBuf<BufReader<R>>,
 }
@@ -57,6 +59,7 @@ pub struct EncoderReader<R> {
 /// interface.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+#[derive(Debug)]
 pub struct EncoderReaderBuf<R> {
     inner: deflate::EncoderReaderBuf<CrcReader<R>>,
     header: Vec<u8>,
@@ -67,6 +70,7 @@ pub struct EncoderReaderBuf<R> {
 /// A builder structure to create a new gzip Encoder.
 ///
 /// This structure controls header configuration options such as the filename.
+#[derive(Debug)]
 pub struct Builder {
     extra: Option<Vec<u8>>,
     filename: Option<CString>,
@@ -80,6 +84,7 @@ pub struct Builder {
 /// data from the underlying reader and emit uncompressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+#[derive(Debug)]
 pub struct DecoderReader<R> {
     inner: DecoderReaderBuf<BufReader<R>>,
 }
@@ -97,6 +102,7 @@ pub struct DecoderReader<R> {
 /// from the underlying reader and emit uncompressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+#[derive(Debug)]
 pub struct MultiDecoderReader<R> {
     inner: MultiDecoderReaderBuf<BufReader<R>>,
 }
@@ -107,6 +113,7 @@ pub struct MultiDecoderReader<R> {
 /// data from the underlying reader and emit uncompressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+#[derive(Debug)]
 pub struct DecoderReaderBuf<R> {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
     header: Header,
@@ -126,6 +133,7 @@ pub struct DecoderReaderBuf<R> {
 /// from the underlying reader and emit uncompressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+#[derive(Debug)]
 pub struct MultiDecoderReaderBuf<R> {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
     header: Header,
@@ -136,7 +144,7 @@ pub struct MultiDecoderReaderBuf<R> {
 ///
 /// The header can contain metadata about the file that was compressed, if
 /// present.
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct Header {
     extra: Option<Vec<u8>>,
     filename: Option<Vec<u8>>,

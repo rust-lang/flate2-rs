@@ -19,6 +19,7 @@ use {Compress, Decompress};
 /// uncompressed data, writing the compressed data to the wrapped writer.
 ///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
+#[derive(Debug)]
 pub struct EncoderWriter<W: Write> {
     inner: zio::Writer<W, Compress>,
 }
@@ -29,6 +30,7 @@ pub struct EncoderWriter<W: Write> {
 /// data from an underlying stream and emit a stream of compressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+#[derive(Debug)]
 pub struct EncoderReader<R> {
     inner: EncoderReaderBuf<BufReader<R>>,
 }
@@ -39,6 +41,7 @@ pub struct EncoderReader<R> {
 /// data from an underlying stream and emit a stream of compressed data.
 ///
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
+#[derive(Debug)]
 pub struct EncoderReaderBuf<R> {
     obj: R,
     data: Compress,
@@ -50,6 +53,7 @@ pub struct EncoderReaderBuf<R> {
 /// compressed data as input, providing the decompressed data when read from.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+#[derive(Debug)]
 pub struct DecoderReader<R> {
     inner: DecoderReaderBuf<BufReader<R>>,
 }
@@ -60,6 +64,7 @@ pub struct DecoderReader<R> {
 /// compressed data as input, providing the decompressed data when read from.
 ///
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
+#[derive(Debug)]
 pub struct DecoderReaderBuf<R> {
     obj: R,
     data: Decompress,
@@ -71,6 +76,7 @@ pub struct DecoderReaderBuf<R> {
 /// data when fed a stream of compressed data.
 ///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
+#[derive(Debug)]
 pub struct DecoderWriter<W: Write> {
     inner: zio::Writer<W, Decompress>,
 }
