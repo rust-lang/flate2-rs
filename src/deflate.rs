@@ -29,7 +29,7 @@ pub struct EncoderWriter<W: Write> {
 /// data from an underlying stream and emit a stream of compressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
-pub struct EncoderReader<R: Read> {
+pub struct EncoderReader<R> {
     inner: EncoderReaderBuf<BufReader<R>>,
 }
 
@@ -39,7 +39,7 @@ pub struct EncoderReader<R: Read> {
 /// data from an underlying stream and emit a stream of compressed data.
 ///
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
-pub struct EncoderReaderBuf<R: BufRead> {
+pub struct EncoderReaderBuf<R> {
     obj: R,
     data: Compress,
 }
@@ -50,7 +50,7 @@ pub struct EncoderReaderBuf<R: BufRead> {
 /// compressed data as input, providing the decompressed data when read from.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
-pub struct DecoderReader<R: Read> {
+pub struct DecoderReader<R> {
     inner: DecoderReaderBuf<BufReader<R>>,
 }
 
@@ -60,7 +60,7 @@ pub struct DecoderReader<R: Read> {
 /// compressed data as input, providing the decompressed data when read from.
 ///
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
-pub struct DecoderReaderBuf<R: BufRead> {
+pub struct DecoderReaderBuf<R> {
     obj: R,
     data: Decompress,
 }
@@ -211,7 +211,9 @@ impl<R: Read> EncoderReader<R> {
             inner: EncoderReaderBuf::new(BufReader::new(r), level),
         }
     }
+}
 
+impl<R> EncoderReader<R> {
     /// Resets the state of this encoder entirely, swapping out the input
     /// stream for another.
     ///
@@ -293,7 +295,7 @@ impl<R: AsyncRead + AsyncWrite> AsyncWrite for EncoderReader<R> {
     }
 }
 
-impl<R: BufRead> EncoderReaderBuf<R> {
+impl<R> EncoderReaderBuf<R> {
     /// Creates a new encoder which will read uncompressed data from the given
     /// stream and emit the compressed stream.
     pub fn new(r: R, level: ::Compression) -> EncoderReaderBuf<R> {
@@ -377,7 +379,7 @@ impl<R: AsyncWrite + BufRead> AsyncWrite for EncoderReaderBuf<R> {
     }
 }
 
-impl<R: Read> DecoderReader<R> {
+impl<R> DecoderReader<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.
     pub fn new(r: R) -> DecoderReader<R> {
@@ -472,7 +474,7 @@ impl<R: AsyncWrite + AsyncRead> AsyncWrite for DecoderReader<R> {
     }
 }
 
-impl<R: BufRead> DecoderReaderBuf<R> {
+impl<R> DecoderReaderBuf<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.
     pub fn new(r: R) -> DecoderReaderBuf<R> {

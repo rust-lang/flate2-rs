@@ -203,7 +203,7 @@ impl<W: Read + Write> Read for EncoderWriter<W> {
 impl<W: AsyncRead + AsyncWrite> AsyncRead for EncoderWriter<W> {
 }
 
-impl<R: Read> EncoderReader<R> {
+impl<R> EncoderReader<R> {
     /// Creates a new encoder which will read uncompressed data from the given
     /// stream and emit the compressed stream.
     pub fn new(r: R, level: ::Compression) -> EncoderReader<R> {
@@ -293,7 +293,7 @@ impl<R: AsyncRead + AsyncWrite> AsyncWrite for EncoderReader<R> {
     }
 }
 
-impl<R: BufRead> EncoderReaderBuf<R> {
+impl<R> EncoderReaderBuf<R> {
     /// Creates a new encoder which will read uncompressed data from the given
     /// stream and emit the compressed stream.
     pub fn new(r: R, level: ::Compression) -> EncoderReaderBuf<R> {
@@ -377,7 +377,7 @@ impl<R: AsyncWrite + BufRead> AsyncWrite for EncoderReaderBuf<R> {
     }
 }
 
-impl<R: Read> DecoderReader<R> {
+impl<R> DecoderReader<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.
     pub fn new(r: R) -> DecoderReader<R> {
@@ -472,7 +472,7 @@ impl<R: AsyncWrite + AsyncRead> AsyncWrite for DecoderReader<R> {
     }
 }
 
-impl<R: BufRead> DecoderReaderBuf<R> {
+impl<R> DecoderReaderBuf<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.
     pub fn new(r: R) -> DecoderReaderBuf<R> {

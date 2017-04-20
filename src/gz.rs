@@ -46,7 +46,7 @@ pub struct EncoderWriter<W: Write> {
 /// interface.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
-pub struct EncoderReader<R: Read> {
+pub struct EncoderReader<R> {
     inner: EncoderReaderBuf<BufReader<R>>,
 }
 
@@ -57,7 +57,7 @@ pub struct EncoderReader<R: Read> {
 /// interface.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
-pub struct EncoderReaderBuf<R: BufRead> {
+pub struct EncoderReaderBuf<R> {
     inner: deflate::EncoderReaderBuf<CrcReader<R>>,
     header: Vec<u8>,
     pos: usize,
@@ -80,7 +80,7 @@ pub struct Builder {
 /// data from the underlying reader and emit uncompressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
-pub struct DecoderReader<R: Read> {
+pub struct DecoderReader<R> {
     inner: DecoderReaderBuf<BufReader<R>>,
 }
 
@@ -97,7 +97,7 @@ pub struct DecoderReader<R: Read> {
 /// from the underlying reader and emit uncompressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
-pub struct MultiDecoderReader<R: Read> {
+pub struct MultiDecoderReader<R> {
     inner: MultiDecoderReaderBuf<BufReader<R>>,
 }
 
@@ -107,7 +107,7 @@ pub struct MultiDecoderReader<R: Read> {
 /// data from the underlying reader and emit uncompressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
-pub struct DecoderReaderBuf<R: BufRead> {
+pub struct DecoderReaderBuf<R> {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
     header: Header,
     finished: bool,
@@ -126,7 +126,7 @@ pub struct DecoderReaderBuf<R: BufRead> {
 /// from the underlying reader and emit uncompressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
-pub struct MultiDecoderReaderBuf<R: BufRead> {
+pub struct MultiDecoderReaderBuf<R> {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
     header: Header,
     finished: bool,
@@ -204,7 +204,7 @@ impl Builder {
     ///
     /// Data read from the returned encoder will be the compressed version of
     /// the data read from the given reader.
-    pub fn read<R: Read>(self, r: R, lvl: Compression) -> EncoderReader<R> {
+    pub fn read<R>(self, r: R, lvl: Compression) -> EncoderReader<R> {
         EncoderReader {
             inner: self.buf_read(BufReader::new(r), lvl),
         }
@@ -215,7 +215,6 @@ impl Builder {
     /// Data read from the returned encoder will be the compressed version of
     /// the data read from the given reader.
     pub fn buf_read<R>(self, r: R, lvl: Compression) -> EncoderReaderBuf<R>
-        where R: BufRead
     {
         let crc = CrcReader::new(r);
         EncoderReaderBuf {
@@ -395,7 +394,7 @@ impl<W: Write> Drop for EncoderWriter<W> {
     }
 }
 
-impl<R: Read> EncoderReader<R> {
+impl<R> EncoderReader<R> {
     /// Creates a new encoder which will use the given compression level.
     ///
     /// The encoder is not configured specially for the emitted header. For
@@ -451,7 +450,7 @@ impl<R: Read + Write> Write for EncoderReader<R> {
     }
 }
 
-impl<R: BufRead> EncoderReaderBuf<R> {
+impl<R> EncoderReaderBuf<R> {
     /// Creates a new encoder which will use the given compression level.
     ///
     /// The encoder is not configured specially for the emitted header. For
@@ -543,7 +542,9 @@ impl<R: Read> DecoderReader<R> {
             DecoderReader { inner: r }
         })
     }
+}
 
+impl<R> DecoderReader<R> {
     /// Returns the header associated with this stream.
     pub fn header(&self) -> &Header {
         self.inner.header()
@@ -654,30 +655,6 @@ impl<R: BufRead> DecoderReaderBuf<R> {
         });
     }
 
-
-    /// Returns the header associated with this stream.
-    pub fn header(&self) -> &Header {
-        &self.header
-    }
-
-    /// Acquires a reference to the underlying reader.
-    pub fn get_ref(&self) -> &R {
-        self.inner.get_ref().get_ref()
-    }
-
-    /// Acquires a mutable reference to the underlying stream.
-    ///
-    /// Note that mutation of the stream may result in surprising results if
-    /// this encoder is continued to be used.
-    pub fn get_mut(&mut self) -> &mut R {
-        self.inner.get_mut().get_mut()
-    }
-
-    /// Consumes this decoder, returning the underlying reader.
-    pub fn into_inner(self) -> R {
-        self.inner.into_inner().into_inner()
-    }
-
     fn finish(&mut self) -> io::Result<()> {
         if self.finished {
             return Ok(());
@@ -708,6 +685,31 @@ impl<R: BufRead> DecoderReaderBuf<R> {
         }
         self.finished = true;
         Ok(())
+    }
+}
+
+impl<R> DecoderReaderBuf<R> {
+    /// Returns the header associated with this stream.
+    pub fn header(&self) -> &Header {
+        &self.header
+    }
+
+    /// Acquires a reference to the underlying reader.
+    pub fn get_ref(&self) -> &R {
+        self.inner.get_ref().get_ref()
+    }
+
+    /// Acquires a mutable reference to the underlying stream.
+    ///
+    /// Note that mutation of the stream may result in surprising results if
+    /// this encoder is continued to be used.
+    pub fn get_mut(&mut self) -> &mut R {
+        self.inner.get_mut().get_mut()
+    }
+
+    /// Consumes this decoder, returning the underlying reader.
+    pub fn into_inner(self) -> R {
+        self.inner.into_inner().into_inner()
     }
 }
 
@@ -749,30 +751,6 @@ impl<R: BufRead> MultiDecoderReaderBuf<R> {
             header: header,
             finished: false,
         });
-    }
-
-
-    /// Returns the current header associated with this stream.
-    pub fn header(&self) -> &Header {
-        &self.header
-    }
-
-    /// Acquires a reference to the underlying reader.
-    pub fn get_ref(&self) -> &R {
-        self.inner.get_ref().get_ref()
-    }
-
-    /// Acquires a mutable reference to the underlying stream.
-    ///
-    /// Note that mutation of the stream may result in surprising results if
-    /// this encoder is continued to be used.
-    pub fn get_mut(&mut self) -> &mut R {
-        self.inner.get_mut().get_mut()
-    }
-
-    /// Consumes this decoder, returning the underlying reader.
-    pub fn into_inner(self) -> R {
-        self.inner.into_inner().into_inner()
     }
 
     fn finish_member(&mut self) -> io::Result<usize> {
@@ -821,6 +799,31 @@ impl<R: BufRead> MultiDecoderReaderBuf<R> {
         self.inner.get_mut().reset_data();
 
         Ok(remaining)
+    }
+}
+
+impl<R> MultiDecoderReaderBuf<R> {
+    /// Returns the current header associated with this stream.
+    pub fn header(&self) -> &Header {
+        &self.header
+    }
+
+    /// Acquires a reference to the underlying reader.
+    pub fn get_ref(&self) -> &R {
+        self.inner.get_ref().get_ref()
+    }
+
+    /// Acquires a mutable reference to the underlying stream.
+    ///
+    /// Note that mutation of the stream may result in surprising results if
+    /// this encoder is continued to be used.
+    pub fn get_mut(&mut self) -> &mut R {
+        self.inner.get_mut().get_mut()
+    }
+
+    /// Consumes this decoder, returning the underlying reader.
+    pub fn into_inner(self) -> R {
+        self.inner.into_inner().into_inner()
     }
 }
 

@@ -20,7 +20,7 @@ pub struct BufReader<R> {
     cap: usize,
 }
 
-impl<R: Read> BufReader<R> {
+impl<R> BufReader<R> {
     pub fn new(inner: R) -> BufReader<R> {
         BufReader::with_buf(vec![0; 32 * 1024], inner)
     }
