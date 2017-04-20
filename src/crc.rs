@@ -64,7 +64,7 @@ impl Crc {
     }
 }
 
-impl<R> CrcReader<R> {
+impl<R: Read> CrcReader<R> {
     /// Create a new CrcReader.
     pub fn new(r: R) -> CrcReader<R> {
         CrcReader {
@@ -72,7 +72,9 @@ impl<R> CrcReader<R> {
             crc: Crc::new(),
         }
     }
+}
 
+impl<R> CrcReader<R> {
     /// Get the Crc for this CrcReader.
     pub fn crc(&self) -> &Crc {
         &self.crc

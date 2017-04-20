@@ -203,7 +203,7 @@ impl<W: Read + Write> Read for EncoderWriter<W> {
 impl<W: AsyncRead + AsyncWrite> AsyncRead for EncoderWriter<W> {
 }
 
-impl<R> EncoderReader<R> {
+impl<R: Read> EncoderReader<R> {
     /// Creates a new encoder which will read uncompressed data from the given
     /// stream and emit the compressed stream.
     pub fn new(r: R, level: ::Compression) -> EncoderReader<R> {
@@ -211,7 +211,9 @@ impl<R> EncoderReader<R> {
             inner: EncoderReaderBuf::new(BufReader::new(r), level),
         }
     }
+}
 
+impl<R> EncoderReader<R> {
     /// Resets the state of this encoder entirely, swapping out the input
     /// stream for another.
     ///
@@ -293,7 +295,7 @@ impl<R: AsyncRead + AsyncWrite> AsyncWrite for EncoderReader<R> {
     }
 }
 
-impl<R> EncoderReaderBuf<R> {
+impl<R: BufRead> EncoderReaderBuf<R> {
     /// Creates a new encoder which will read uncompressed data from the given
     /// stream and emit the compressed stream.
     pub fn new(r: R, level: ::Compression) -> EncoderReaderBuf<R> {
@@ -302,7 +304,9 @@ impl<R> EncoderReaderBuf<R> {
             data: Compress::new(level, true),
         }
     }
+}
 
+impl<R> EncoderReaderBuf<R> {
     /// Resets the state of this encoder entirely, swapping out the input
     /// stream for another.
     ///
@@ -377,7 +381,7 @@ impl<R: AsyncWrite + BufRead> AsyncWrite for EncoderReaderBuf<R> {
     }
 }
 
-impl<R> DecoderReader<R> {
+impl<R: Read> DecoderReader<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.
     pub fn new(r: R) -> DecoderReader<R> {
@@ -393,7 +397,9 @@ impl<R> DecoderReader<R> {
             inner: DecoderReaderBuf::new(BufReader::with_buf(buf, r)),
         }
     }
+}
 
+impl<R> DecoderReader<R> {
     /// Resets the state of this decoder entirely, swapping out the input
     /// stream for another.
     ///
@@ -472,7 +478,7 @@ impl<R: AsyncWrite + AsyncRead> AsyncWrite for DecoderReader<R> {
     }
 }
 
-impl<R> DecoderReaderBuf<R> {
+impl<R: BufRead> DecoderReaderBuf<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.
     pub fn new(r: R) -> DecoderReaderBuf<R> {
@@ -481,7 +487,9 @@ impl<R> DecoderReaderBuf<R> {
             data: Decompress::new(true),
         }
     }
+}
 
+impl<R> DecoderReaderBuf<R> {
     /// Resets the state of this decoder entirely, swapping out the input
     /// stream for another.
     ///
