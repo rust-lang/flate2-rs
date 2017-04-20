@@ -319,6 +319,11 @@ impl<W: Write> EncoderWriter<W> {
     ///
     /// Attempts to write data to this stream may result in a panic after this
     /// function is called.
+    ///
+    /// # Errors
+    ///
+    /// This function will perform I/O to complete this stream, and any I/O
+    /// errors which occur will be returned from this function.
     pub fn try_finish(&mut self) -> io::Result<()> {
         try!(self.write_header());
         try!(self.inner.finish());
@@ -348,6 +353,11 @@ impl<W: Write> EncoderWriter<W> {
     /// the `try_finish` (or `shutdown`) method should be used instead. To
     /// re-acquire ownership of a stream it is safe to call this method after
     /// `try_finish` or `shutdown` has returned `Ok`.
+    ///
+    /// # Errors
+    ///
+    /// This function will perform I/O to complete this stream, and any I/O
+    /// errors which occur will be returned from this function.
     pub fn finish(mut self) -> io::Result<W> {
         try!(self.try_finish());
         Ok(self.inner.take_inner())

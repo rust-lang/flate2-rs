@@ -117,6 +117,11 @@ impl<W: Write> EncoderWriter<W> {
     /// state of this encoder and replace the output stream with the one
     /// provided, returning the previous output stream. Future data written to
     /// this encoder will be the compressed into the stream `w` provided.
+    ///
+    /// # Errors
+    ///
+    /// This function will perform I/O to complete this stream, and any I/O
+    /// errors which occur will be returned from this function.
     pub fn reset(&mut self, w: W) -> io::Result<W> {
         try!(self.inner.finish());
         self.inner.data.reset();
@@ -133,6 +138,11 @@ impl<W: Write> EncoderWriter<W> {
     ///
     /// Attempts to write data to this stream may result in a panic after this
     /// function is called.
+    ///
+    /// # Errors
+    ///
+    /// This function will perform I/O to complete this stream, and any I/O
+    /// errors which occur will be returned from this function.
     pub fn try_finish(&mut self) -> io::Result<()> {
         self.inner.finish()
     }
@@ -147,6 +157,11 @@ impl<W: Write> EncoderWriter<W> {
     /// the `try_finish` (or `shutdown`) method should be used instead. To
     /// re-acquire ownership of a stream it is safe to call this method after
     /// `try_finish` or `shutdown` has returned `Ok`.
+    ///
+    /// # Errors
+    ///
+    /// This function will perform I/O to complete this stream, and any I/O
+    /// errors which occur will be returned from this function.
     pub fn finish(mut self) -> io::Result<W> {
         try!(self.inner.finish());
         Ok(self.inner.take_inner())
@@ -159,6 +174,11 @@ impl<W: Write> EncoderWriter<W> {
     /// The compressed stream will not closed but only flushed. This
     /// means that obtained byte array can by extended by another deflated
     /// stream. To close the stream add the two bytes 0x3 and 0x0.
+    ///
+    /// # Errors
+    ///
+    /// This function will perform I/O to complete this stream, and any I/O
+    /// errors which occur will be returned from this function.
     pub fn flush_finish(mut self) -> io::Result<W> {
         try!(self.inner.flush());
         Ok(self.inner.take_inner())
@@ -612,7 +632,8 @@ impl<W: Write> DecoderWriter<W> {
     ///
     /// # Errors
     ///
-    /// If the stream cannot be finished an error is returned.
+    /// This function will perform I/O to finish the stream, and if that I/O
+    /// returns an error then that will be returned from this function.
     pub fn reset(&mut self, w: W) -> io::Result<W> {
         try!(self.inner.finish());
         self.inner.data = Decompress::new(false);
@@ -629,6 +650,11 @@ impl<W: Write> DecoderWriter<W> {
     ///
     /// Attempts to write data to this stream may result in a panic after this
     /// function is called.
+    ///
+    /// # Errors
+    ///
+    /// This function will perform I/O to finish the stream, returning any
+    /// errors which happen.
     pub fn try_finish(&mut self) -> io::Result<()> {
         self.inner.finish()
     }
@@ -643,6 +669,11 @@ impl<W: Write> DecoderWriter<W> {
     /// the `try_finish` (or `shutdown`) method should be used instead. To
     /// re-acquire ownership of a stream it is safe to call this method after
     /// `try_finish` or `shutdown` has returned `Ok`.
+    ///
+    /// # Errors
+    ///
+    /// This function will perform I/O to complete this stream, and any I/O
+    /// errors which occur will be returned from this function.
     pub fn finish(mut self) -> io::Result<W> {
         try!(self.inner.finish());
         Ok(self.inner.take_inner())

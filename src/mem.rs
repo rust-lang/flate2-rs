@@ -321,6 +321,12 @@ impl Decompress {
     ///
     /// To learn how much data was consumed or how much output was produced, use
     /// the `total_in` and `total_out` functions before/after this is called.
+    ///
+    /// # Errors
+    ///
+    /// If the input data to this instance of `Decompress` is not a valid
+    /// zlib/deflate stream then this function may return an instance of
+    /// `DataError` to indicate that the stream of input bytes is corrupted.
     pub fn decompress(&mut self,
                       input: &[u8],
                       output: &mut [u8],
@@ -359,6 +365,12 @@ impl Decompress {
     /// the vector provided or attempt to grow it, so space for the output must
     /// be reserved in the output vector by the caller before calling this
     /// function.
+    ///
+    /// # Errors
+    ///
+    /// If the input data to this instance of `Decompress` is not a valid
+    /// zlib/deflate stream then this function may return an instance of
+    /// `DataError` to indicate that the stream of input bytes is corrupted.
     pub fn decompress_vec(&mut self,
                           input: &[u8],
                           output: &mut Vec<u8>,
