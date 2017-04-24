@@ -383,6 +383,7 @@ impl<W: Write> Write for EncoderWriter<W> {
 
     fn flush(&mut self) -> io::Result<()> {
         assert_eq!(self.crc_bytes_written, 0);
+        try!(self.write_header());
         self.inner.flush()
     }
 }
