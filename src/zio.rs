@@ -2,7 +2,7 @@ use std::io::prelude::*;
 use std::io;
 use std::mem;
 
-use {Decompress, Compress, Status, Flush, DataError};
+use {Decompress, Compress, Status, Flush, FlushCompress, FlushDecompress, DataError};
 
 #[derive(Debug)]
 pub struct Writer<W: Write, D: Ops> {
@@ -12,35 +12,38 @@ pub struct Writer<W: Write, D: Ops> {
 }
 
 pub trait Ops {
+    type Flush: Flush;
     fn total_in(&self) -> u64;
     fn total_out(&self) -> u64;
-    fn run(&mut self, input: &[u8], output: &mut [u8], flush: Flush)
+    fn run(&mut self, input: &[u8], output: &mut [u8], flush: Self::Flush)
            -> Result<Status, DataError>;
-    fn run_vec(&mut self, input: &[u8], output: &mut Vec<u8>, flush: Flush)
+    fn run_vec(&mut self, input: &[u8], output: &mut Vec<u8>, flush: Self::Flush)
                -> Result<Status, DataError>;
 }
 
 impl Ops for Compress {
+    type Flush = FlushCompress;
     fn total_in(&self) -> u64 { self.total_in() }
     fn total_out(&self) -> u64 { self.total_out() }
-    fn run(&mut self, input: &[u8], output: &mut [u8], flush: Flush)
+    fn run(&mut self, input: &[u8], output: &mut [u8], flush: Self::Flush)
            -> Result<Status, DataError> {
         Ok(self.compress(input, output, flush))
     }
-    fn run_vec(&mut self, input: &[u8], output: &mut Vec<u8>, flush: Flush)
+    fn run_vec(&mut self, input: &[u8], output: &mut Vec<u8>, flush: Self::Flush)
                -> Result<Status, DataError> {
         Ok(self.compress_vec(input, output, flush))
     }
 }
 
 impl Ops for Decompress {
+    type Flush = FlushDecompress;
     fn total_in(&self) -> u64 { self.total_in() }
     fn total_out(&self) -> u64 { self.total_out() }
-    fn run(&mut self, input: &[u8], output: &mut [u8], flush: Flush)
+    fn run(&mut self, input: &[u8], output: &mut [u8], flush: Self::Flush)
            -> Result<Status, DataError> {
         self.decompress(input, output, flush)
     }
-    fn run_vec(&mut self, input: &[u8], output: &mut Vec<u8>, flush: Flush)
+    fn run_vec(&mut self, input: &[u8], output: &mut Vec<u8>, flush: Self::Flush)
                -> Result<Status, DataError> {
         self.decompress_vec(input, output, flush)
     }
@@ -56,7 +59,11 @@ pub fn read<R, D>(obj: &mut R, data: &mut D, dst: &mut [u8]) -> io::Result<usize
             eof = input.is_empty();
             let before_out = data.total_out();
             let before_in = data.total_in();
-            let flush = if eof {Flush::Finish} else {Flush::None};
+            let flush = if eof {
+                D::Flush::finish()
+            } else {
+                D::Flush::none()
+            };
             ret = data.run(input, dst, flush);
             read = (data.total_out() - before_out) as usize;
             consumed = (data.total_in() - before_in) as usize;
@@ -96,7 +103,7 @@ impl<W: Write, D: Ops> Writer<W, D> {
             try!(self.dump());
 
             let before = self.data.total_out();
-            try!(self.data.run_vec(&[], &mut self.buf, Flush::Finish));
+            try!(self.data.run_vec(&[], &mut self.buf, D::Flush::finish()));
             if before == self.data.total_out() {
                 return Ok(())
             }
@@ -151,7 +158,7 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
             try!(self.dump());
 
             let before_in = self.data.total_in();
-            let ret = self.data.run_vec(buf, &mut self.buf, Flush::None);
+            let ret = self.data.run_vec(buf, &mut self.buf, D::Flush::none());
             let written = (self.data.total_in() - before_in) as usize;
 
             if buf.len() > 0 && written == 0 && ret.is_ok() {
@@ -169,7 +176,7 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.data.run_vec(&[], &mut self.buf, Flush::Sync).unwrap();
+        self.data.run_vec(&[], &mut self.buf, D::Flush::sync()).unwrap();
 
         // Unfortunately miniz doesn't actually tell us when we're done with
         // pulling out all the data from the internal stream. To remedy this we
@@ -179,7 +186,7 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
         loop {
             try!(self.dump());
             let before = self.data.total_out();
-            self.data.run_vec(&[], &mut self.buf, Flush::None).unwrap();
+            self.data.run_vec(&[], &mut self.buf, D::Flush::none()).unwrap();
             if before == self.data.total_out() {
                 break
             }
