@@ -64,14 +64,10 @@ enum DirCompress {}
 enum DirDecompress {}
 
 // A trait for being generic over our two flush enums, FlushCompress
-// and FlushDecompress. These methods will panic if called for an invalid
-// member of an enum. For example, FlushDecompress does not have Partial
-// or Full members, so FlushDecompress::full() panics.
+// and FlushDecompress. Using only the members common to both of them.
 pub trait Flush {
     fn none() -> Self;
     fn sync() -> Self;
-    fn partial() -> Self;
-    fn full() -> Self;
     fn finish() -> Self;
 }
 
@@ -118,7 +114,7 @@ pub enum FlushCompress {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-/// Values which indicate the form of flushing to be used when or
+/// Values which indicate the form of flushing to be used when
 /// decompressing in-memory data.
 pub enum FlushDecompress {
     /// A typical parameter for passing to compression/decompression functions,
@@ -151,18 +147,11 @@ impl Flush for FlushCompress {
         FlushCompress::Sync
     }
 
-    fn partial() -> Self {
-        FlushCompress::Partial
-    }
-
-    fn full() -> Self {
-        FlushCompress::Full
-    }
-
     fn finish() -> Self {
         FlushCompress::Finish
     }
 }
+
 impl Flush for FlushDecompress {
     fn none() -> Self {
         FlushDecompress::None
@@ -170,14 +159,6 @@ impl Flush for FlushDecompress {
 
     fn sync() -> Self {
         FlushDecompress::Sync
-    }
-
-    fn partial() -> Self {
-        panic!("Partial not valid for decompression");
-    }
-
-    fn full() -> Self {
-        panic!("Full not valid for decompression");
     }
 
     fn finish() -> Self {
@@ -276,7 +257,7 @@ impl Compress {
     /// Compresses the input data into the output, consuming only as much
     /// input as needed and writing as much output as possible.
     ///
-    /// The flush option can be any of the available flushing parameters.
+    /// The flush option can be any of the available `FlushCompress` parameters.
     ///
     /// To learn how much data was consumed or how much output was produced, use
     /// the `total_in` and `total_out` functions before/after this is called.
@@ -378,14 +359,16 @@ impl Decompress {
     /// Decompresses the input data into the output, consuming only as much
     /// input as needed and writing as much output as possible.
     ///
-    /// The flush option provided can either be `Flush::None`, `Flush::Sync`,
-    /// or `Flush::Finish`. If the first call passes `Flush::Finish` it is
-    /// assumed that the input and output buffers are both sized large enough to
-    /// decompress the entire stream in a single call.
+    /// The flush option can be any of the available `FlushDecompress` parameters.
     ///
-    /// A flush value of `Flush::Finish` indicates that there are no more source
-    /// bytes available beside what's already in the input buffer, and the
-    /// output buffer is large enough to hold the rest of the decompressed data.
+    /// If the first call passes `FlushDecompress::Finish` it is assumed that
+    /// the input and output buffers are both sized large enough to decompress
+    /// the entire stream in a single call.
+    ///
+    /// A flush value of `FlushDecompress::Finish` indicates that there are no
+    /// more source bytes available beside what's already in the input buffer,
+    /// and the output buffer is large enough to hold the rest of the
+    /// decompressed data.
     ///
     /// To learn how much data was consumed or how much output was produced, use
     /// the `total_in` and `total_out` functions before/after this is called.
