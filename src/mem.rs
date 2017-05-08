@@ -110,7 +110,10 @@ pub enum FlushCompress {
     ///
     /// The return value may indicate that the stream is not yet done and more
     /// data has yet to be processed.
-    Finish = ffi::MZ_FINISH as isize
+    Finish = ffi::MZ_FINISH as isize,
+
+    #[doc(hidden)]
+    _Nonexhaustive
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -135,7 +138,10 @@ pub enum FlushDecompress {
     ///
     /// The return value may indicate that the stream is not yet done and more
     /// data has yet to be processed.
-    Finish = ffi::MZ_FINISH as isize
+    Finish = ffi::MZ_FINISH as isize,
+
+    #[doc(hidden)]
+    _Nonexhaustive
 }
 
 impl Flush for FlushCompress {
