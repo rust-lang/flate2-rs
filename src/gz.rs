@@ -32,6 +32,22 @@ static FCOMMENT: u8 = 1 << 4;
 /// to the underlying writer `W`.
 ///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use flate2::Compression;
+/// use flate2::write::GzEncoder;
+///
+/// // Vec<u8> implements Write to print the compressed bytes of sample string
+/// # fn main() {
+///
+/// let mut e = GzEncoder::new(Vec::new(), Compression::Default);
+/// e.write(b"Hello World").unwrap();
+/// println!("{:?}", e.finish().unwrap());
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct EncoderWriter<W: Write> {
     inner: zio::Writer<W, Compress>,
@@ -47,6 +63,25 @@ pub struct EncoderWriter<W: Write> {
 /// interface.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use std::io;
+/// use flate2::Compression;
+/// use flate2::read::GzEncoder;
+///
+/// // Return a vector containing the GZ compressed version of hello world
+///
+/// fn gzencode_hello_world() -> io::Result<Vec<u8>> {
+///     let mut ret_vec = [0;100];
+///     let bytestring = b"hello world";
+///     let mut gz = GzEncoder::new(&bytestring[..], Compression::Fast);
+///     let count = gz.read(&mut ret_vec)?;
+///     Ok(ret_vec[0..count].to_vec())
+/// }
+/// ```
 #[derive(Debug)]
 pub struct EncoderReader<R> {
     inner: EncoderReaderBuf<BufReader<R>>,
@@ -54,11 +89,34 @@ pub struct EncoderReader<R> {
 
 /// A gzip streaming encoder
 ///
-/// This structure exposes a [`Read`] interface that will read uncompressed data
-/// from the underlying reader and expose the compressed version as a [`Read`]
+/// This structure exposes a [`BufRead`] interface that will read uncompressed data
+/// from the underlying reader and expose the compressed version as a [`BufRead`]
 /// interface.
 ///
-/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+/// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use std::io;
+/// use flate2::Compression;
+/// use flate2::bufread::GzEncoder;
+/// use std::fs::File;
+/// use std::io::BufReader;
+///
+/// // Opens sample file, compresses the contents and returns a Vector or error
+/// // File wrapped in a BufReader implements BufRead
+///
+/// fn open_hello_world() -> io::Result<Vec<u8>> {
+///     let f = File::open("examples/hello_world.txt")?;
+///     let b = BufReader::new(f);
+///     let mut gz = GzEncoder::new(b, Compression::Fast);
+///     let mut buffer = Vec::new();
+///     gz.read_to_end(&mut buffer)?;
+///     Ok(buffer)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct EncoderReaderBuf<R> {
     inner: deflate::EncoderReaderBuf<CrcReader<R>>,
@@ -70,6 +128,29 @@ pub struct EncoderReaderBuf<R> {
 /// A builder structure to create a new gzip Encoder.
 ///
 /// This structure controls header configuration options such as the filename.
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// # use std::io;
+/// use std::fs::File;
+/// use flate2::GzBuilder;
+/// use flate2::Compression;
+///
+/// // GzBuilder opens a file and writes a sample string using Builder pattern
+///
+/// # fn sample_builder() -> Result<(), io::Error> {
+/// let f = File::create("examples/hello_world.gz")?;
+/// let mut gz = GzBuilder::new()
+///                 .filename("hello_world.txt")
+///                 .comment("test file, please delete")
+///                 .write(f, Compression::Default);
+/// gz.write(b"hello world")?;
+/// gz.finish()?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct Builder {
     extra: Option<Vec<u8>>,
@@ -84,6 +165,34 @@ pub struct Builder {
 /// data from the underlying reader and emit uncompressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+///
+/// # Examples
+///
+/// ```
+///
+/// use std::io::prelude::*;
+/// use std::io;
+/// # use flate2::Compression;
+/// # use flate2::write::GzEncoder;
+/// use flate2::read::GzDecoder;
+///
+/// # fn main() {
+/// #    let mut e = GzEncoder::new(Vec::new(), Compression::Default);
+/// #    e.write(b"Hello World").unwrap();
+/// #    let bytes = e.finish().unwrap();
+/// #    println!("{}", decode_reader(bytes).unwrap());
+/// # }
+/// #
+/// // Uncompresses a Gz Encoded vector of bytes and returns a string or error
+/// // Here &[u8] implements Read
+///
+/// fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
+///    let mut gz = GzDecoder::new(&bytes[..])?;
+///    let mut s = String::new();
+///    gz.read_to_string(&mut s)?;
+///    Ok(s)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct DecoderReader<R> {
     inner: DecoderReaderBuf<BufReader<R>>,
@@ -102,6 +211,33 @@ pub struct DecoderReader<R> {
 /// from the underlying reader and emit uncompressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use std::io;
+/// # use flate2::Compression;
+/// # use flate2::write::GzEncoder;
+/// use flate2::read::MultiGzDecoder;
+///
+/// # fn main() {
+/// #    let mut e = GzEncoder::new(Vec::new(), Compression::Default);
+/// #    e.write(b"Hello World").unwrap();
+/// #    let bytes = e.finish().unwrap();
+/// #    println!("{}", decode_reader(bytes).unwrap());
+/// # }
+/// #
+/// // Uncompresses a Gz Encoded vector of bytes and returns a string or error
+/// // Here &[u8] implements Read
+///
+/// fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
+///    let mut gz = MultiGzDecoder::new(&bytes[..])?;
+///    let mut s = String::new();
+///    gz.read_to_string(&mut s)?;
+///    Ok(s)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct MultiDecoderReader<R> {
     inner: MultiDecoderReaderBuf<BufReader<R>>,
@@ -109,10 +245,37 @@ pub struct MultiDecoderReader<R> {
 
 /// A gzip streaming decoder
 ///
-/// This structure exposes a [`Read`] interface that will consume compressed
+/// This structure exposes a [`ReadBuf`] interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
 ///
-/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+/// [`ReadBuf`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use std::io;
+/// # use flate2::Compression;
+/// # use flate2::write::GzEncoder;
+/// use flate2::bufread::GzDecoder;
+///
+/// # fn main() {
+/// #   let mut e = GzEncoder::new(Vec::new(), Compression::Default);
+/// #   e.write(b"Hello World").unwrap();
+/// #   let bytes = e.finish().unwrap();
+/// #   println!("{}", decode_reader(bytes).unwrap());
+/// # }
+/// #
+/// // Uncompresses a Gz Encoded vector of bytes and returns a string or error
+/// // Here &[u8] implements BufRead
+///
+/// fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
+///    let mut gz = GzDecoder::new(&bytes[..])?;
+///    let mut s = String::new();
+///    gz.read_to_string(&mut s)?;
+///    Ok(s)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct DecoderReaderBuf<R> {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
@@ -129,10 +292,37 @@ pub struct DecoderReaderBuf<R> {
 /// the first gzip member. The multistream format is commonly used in
 /// bioinformatics, for example when using the BGZF compressed data.
 ///
-/// This structure exposes a [`Read`] interface that will consume all gzip members
+/// This structure exposes a [`BufRead`] interface that will consume all gzip members
 /// from the underlying reader and emit uncompressed data.
 ///
-/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+/// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use std::io;
+/// # use flate2::Compression;
+/// # use flate2::write::GzEncoder;
+/// use flate2::bufread::MultiGzDecoder;
+///
+/// # fn main() {
+/// #   let mut e = GzEncoder::new(Vec::new(), Compression::Default);
+/// #   e.write(b"Hello World").unwrap();
+/// #   let bytes = e.finish().unwrap();
+/// #   println!("{}", decode_reader(bytes).unwrap());
+/// # }
+/// #
+/// // Uncompresses a Gz Encoded vector of bytes and returns a string or error
+/// // Here &[u8] implements BufRead
+///
+/// fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
+///    let mut gz = MultiGzDecoder::new(&bytes[..])?;
+///    let mut s = String::new();
+///    gz.read_to_string(&mut s)?;
+///    Ok(s)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct MultiDecoderReaderBuf<R> {
     inner: CrcReader<deflate::DecoderReaderBuf<R>>,
