@@ -19,6 +19,22 @@ use {Compress, Decompress};
 /// uncompressed data, writing the compressed data to the wrapped writer.
 ///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use flate2::Compression;
+/// use flate2::write::DeflateEncoder;
+///
+/// // Vec<u8> implements Write to print the compressed bytes of sample string
+/// # fn main() {
+///
+/// let mut e = DeflateEncoder::new(Vec::new(), Compression::Default);
+/// e.write(b"Hello World").unwrap();
+/// println!("{:?}", e.finish().unwrap());
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct EncoderWriter<W: Write> {
     inner: zio::Writer<W, Compress>,
@@ -30,6 +46,29 @@ pub struct EncoderWriter<W: Write> {
 /// data from an underlying stream and emit a stream of compressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use std::io;
+/// use flate2::Compression;
+/// use flate2::read::DeflateEncoder;
+///
+/// # fn main() {
+/// #    println!("{:?}", deflateencoder_read_hello_world().unwrap());
+/// # }
+/// #
+/// // Return a vector containing the GZ compressed version of hello world
+/// fn deflateencoder_read_hello_world() -> io::Result<Vec<u8>> {
+///    let mut ret_vec = [0;100];
+///    let c = b"hello world";
+///    let mut deflater = DeflateEncoder::new(&c[..], Compression::Fast);
+///    let count = deflater.read(&mut ret_vec)?;
+///    Ok(ret_vec[0..count].to_vec())
+/// }
+/// ```
+
 #[derive(Debug)]
 pub struct EncoderReader<R> {
     inner: EncoderReaderBuf<BufReader<R>>,
@@ -41,6 +80,31 @@ pub struct EncoderReader<R> {
 /// data from an underlying stream and emit a stream of compressed data.
 ///
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use std::io;
+/// use flate2::Compression;
+/// use flate2::bufread::DeflateEncoder;
+/// use std::fs::File;
+/// use std::io::BufReader;
+///
+/// # fn main() {
+/// #    println!("{:?}", open_hello_world().unwrap());
+/// # }
+/// #
+/// // Opens sample file, compresses the contents and returns a Vector
+/// fn open_hello_world() -> io::Result<Vec<u8>> {
+///    let f = File::open("examples/hello_world.txt")?;
+///    let b = BufReader::new(f);
+///    let mut deflater = DeflateEncoder::new(b, Compression::Fast);
+///    let mut buffer = Vec::new();
+///    deflater.read_to_end(&mut buffer)?;
+///    Ok(buffer)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct EncoderReaderBuf<R> {
     obj: R,
@@ -53,6 +117,31 @@ pub struct EncoderReaderBuf<R> {
 /// compressed data as input, providing the decompressed data when read from.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use std::io;
+/// # use flate2::Compression;
+/// # use flate2::write::DeflateEncoder;
+/// use flate2::read::DeflateDecoder;
+///
+/// # fn main() {
+/// #    let mut e = DeflateEncoder::new(Vec::new(), Compression::Default);
+/// #    e.write(b"Hello World").unwrap();
+/// #    let bytes = e.finish().unwrap();
+/// #    println!("{}", decode_reader(bytes).unwrap());
+/// # }
+/// // Uncompresses a Deflate Encoded vector of bytes and returns a string or error
+/// // Here &[u8] implements Read
+/// fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
+///    let mut deflater = DeflateDecoder::new(&bytes[..]);
+///    let mut s = String::new();
+///    deflater.read_to_string(&mut s)?;
+///    Ok(s)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct DecoderReader<R> {
     inner: DecoderReaderBuf<BufReader<R>>,
@@ -64,6 +153,31 @@ pub struct DecoderReader<R> {
 /// compressed data as input, providing the decompressed data when read from.
 ///
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use std::io;
+/// # use flate2::Compression;
+/// # use flate2::write::DeflateEncoder;
+/// use flate2::bufread::DeflateDecoder;
+///
+/// # fn main() {
+/// #    let mut e = DeflateEncoder::new(Vec::new(), Compression::Default);
+/// #    e.write(b"Hello World").unwrap();
+/// #    let bytes = e.finish().unwrap();
+/// #    println!("{}", decode_reader(bytes).unwrap());
+/// # }
+/// // Uncompresses a Deflate Encoded vector of bytes and returns a string or error
+/// // Here &[u8] implements Read
+/// fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
+///    let mut deflater = DeflateDecoder::new(&bytes[..]);
+///    let mut s = String::new();
+///    deflater.read_to_string(&mut s)?;
+///    Ok(s)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct DecoderReaderBuf<R> {
     obj: R,
@@ -76,6 +190,33 @@ pub struct DecoderReaderBuf<R> {
 /// data when fed a stream of compressed data.
 ///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Read.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use std::io;
+/// # use flate2::Compression;
+/// # use flate2::write::DeflateEncoder;
+/// use flate2::write::DeflateDecoder;
+///
+/// # fn main() {
+/// #    let mut e = DeflateEncoder::new(Vec::new(), Compression::Default);
+/// #    e.write(b"Hello World").unwrap();
+/// #    let bytes = e.finish().unwrap();
+/// #    println!("{}", decode_writer(bytes).unwrap());
+/// # }
+/// // Uncompresses a Deflate Encoded vector of bytes and returns a string or error
+/// // Here Vec<u8> implements Write
+/// fn decode_writer(bytes: Vec<u8>) -> io::Result<String> {
+///    let mut writer = Vec::new();
+///    let mut deflater = DeflateDecoder::new(writer);
+///    deflater.write(&bytes[..])?;
+///    writer = deflater.finish()?;
+///    let return_string = String::from_utf8(writer).expect("String parsing error");
+///    Ok(return_string)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct DecoderWriter<W: Write> {
     inner: zio::Writer<W, Decompress>,
