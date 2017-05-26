@@ -16,6 +16,21 @@
 //! of data. All types in the [`write`] module work on instances of [`Write`],
 //! whereas all types in the [`read`] module work on instances of [`Read`].
 //!
+//! ```
+//! use flate2::write::GzEncoder;
+//! use flate2::Compression;
+//! use std::io;
+//! use std::io::prelude::*;
+//!
+//! # fn main() { let _ = run(); }
+//! # fn run() -> io::Result<()> {
+//! let mut encoder = GzEncoder::new(Vec::new(), Compression::Default);
+//! encoder.write(b"Example")?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//!
 //! Other various types are provided at the top-level of the crate for
 //! management and dealing with encoders/decoders.
 //!
@@ -32,6 +47,31 @@
 //!
 //! [`FlateReadExt`]: trait.FlateReadExt.html
 //! [`FlateWriteExt`]: trait.FlateWriteExt.html
+//!
+//! ```
+//! use flate2::{FlateReadExt, Compression};
+//! use std::io::prelude::*;
+//! use std::io;
+//! use std::fs::File;
+//!
+//! # fn main() {
+//! #    println!("{}", run().unwrap());
+//! # }
+//! #
+//! // Read contents of file with a compression stream, then decompress with GZ
+//!
+//! # fn run() -> io::Result<String> {
+//! let f = File::open("examples/hello_world.txt")?;
+//!
+//! //gz_encode method comes from FlateReadExt and applies to a std::fs::File
+//! let data = f.gz_encode(Compression::Default);
+//! let mut buffer = String::new();
+//!
+//! //gz_decode method comes from FlateReadExt and applies to a &[u8]
+//! &data.gz_decode()?.read_to_string(&mut buffer)?;
+//! # Ok(buffer)
+//! # }
+//! ```
 //!
 //! # Async I/O
 //!
