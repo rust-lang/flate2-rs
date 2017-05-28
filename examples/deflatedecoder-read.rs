@@ -14,7 +14,7 @@ fn main() {
     println!("{}", decode_reader(bytes).unwrap());
 }
 
-// Uncompresses a Gz Encoded vector of bytes and returns a string or error
+// Uncompresses a Deflate Encoded vector of bytes and returns a string or error
 // Here &[u8] implements Read
 fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
     let mut deflater = DeflateDecoder::new(&bytes[..]);

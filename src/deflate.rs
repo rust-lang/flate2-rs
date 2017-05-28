@@ -59,7 +59,7 @@ pub struct EncoderWriter<W: Write> {
 /// #    println!("{:?}", deflateencoder_read_hello_world().unwrap());
 /// # }
 /// #
-/// // Return a vector containing the GZ compressed version of hello world
+/// // Return a vector containing the Deflate compressed version of hello world
 /// fn deflateencoder_read_hello_world() -> io::Result<Vec<u8>> {
 ///    let mut ret_vec = [0;100];
 ///    let c = b"hello world";
