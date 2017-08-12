@@ -9,7 +9,7 @@ before_script:
 script:
   - export CARGO_TARGET_DIR=`pwd`/target
   - cargo build --verbose
-  - rustdoc --test README.md -L target/debug -L target/debug/deps
+  - rustdoc --test README.md -L target/debug/deps
   - cargo test --verbose
   - cargo test --verbose --features zlib
   - cargo test --verbose --features tokio
