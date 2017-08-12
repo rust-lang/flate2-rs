@@ -528,7 +528,7 @@ impl<W: Write> EncoderWriter<W> {
                        (amt >> 8) as u8,
                        (amt >> 16) as u8,
                        (amt >> 24) as u8];
-            let mut inner = self.inner.get_mut();
+            let inner = self.inner.get_mut();
             let n = try!(inner.write(&buf[self.crc_bytes_written..]));
             self.crc_bytes_written += n;
         }
@@ -647,7 +647,7 @@ fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
 }
 
 impl<R: Read> Read for EncoderReader<R> {
-    fn read(&mut self, mut into: &mut [u8]) -> io::Result<usize> {
+    fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         self.inner.read(into)
     }
 }
