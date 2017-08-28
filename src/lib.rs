@@ -96,33 +96,32 @@
 //! flushed/written when they are dropped, and this is not always a suitable
 //! time to perform I/O. If I/O streams are flushed before drop, however, then
 //! these operations will be a noop.
-
 #![doc(html_root_url = "https://docs.rs/flate2/0.2")]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 #![allow(trivial_numeric_casts)]
 #![cfg_attr(test, deny(warnings))]
 
+#[cfg(feature = "tokio")]
+extern crate futures;
 extern crate libc;
 #[cfg(test)]
-extern crate rand;
-#[cfg(test)]
 extern crate quickcheck;
+#[cfg(test)]
+extern crate rand;
 #[cfg(feature = "tokio")]
 #[macro_use]
 extern crate tokio_io;
-#[cfg(feature = "tokio")]
-extern crate futures;
 
 use std::io::prelude::*;
 use std::io;
 
 pub use gz::Builder as GzBuilder;
 pub use gz::Header as GzHeader;
-pub use mem::{Compress, Decompress, DataError, Status, Flush};
+pub use mem::{Compress, DataError, Decompress, Flush, Status};
 pub use crc::{Crc, CrcReader};
 
-mod bufreader;
+pub(crate) mod bufreader;
 mod crc;
 mod deflate;
 mod ffi;
@@ -136,13 +135,13 @@ mod zlib;
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub mod read {
-    pub use deflate::EncoderReader as DeflateEncoder;
-    pub use deflate::DecoderReader as DeflateDecoder;
-    pub use zlib::EncoderReader as ZlibEncoder;
-    pub use zlib::DecoderReader as ZlibDecoder;
-    pub use gz::EncoderReader as GzEncoder;
-    pub use gz::DecoderReader as GzDecoder;
-    pub use gz::MultiDecoderReader as MultiGzDecoder;
+    pub use deflate::read::DeflateEncoder;
+    pub use deflate::read::DeflateDecoder;
+    pub use zlib::read::ZlibEncoder;
+    pub use zlib::read::ZlibDecoder;
+    pub use gz::read::GzEncoder;
+    pub use gz::read::GzDecoder;
+    pub use gz::read::MultiGzDecoder;
 }
 
 /// Types which operate over [`Write`] streams, both encoders and decoders for
@@ -150,11 +149,11 @@ pub mod read {
 ///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 pub mod write {
-    pub use deflate::EncoderWriter as DeflateEncoder;
-    pub use deflate::DecoderWriter as DeflateDecoder;
-    pub use zlib::EncoderWriter as ZlibEncoder;
-    pub use zlib::DecoderWriter as ZlibDecoder;
-    pub use gz::EncoderWriter as GzEncoder;
+    pub use deflate::write::DeflateEncoder;
+    pub use deflate::write::DeflateDecoder;
+    pub use zlib::write::ZlibEncoder;
+    pub use zlib::write::ZlibDecoder;
+    pub use gz::write::GzEncoder;
 }
 
 /// Types which operate over [`BufRead`] streams, both encoders and decoders for
@@ -162,13 +161,13 @@ pub mod write {
 ///
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 pub mod bufread {
-    pub use deflate::EncoderReaderBuf as DeflateEncoder;
-    pub use deflate::DecoderReaderBuf as DeflateDecoder;
-    pub use zlib::EncoderReaderBuf as ZlibEncoder;
-    pub use zlib::DecoderReaderBuf as ZlibDecoder;
-    pub use gz::EncoderReaderBuf as GzEncoder;
-    pub use gz::DecoderReaderBuf as GzDecoder;
-    pub use gz::MultiDecoderReaderBuf as MultiGzDecoder;
+    pub use deflate::bufread::DeflateEncoder;
+    pub use deflate::bufread::DeflateDecoder;
+    pub use zlib::bufread::ZlibEncoder;
+    pub use zlib::bufread::ZlibDecoder;
+    pub use gz::bufread::GzEncoder;
+    pub use gz::bufread::GzDecoder;
+    pub use gz::bufread::MultiGzDecoder;
 }
 
 fn _assert_send_sync() {
@@ -289,21 +288,21 @@ impl<T: Write> FlateWriteExt for T {}
 #[cfg(test)]
 mod test {
     use std::io::prelude::*;
-    use {FlateReadExt, Compression};
+    use {Compression, FlateReadExt};
 
     #[test]
     fn crazy() {
         let rdr = &mut b"foobar";
         let mut res = Vec::new();
         rdr.gz_encode(Compression::Default)
-           .deflate_encode(Compression::Default)
-           .zlib_encode(Compression::Default)
-           .zlib_decode()
-           .deflate_decode()
-           .gz_decode()
-           .unwrap()
-           .read_to_end(&mut res)
-           .unwrap();
+            .deflate_encode(Compression::Default)
+            .zlib_encode(Compression::Default)
+            .zlib_decode()
+            .deflate_decode()
+            .gz_decode()
+            .unwrap()
+            .read_to_end(&mut res)
+            .unwrap();
         assert_eq!(res, b"foobar");
     }
 }
