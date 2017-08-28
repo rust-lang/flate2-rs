@@ -1,11 +1,6 @@
 use std::io::prelude::*;
 use std::io;
 
-#[cfg(feature = "tokio")]
-use futures::Poll;
-#[cfg(feature = "tokio")]
-use tokio_io::{AsyncRead, AsyncWrite};
-
 use super::{Builder, Header};
 use Compression;
 use bufreader::BufReader;

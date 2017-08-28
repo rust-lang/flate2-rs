@@ -3,11 +3,6 @@ use std::ffi::CString;
 use std::io::prelude::*;
 use std::time;
 
-#[cfg(feature = "tokio")]
-use futures::Poll;
-#[cfg(feature = "tokio")]
-use tokio_io::{AsyncRead, AsyncWrite};
-
 use {Compress, Compression};
 use bufreader::BufReader;
 use crc::{Crc, CrcReader};

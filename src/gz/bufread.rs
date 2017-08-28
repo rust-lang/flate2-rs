@@ -3,11 +3,6 @@ use std::io::prelude::*;
 use std::io;
 use std::mem;
 
-#[cfg(feature = "tokio")]
-use futures::Poll;
-#[cfg(feature = "tokio")]
-use tokio_io::{AsyncRead, AsyncWrite};
-
 use super::{Builder, Header};
 use super::{FCOMMENT, FEXTRA, FHCRC, FNAME};
 use Compression;
