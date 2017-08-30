@@ -8,7 +8,6 @@ use tokio_io::{AsyncRead, AsyncWrite};
 
 use bufreader::BufReader;
 use super::bufread;
-use Decompress;
 
 /// A DEFLATE encoder, or compressor.
 ///
@@ -65,8 +64,8 @@ impl<R> DeflateEncoder<R> {
     /// Note that there may be currently buffered data when this function is
     /// called, and in that case the buffered data is discarded.
     pub fn reset(&mut self, r: R) -> R {
-        self.inner.data.reset();
-        self.inner.obj.reset(r)
+        super::bufread::reset_encoder_data(&mut self.inner);
+        self.inner.get_mut().reset(r)
     }
 
     /// Acquires a reference to the underlying reader
@@ -96,7 +95,7 @@ impl<R> DeflateEncoder<R> {
     /// Note that not all bytes read from the underlying object may be accounted
     /// for, there may still be some active buffering.
     pub fn total_in(&self) -> u64 {
-        self.inner.data.total_in()
+        self.inner.total_in()
     }
 
     /// Returns the number of bytes that the compressor has produced.
@@ -104,7 +103,7 @@ impl<R> DeflateEncoder<R> {
     /// Note that not all bytes may have been read yet, some may still be
     /// buffered.
     pub fn total_out(&self) -> u64 {
-        self.inner.data.total_out()
+        self.inner.total_out()
     }
 }
 
@@ -202,8 +201,8 @@ impl<R> DeflateDecoder<R> {
     /// Note that there may be currently buffered data when this function is
     /// called, and in that case the buffered data is discarded.
     pub fn reset(&mut self, r: R) -> R {
-        self.inner.data = Decompress::new(false);
-        self.inner.obj.reset(r)
+        super::bufread::reset_decoder_data(&mut self.inner);
+        self.inner.get_mut().reset(r)
     }
 
     /// Acquires a reference to the underlying stream

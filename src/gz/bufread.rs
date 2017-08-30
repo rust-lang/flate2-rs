@@ -141,10 +141,22 @@ fn read_gz_header<R: Read>(r: &mut R) -> io::Result<Header> {
 /// ```
 #[derive(Debug)]
 pub struct GzEncoder<R> {
-    pub(crate) inner: deflate::bufread::DeflateEncoder<CrcReader<R>>,
-    pub(crate) header: Vec<u8>,
-    pub(crate) pos: usize,
-    pub(crate) eof: bool,
+    inner: deflate::bufread::DeflateEncoder<CrcReader<R>>,
+    header: Vec<u8>,
+    pos: usize,
+    eof: bool,
+}
+
+pub fn gz_encoder<R: BufRead>(header: Vec<u8>, r: R, lvl: Compression)
+    -> GzEncoder<R>
+{
+    let crc = CrcReader::new(r);
+    GzEncoder {
+        inner: deflate::bufread::DeflateEncoder::new(crc, lvl),
+        header: header,
+        pos: 0,
+        eof: false,
+    }
 }
 
 impl<R: BufRead> GzEncoder<R> {

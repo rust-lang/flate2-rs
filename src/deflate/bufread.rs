@@ -43,8 +43,8 @@ use {Compress, Decompress};
 /// ```
 #[derive(Debug)]
 pub struct DeflateEncoder<R> {
-    pub(crate) obj: R,
-    pub(crate) data: Compress,
+    obj: R,
+    data: Compress,
 }
 
 
@@ -59,6 +59,10 @@ impl<R: BufRead> DeflateEncoder<R> {
     }
 }
 
+pub fn reset_encoder_data<R>(zlib: &mut DeflateEncoder<R>) {
+    zlib.data.reset();
+}
+
 impl<R> DeflateEncoder<R> {
     /// Resets the state of this encoder entirely, swapping out the input
     /// stream for another.
@@ -68,7 +72,7 @@ impl<R> DeflateEncoder<R> {
     /// stream. Future data read from this encoder will be the compressed
     /// version of `r`'s data.
     pub fn reset(&mut self, r: R) -> R {
-        self.data.reset();
+        reset_encoder_data(self);
         mem::replace(&mut self.obj, r)
     }
 
@@ -166,10 +170,13 @@ impl<R: AsyncWrite + BufRead> AsyncWrite for DeflateEncoder<R> {
 /// ```
 #[derive(Debug)]
 pub struct DeflateDecoder<R> {
-    pub(crate) obj: R,
-    pub(crate) data: Decompress,
+    obj: R,
+    data: Decompress,
 }
 
+pub fn reset_decoder_data<R>(zlib: &mut DeflateDecoder<R>) {
+    zlib.data = Decompress::new(false);
+}
 
 impl<R: BufRead> DeflateDecoder<R> {
     /// Creates a new decoder which will decompress data read from the given
@@ -191,7 +198,7 @@ impl<R> DeflateDecoder<R> {
     /// stream. Future data read from this decoder will be the decompressed
     /// version of `r`'s data.
     pub fn reset(&mut self, r: R) -> R {
-        self.data = Decompress::new(false);
+        reset_decoder_data(self);
         mem::replace(&mut self.obj, r)
     }
 
@@ -200,7 +207,7 @@ impl<R> DeflateDecoder<R> {
     /// This will reset the internal state of this decoder. It will continue
     /// reading from the same stream.
     pub fn reset_data(&mut self) {
-        self.data = Decompress::new(false);
+        reset_decoder_data(self);
     }
 
     /// Acquires a reference to the underlying stream

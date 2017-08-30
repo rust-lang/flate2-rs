@@ -3,11 +3,8 @@ use std::ffi::CString;
 use std::io::prelude::*;
 use std::time;
 
-use {Compress, Compression};
+use Compression;
 use bufreader::BufReader;
-use crc::{Crc, CrcReader};
-use deflate;
-use zio;
 
 pub static FHCRC: u8 = 1 << 1;
 pub static FEXTRA: u8 = 1 << 2;
@@ -160,12 +157,7 @@ impl Builder {
     /// The data written to the returned encoder will be compressed and then
     /// written out to the supplied parameter `w`.
     pub fn write<W: Write>(self, w: W, lvl: Compression) -> write::GzEncoder<W> {
-        write::GzEncoder {
-            inner: zio::Writer::new(w, Compress::new(lvl, false)),
-            crc: Crc::new(),
-            header: self.into_header(lvl),
-            crc_bytes_written: 0,
-        }
+        write::gz_encoder(self.into_header(lvl), w, lvl)
     }
 
     /// Consume this builder, creating a reader encoder in the process.
@@ -173,9 +165,7 @@ impl Builder {
     /// Data read from the returned encoder will be the compressed version of
     /// the data read from the given reader.
     pub fn read<R: Read>(self, r: R, lvl: Compression) -> read::GzEncoder<R> {
-        read::GzEncoder {
-            inner: self.buf_read(BufReader::new(r), lvl),
-        }
+        read::gz_encoder(self.buf_read(BufReader::new(r), lvl))
     }
 
     /// Consume this builder, creating a reader encoder in the process.
@@ -186,13 +176,7 @@ impl Builder {
     where
         R: BufRead,
     {
-        let crc = CrcReader::new(r);
-        bufread::GzEncoder {
-            inner: deflate::bufread::DeflateEncoder::new(crc, lvl),
-            header: self.into_header(lvl),
-            pos: 0,
-            eof: false,
-        }
+        bufread::gz_encoder(self.into_header(lvl), r, lvl)
     }
 
     fn into_header(self, lvl: Compression) -> Vec<u8> {

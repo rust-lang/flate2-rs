@@ -34,7 +34,13 @@ use super::bufread;
 /// ```
 #[derive(Debug)]
 pub struct GzEncoder<R> {
-    pub(crate) inner: bufread::GzEncoder<BufReader<R>>,
+    inner: bufread::GzEncoder<BufReader<R>>,
+}
+
+pub fn gz_encoder<R: Read>(inner: bufread::GzEncoder<BufReader<R>>)
+    -> GzEncoder<R>
+{
+    GzEncoder { inner: inner }
 }
 
 impl<R: Read> GzEncoder<R> {

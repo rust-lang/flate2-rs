@@ -121,7 +121,7 @@ pub use gz::Header as GzHeader;
 pub use mem::{Compress, DataError, Decompress, Flush, Status};
 pub use crc::{Crc, CrcReader};
 
-pub(crate) mod bufreader;
+mod bufreader;
 mod crc;
 mod deflate;
 mod ffi;

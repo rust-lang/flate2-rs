@@ -35,10 +35,19 @@ use zio;
 /// ```
 #[derive(Debug)]
 pub struct GzEncoder<W: Write> {
-    pub(crate) inner: zio::Writer<W, Compress>,
-    pub(crate) crc: Crc,
-    pub(crate) crc_bytes_written: usize,
-    pub(crate) header: Vec<u8>,
+    inner: zio::Writer<W, Compress>,
+    crc: Crc,
+    crc_bytes_written: usize,
+    header: Vec<u8>,
+}
+
+pub fn gz_encoder<W: Write>(header: Vec<u8>, w: W, lvl: Compression) -> GzEncoder<W> {
+    GzEncoder {
+        inner: zio::Writer::new(w, Compress::new(lvl, false)),
+        crc: Crc::new(),
+        header: header,
+        crc_bytes_written: 0,
+    }
 }
 
 impl<W: Write> GzEncoder<W> {
