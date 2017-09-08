@@ -16,6 +16,21 @@
 //! of data. All types in the [`write`] module work on instances of [`Write`],
 //! whereas all types in the [`read`] module work on instances of [`Read`].
 //!
+//! ```
+//! use flate2::write::GzEncoder;
+//! use flate2::Compression;
+//! use std::io;
+//! use std::io::prelude::*;
+//!
+//! # fn main() { let _ = run(); }
+//! # fn run() -> io::Result<()> {
+//! let mut encoder = GzEncoder::new(Vec::new(), Compression::Default);
+//! encoder.write(b"Example")?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//!
 //! Other various types are provided at the top-level of the crate for
 //! management and dealing with encoders/decoders.
 //!
@@ -32,6 +47,31 @@
 //!
 //! [`FlateReadExt`]: trait.FlateReadExt.html
 //! [`FlateWriteExt`]: trait.FlateWriteExt.html
+//!
+//! ```
+//! use flate2::{FlateReadExt, Compression};
+//! use std::io::prelude::*;
+//! use std::io;
+//! use std::fs::File;
+//!
+//! # fn main() {
+//! #    println!("{}", run().unwrap());
+//! # }
+//! #
+//! // Read contents of file with a compression stream, then decompress with GZ
+//!
+//! # fn run() -> io::Result<String> {
+//! let f = File::open("examples/hello_world.txt")?;
+//!
+//! //gz_encode method comes from FlateReadExt and applies to a std::fs::File
+//! let data = f.gz_encode(Compression::Default);
+//! let mut buffer = String::new();
+//!
+//! //gz_decode method comes from FlateReadExt and applies to a &[u8]
+//! &data.gz_decode()?.read_to_string(&mut buffer)?;
+//! # Ok(buffer)
+//! # }
+//! ```
 //!
 //! # Async I/O
 //!
@@ -56,31 +96,32 @@
 //! flushed/written when they are dropped, and this is not always a suitable
 //! time to perform I/O. If I/O streams are flushed before drop, however, then
 //! these operations will be a noop.
-
 #![doc(html_root_url = "https://docs.rs/flate2/0.2")]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 #![allow(trivial_numeric_casts)]
 #![cfg_attr(test, deny(warnings))]
 
+#[cfg(feature = "tokio")]
+extern crate futures;
 extern crate libc;
 #[cfg(test)]
-extern crate rand;
-#[cfg(test)]
 extern crate quickcheck;
+#[cfg(test)]
+extern crate rand;
 #[cfg(feature = "tokio")]
 #[macro_use]
 extern crate tokio_io;
-#[cfg(feature = "tokio")]
-extern crate futures;
 
 use std::io::prelude::*;
 use std::io;
 
 pub use gz::Builder as GzBuilder;
 pub use gz::Header as GzHeader;
-pub use mem::{Compress, Decompress, DataError, Status, FlushCompress, FlushDecompress};
+
+pub use mem::{Compress, DataError, Decompress, FlushCompress, FlushDecompress, Status};
 use mem::Flush;
+
 pub use crc::{Crc, CrcReader};
 
 mod bufreader;
@@ -97,13 +138,13 @@ mod zlib;
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub mod read {
-    pub use deflate::EncoderReader as DeflateEncoder;
-    pub use deflate::DecoderReader as DeflateDecoder;
-    pub use zlib::EncoderReader as ZlibEncoder;
-    pub use zlib::DecoderReader as ZlibDecoder;
-    pub use gz::EncoderReader as GzEncoder;
-    pub use gz::DecoderReader as GzDecoder;
-    pub use gz::MultiDecoderReader as MultiGzDecoder;
+    pub use deflate::read::DeflateEncoder;
+    pub use deflate::read::DeflateDecoder;
+    pub use zlib::read::ZlibEncoder;
+    pub use zlib::read::ZlibDecoder;
+    pub use gz::read::GzEncoder;
+    pub use gz::read::GzDecoder;
+    pub use gz::read::MultiGzDecoder;
 }
 
 /// Types which operate over [`Write`] streams, both encoders and decoders for
@@ -111,11 +152,11 @@ pub mod read {
 ///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 pub mod write {
-    pub use deflate::EncoderWriter as DeflateEncoder;
-    pub use deflate::DecoderWriter as DeflateDecoder;
-    pub use zlib::EncoderWriter as ZlibEncoder;
-    pub use zlib::DecoderWriter as ZlibDecoder;
-    pub use gz::EncoderWriter as GzEncoder;
+    pub use deflate::write::DeflateEncoder;
+    pub use deflate::write::DeflateDecoder;
+    pub use zlib::write::ZlibEncoder;
+    pub use zlib::write::ZlibDecoder;
+    pub use gz::write::GzEncoder;
 }
 
 /// Types which operate over [`BufRead`] streams, both encoders and decoders for
@@ -123,13 +164,13 @@ pub mod write {
 ///
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 pub mod bufread {
-    pub use deflate::EncoderReaderBuf as DeflateEncoder;
-    pub use deflate::DecoderReaderBuf as DeflateDecoder;
-    pub use zlib::EncoderReaderBuf as ZlibEncoder;
-    pub use zlib::DecoderReaderBuf as ZlibDecoder;
-    pub use gz::EncoderReaderBuf as GzEncoder;
-    pub use gz::DecoderReaderBuf as GzDecoder;
-    pub use gz::MultiDecoderReaderBuf as MultiGzDecoder;
+    pub use deflate::bufread::DeflateEncoder;
+    pub use deflate::bufread::DeflateDecoder;
+    pub use zlib::bufread::ZlibEncoder;
+    pub use zlib::bufread::ZlibDecoder;
+    pub use gz::bufread::GzEncoder;
+    pub use gz::bufread::GzDecoder;
+    pub use gz::bufread::MultiGzDecoder;
 }
 
 fn _assert_send_sync() {
@@ -250,21 +291,21 @@ impl<T: Write> FlateWriteExt for T {}
 #[cfg(test)]
 mod test {
     use std::io::prelude::*;
-    use {FlateReadExt, Compression};
+    use {Compression, FlateReadExt};
 
     #[test]
     fn crazy() {
         let rdr = &mut b"foobar";
         let mut res = Vec::new();
         rdr.gz_encode(Compression::Default)
-           .deflate_encode(Compression::Default)
-           .zlib_encode(Compression::Default)
-           .zlib_decode()
-           .deflate_decode()
-           .gz_decode()
-           .unwrap()
-           .read_to_end(&mut res)
-           .unwrap();
+            .deflate_encode(Compression::Default)
+            .zlib_encode(Compression::Default)
+            .zlib_decode()
+            .deflate_decode()
+            .gz_decode()
+            .unwrap()
+            .read_to_end(&mut res)
+            .unwrap();
         assert_eq!(res, b"foobar");
     }
 }
