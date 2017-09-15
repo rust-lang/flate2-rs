@@ -224,12 +224,12 @@ impl Builder {
             Compression::Fast => 4,
             _ => 0,
         };
-        header[9] = match env::consts::OS {
-            "linux" => 3,
-            "macos" => 7,
-            "win32" => 0,
-            _ => 255,
-        };
+
+        // Typically this byte indicates what OS the gz stream was created on,
+        // but in an effort to have cross-platform reproducible streams just
+        // always set this to 255. I'm not sure that if we "correctly" set this
+        // it'd do anything anyway...
+        header[9] = 255;
         return header;
     }
 }
