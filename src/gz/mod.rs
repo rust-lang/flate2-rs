@@ -1,4 +1,3 @@
-use std::env;
 use std::ffi::CString;
 use std::io::prelude::*;
 use std::time;
