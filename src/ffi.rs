@@ -169,6 +169,7 @@ mod imp {
     }
 }
 
+#[cfg(not(feature = "zlib"))]
 mod crc_imp {
     use libc::{c_ulong, off_t};
     pub unsafe extern fn mz_crc32_combine(crc1: c_ulong,
