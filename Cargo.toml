@@ -24,6 +24,7 @@ miniz-sys = { path = "miniz-sys", version = "0.1.7", optional = true }
 libz-sys = { version = "1.0", optional = true }
 tokio-io = { version = "0.1", optional = true }
 futures = { version = "0.1", optional = true }
+miniz_oxide_c_api = { git = "https://github.com/Frommi/miniz_oxide.git", version = "0.1", optional = true}
 
 [dev-dependencies]
 rand = "0.3"
@@ -33,6 +34,7 @@ tokio-core = "0.1"
 [features]
 default = ["miniz-sys"]
 zlib = ["libz-sys"]
+rust_backend = ["miniz_oxide_c_api"]
 tokio = ["tokio-io", "futures"]
 
 [badges]
