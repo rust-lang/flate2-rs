@@ -129,7 +129,7 @@ pub enum Status {
     /// Indicates success.
     ///
     /// Means that more input may be needed but isn't available
-    /// and/or there' smore output to be written but the output buffer is full.
+    /// and/or there's more output to be written but the output buffer is full.
     Ok,
 
     /// Indicates that forward progress is not possible due to input or output
