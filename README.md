@@ -6,8 +6,12 @@
 [![Documentation](https://docs.rs/flate2/badge.svg)](https://docs.rs/flate2)
 
 A streaming compression/decompression library for Rust. The underlying
-implementation by default uses [`miniz`](https://code.google.com/p/miniz/) but
+implementation by default uses [`miniz`](https://github.com/richgel999/miniz) but
 can optionally be configured to use the system zlib, if available.
+
+There is also an experimental rust backend that uses the
+[`miniz_oxide`](https://crates.io/crates/miniz_oxide) crate. This avoids the need
+to build C code, but hasn't gone through as much testing as the other backends.
 
 Supported formats:
 
@@ -26,6 +30,13 @@ Using zlib instead of miniz:
 ```toml
 [dependencies]
 flate2 = { version = "0.2", features = ["zlib"], default-features = false }
+```
+
+Using the rust back-end:
+
+```toml
+[dependencies]
+flate2 = { version = "0.2", features = ["rust_backend"], default-features = false }
 ```
 
 ## Compression
