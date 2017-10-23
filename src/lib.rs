@@ -1,13 +1,14 @@
 //! A DEFLATE-based stream compression/decompression library
 //!
-//! This library is meant to supplement/replace the standard distributon's
-//! libflate library by providing a streaming encoder/decoder rather than purely
+//! This library is meant to supplement/replace the
+//! `flate` library that was previously part of the standard rust distribution
+//! providing a streaming encoder/decoder rather than purely
 //! an in-memory encoder/decoder.
 //!
-//! Like with [`libflate`], flate2 is based on [`miniz.c`][1]
+//! Like with [`flate`], flate2 is based on [`miniz.c`][1]
 //!
-//! [1]: https://code.google.com/p/miniz/
-//! [`libflate`]: https://docs.rs/crate/libflate/
+//! [1]: https://github.com/richgel999/miniz
+//! [`flate`]: https://github.com/rust-lang/rust/tree/1.19.0/src/libflate
 //!
 //! # Organization
 //!
