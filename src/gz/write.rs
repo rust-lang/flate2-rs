@@ -1,3 +1,4 @@
+use std::cmp;
 use std::io::prelude::*;
 use std::io;
 
@@ -6,9 +7,10 @@ use futures::Poll;
 #[cfg(feature = "tokio")]
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::GzBuilder;
-use {Compress, Compression};
-use crc::Crc;
+use super::{GzBuilder, GzHeader};
+use super::bufread::{corrupt, read_gz_header};
+use {Compress, Compression, Decompress};
+use crc::{Crc, CrcWriter};
 use zio;
 
 /// A gzip streaming encoder
@@ -180,3 +182,182 @@ impl<W: Write> Drop for GzEncoder<W> {
         }
     }
 }
+
+/// A gzip streaming decoder
+///
+/// This structure exposes a [`Write`] interface that will emit compressed data
+/// to the underlying writer `W`.
+///
+/// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
+///
+/// # Examples
+///
+/// ```
+/// use std::io::prelude::*;
+/// use std::io;
+/// use flate2::Compression;
+/// use flate2::write::{GzEncoder, GzDecoder};
+///
+/// # fn main() {
+/// #    let mut e = GzEncoder::new(Vec::new(), Compression::default());
+/// #    e.write(b"Hello World").unwrap();
+/// #    let bytes = e.finish().unwrap();
+/// #    assert_eq!("Hello World", decode_writer(bytes).unwrap());
+/// # }
+/// // Uncompresses a gzip encoded vector of bytes and returns a string or error
+/// // Here Vec<u8> implements Write
+/// fn decode_writer(bytes: Vec<u8>) -> io::Result<String> {
+///    let mut writer = Vec::new();
+///    let mut decoder = GzDecoder::new(writer);
+///    decoder.write(&bytes[..])?;
+///    writer = decoder.finish()?;
+///    let return_string = String::from_utf8(writer).expect("String parsing error");
+///    Ok(return_string)
+/// }
+/// ```
+#[derive(Debug)]
+pub struct GzDecoder<W: Write> {
+    inner: zio::Writer<CrcWriter<W>, Decompress>,
+    crc_bytes: Vec<u8>,
+    header: Option<GzHeader>,
+}
+
+impl<W: Write> GzDecoder<W> {
+    /// Creates a new decoder which will write uncompressed data to the stream.
+    ///
+    /// When this encoder is dropped or unwrapped the final pieces of data will
+    /// be flushed.
+    pub fn new(w: W) -> GzDecoder<W> {
+        GzDecoder {
+            inner: zio::Writer::new(CrcWriter::new(w), Decompress::new(false)),
+            crc_bytes: Vec::with_capacity(8),
+            header: None,
+        }
+    }
+
+    /// Returns the header associated with this stream.
+    pub fn header(&self) -> Option<&GzHeader> {
+        self.header.as_ref()
+    }
+
+    /// Acquires a reference to the underlying writer.
+    pub fn get_ref(&self) -> &W {
+        self.inner.get_ref().get_ref()
+    }
+
+    /// Acquires a mutable reference to the underlying writer.
+    ///
+    /// Note that mutating the output/input state of the stream may corrupt this
+    /// object, so care must be taken when using this method.
+    pub fn get_mut(&mut self) -> &mut W {
+        self.inner.get_mut().get_mut()
+    }
+
+    /// Attempt to finish this output stream, writing out final chunks of data.
+    ///
+    /// Note that this function can only be used once data has finished being
+    /// written to the output stream. After this function is called then further
+    /// calls to `write` may result in a panic.
+    ///
+    /// # Panics
+    ///
+    /// Attempts to write data to this stream may result in a panic after this
+    /// function is called.
+    ///
+    /// # Errors
+    ///
+    /// This function will perform I/O to finish the stream, returning any
+    /// errors which happen.
+    pub fn try_finish(&mut self) -> io::Result<()> {
+        try!(self.inner.finish());
+
+        if self.crc_bytes.len() != 8 {
+            return Err(corrupt())
+        }
+
+        let crc = ((self.crc_bytes[0] as u32) << 0)
+            | ((self.crc_bytes[1] as u32) << 8)
+            | ((self.crc_bytes[2] as u32) << 16)
+            | ((self.crc_bytes[3] as u32) << 24);
+        let amt = ((self.crc_bytes[4] as u32) << 0)
+            | ((self.crc_bytes[5] as u32) << 8)
+            | ((self.crc_bytes[6] as u32) << 16)
+            | ((self.crc_bytes[7] as u32) << 24);
+        if crc != self.inner.get_ref().crc().sum() as u32 {
+            return Err(corrupt());
+        }
+        if amt != self.inner.get_ref().crc().amount() {
+            return Err(corrupt());
+        }
+        Ok(())
+    }
+
+    /// Consumes this decoder, flushing the output stream.
+    ///
+    /// This will flush the underlying data stream and then return the contained
+    /// writer if the flush succeeded.
+    ///
+    /// Note that this function may not be suitable to call in a situation where
+    /// the underlying stream is an asynchronous I/O stream. To finish a stream
+    /// the `try_finish` (or `shutdown`) method should be used instead. To
+    /// re-acquire ownership of a stream it is safe to call this method after
+    /// `try_finish` or `shutdown` has returned `Ok`.
+    ///
+    /// # Errors
+    ///
+    /// This function will perform I/O to complete this stream, and any I/O
+    /// errors which occur will be returned from this function.
+    pub fn finish(mut self) -> io::Result<W> {
+        try!(self.inner.finish());
+        Ok(self.inner.take_inner().into_inner())
+    }
+
+    fn write_buf(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let n = try!(self.inner.write(buf));
+        if n < buf.len() && self.crc_bytes.len() < 8 {
+            let d = cmp::min(buf.len(), n + 8 - self.crc_bytes.len());
+            self.crc_bytes.extend(&buf[n..d]);
+            return Ok(d)
+        }
+        Ok(n)
+    }
+}
+
+impl<W: Write> Write for GzDecoder<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if self.header.is_none() {
+            let mut cur = io::Cursor::new(buf);
+            match read_gz_header(&mut cur) {
+                Err(err) => Err(err),
+                Ok(header) => {
+                    self.header = Some(header);
+                    let pos = cur.position() as usize;
+                    Ok(try!(self.write_buf(&buf[pos..])))
+                }
+            }
+        } else {
+            self.write_buf(buf)
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<W: AsyncWrite> AsyncWrite for GzDecoder<W> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        try_nb!(self.inner.finish());
+        self.inner.get_mut().shutdown()
+    }
+}
+
+impl<W: Read + Write> Read for GzDecoder<W> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.inner.get_mut().get_mut().read(buf)
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<W: AsyncRead + AsyncWrite> AsyncRead for GzDecoder<W> {}

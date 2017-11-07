@@ -91,7 +91,7 @@ pub use gz::GzBuilder;
 pub use gz::GzHeader;
 pub use mem::{Compress, CompressError, Decompress, DecompressError, Status};
 pub use mem::{FlushCompress, FlushDecompress};
-pub use crc::{Crc, CrcReader};
+pub use crc::{Crc, CrcReader, CrcWriter};
 
 mod bufreader;
 mod crc;
@@ -126,6 +126,7 @@ pub mod write {
     pub use zlib::write::ZlibEncoder;
     pub use zlib::write::ZlibDecoder;
     pub use gz::write::GzEncoder;
+    pub use gz::write::GzDecoder;
 }
 
 /// Types which operate over [`BufRead`] streams, both encoders and decoders for
@@ -157,6 +158,7 @@ fn _assert_send_sync() {
     _assert_send_sync::<write::ZlibEncoder<Vec<u8>>>();
     _assert_send_sync::<write::ZlibDecoder<Vec<u8>>>();
     _assert_send_sync::<write::GzEncoder<Vec<u8>>>();
+    _assert_send_sync::<write::GzDecoder<Vec<u8>>>();
 }
 
 /// When compressing data, the compression level can be specified by a value in
