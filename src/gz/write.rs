@@ -6,7 +6,7 @@ use futures::Poll;
 #[cfg(feature = "tokio")]
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::Builder;
+use super::GzBuilder;
 use {Compress, Compression};
 use crc::Crc;
 use zio;
@@ -54,12 +54,12 @@ impl<W: Write> GzEncoder<W> {
     /// Creates a new encoder which will use the given compression level.
     ///
     /// The encoder is not configured specially for the emitted header. For
-    /// header configuration, see the `Builder` type.
+    /// header configuration, see the `GzBuilder` type.
     ///
     /// The data written to the returned encoder will be compressed and then
     /// written to the stream `w`.
     pub fn new(w: W, level: Compression) -> GzEncoder<W> {
-        Builder::new().write(w, level)
+        GzBuilder::new().write(w, level)
     }
 
     /// Acquires a reference to the underlying writer.

@@ -1,7 +1,7 @@
 use std::io::prelude::*;
 use std::io;
 
-use super::{Builder, Header};
+use super::{GzBuilder, GzHeader};
 use Compression;
 use bufreader::BufReader;
 use super::bufread;
@@ -47,12 +47,12 @@ impl<R: Read> GzEncoder<R> {
     /// Creates a new encoder which will use the given compression level.
     ///
     /// The encoder is not configured specially for the emitted header. For
-    /// header configuration, see the `Builder` type.
+    /// header configuration, see the `GzBuilder` type.
     ///
     /// The data read from the stream `r` will be compressed and available
     /// through the returned reader.
     pub fn new(r: R, level: Compression) -> GzEncoder<R> {
-        Builder::new().read(r, level)
+        GzBuilder::new().read(r, level)
     }
 }
 
@@ -120,7 +120,7 @@ impl<R: Read + Write> Write for GzEncoder<R> {
 /// // Here &[u8] implements Read
 ///
 /// fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
-///    let mut gz = GzDecoder::new(&bytes[..])?;
+///    let mut gz = GzDecoder::new(&bytes[..]);
 ///    let mut s = String::new();
 ///    gz.read_to_string(&mut s)?;
 ///    Ok(s)
@@ -139,14 +139,16 @@ impl<R: Read> GzDecoder<R> {
     ///
     /// If an error is encountered when parsing the gzip header, an error is
     /// returned.
-    pub fn new(r: R) -> io::Result<GzDecoder<R>> {
-        bufread::GzDecoder::new(BufReader::new(r)).map(|r| GzDecoder { inner: r })
+    pub fn new(r: R) -> GzDecoder<R> {
+        GzDecoder {
+            inner: bufread::GzDecoder::new(BufReader::new(r)),
+        }
     }
 }
 
 impl<R> GzDecoder<R> {
-    /// Returns the header associated with this stream.
-    pub fn header(&self) -> &Header {
+    /// Returns the header associated with this stream, if it was valid.
+    pub fn header(&self) -> Option<&GzHeader> {
         self.inner.header()
     }
 
@@ -219,7 +221,7 @@ impl<R: Read + Write> Write for GzDecoder<R> {
 /// // Here &[u8] implements Read
 ///
 /// fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
-///    let mut gz = MultiGzDecoder::new(&bytes[..])?;
+///    let mut gz = MultiGzDecoder::new(&bytes[..]);
 ///    let mut s = String::new();
 ///    gz.read_to_string(&mut s)?;
 ///    Ok(s)
@@ -239,14 +241,16 @@ impl<R: Read> MultiGzDecoder<R> {
     ///
     /// If an error is encountered when parsing the gzip header, an error is
     /// returned.
-    pub fn new(r: R) -> io::Result<MultiGzDecoder<R>> {
-        bufread::MultiGzDecoder::new(BufReader::new(r)).map(|r| MultiGzDecoder { inner: r })
+    pub fn new(r: R) -> MultiGzDecoder<R> {
+        MultiGzDecoder {
+            inner: bufread::MultiGzDecoder::new(BufReader::new(r)),
+        }
     }
 }
 
 impl<R> MultiGzDecoder<R> {
-    /// Returns the current header associated with this stream.
-    pub fn header(&self) -> &Header {
+    /// Returns the current header associated with this stream, if it's valid.
+    pub fn header(&self) -> Option<&GzHeader> {
         self.inner.header()
     }
 

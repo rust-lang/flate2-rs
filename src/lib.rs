@@ -80,8 +80,8 @@ extern crate rand;
 #[macro_use]
 extern crate tokio_io;
 
-pub use gz::Builder as GzBuilder;
-pub use gz::Header as GzHeader;
+pub use gz::GzBuilder;
+pub use gz::GzHeader;
 pub use mem::{Compress, CompressError, DecompressError, Decompress, Status};
 pub use mem::{FlushCompress, FlushDecompress};
 pub use crc::{Crc, CrcReader};

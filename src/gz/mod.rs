@@ -20,14 +20,14 @@ pub mod write;
 /// The header can contain metadata about the file that was compressed, if
 /// present.
 #[derive(PartialEq, Debug)]
-pub struct Header {
+pub struct GzHeader {
     extra: Option<Vec<u8>>,
     filename: Option<Vec<u8>>,
     comment: Option<Vec<u8>>,
     mtime: u32,
 }
 
-impl Header {
+impl GzHeader {
     /// Returns the `filename` field of this gzip stream's header, if present.
     pub fn filename(&self) -> Option<&[u8]> {
         self.filename.as_ref().map(|s| &s[..])
@@ -87,7 +87,7 @@ impl Header {
 /// use flate2::GzBuilder;
 /// use flate2::Compression;
 ///
-/// // GzBuilder opens a file and writes a sample string using Builder pattern
+/// // GzBuilder opens a file and writes a sample string using GzBuilder pattern
 ///
 /// # fn sample_builder() -> Result<(), io::Error> {
 /// let f = File::create("examples/hello_world.gz")?;
@@ -101,17 +101,17 @@ impl Header {
 /// # }
 /// ```
 #[derive(Debug)]
-pub struct Builder {
+pub struct GzBuilder {
     extra: Option<Vec<u8>>,
     filename: Option<CString>,
     comment: Option<CString>,
     mtime: u32,
 }
 
-impl Builder {
+impl GzBuilder {
     /// Create a new blank builder with no header by default.
-    pub fn new() -> Builder {
-        Builder {
+    pub fn new() -> GzBuilder {
+        GzBuilder {
             extra: None,
             filename: None,
             comment: None,
@@ -120,13 +120,13 @@ impl Builder {
     }
 
     /// Configure the `mtime` field in the gzip header.
-    pub fn mtime(mut self, mtime: u32) -> Builder {
+    pub fn mtime(mut self, mtime: u32) -> GzBuilder {
         self.mtime = mtime;
         self
     }
 
     /// Configure the `extra` field in the gzip header.
-    pub fn extra<T: Into<Vec<u8>>>(mut self, extra: T) -> Builder {
+    pub fn extra<T: Into<Vec<u8>>>(mut self, extra: T) -> GzBuilder {
         self.extra = Some(extra.into());
         self
     }
@@ -136,7 +136,7 @@ impl Builder {
     /// # Panics
     ///
     /// Panics if the `filename` slice contains a zero.
-    pub fn filename<T: Into<Vec<u8>>>(mut self, filename: T) -> Builder {
+    pub fn filename<T: Into<Vec<u8>>>(mut self, filename: T) -> GzBuilder {
         self.filename = Some(CString::new(filename.into()).unwrap());
         self
     }
@@ -146,7 +146,7 @@ impl Builder {
     /// # Panics
     ///
     /// Panics if the `comment` slice contains a zero.
-    pub fn comment<T: Into<Vec<u8>>>(mut self, comment: T) -> Builder {
+    pub fn comment<T: Into<Vec<u8>>>(mut self, comment: T) -> GzBuilder {
         self.comment = Some(CString::new(comment.into()).unwrap());
         self
     }
@@ -179,7 +179,7 @@ impl Builder {
     }
 
     fn into_header(self, lvl: Compression) -> Vec<u8> {
-        let Builder {
+        let GzBuilder {
             extra,
             filename,
             comment,
@@ -233,7 +233,7 @@ impl Builder {
 mod tests {
     use std::io::prelude::*;
 
-    use super::{read, write, Builder};
+    use super::{read, write, GzBuilder};
     use Compression;
     use rand::{thread_rng, Rng};
 
@@ -242,7 +242,7 @@ mod tests {
         let mut e = write::GzEncoder::new(Vec::new(), Compression::default());
         e.write_all(b"foo bar baz").unwrap();
         let inner = e.finish().unwrap();
-        let mut d = read::GzDecoder::new(&inner[..]).unwrap();
+        let mut d = read::GzDecoder::new(&inner[..]);
         let mut s = String::new();
         d.read_to_string(&mut s).unwrap();
         assert_eq!(s, "foo bar baz");
@@ -252,7 +252,7 @@ mod tests {
     fn roundtrip_zero() {
         let e = write::GzEncoder::new(Vec::new(), Compression::default());
         let inner = e.finish().unwrap();
-        let mut d = read::GzDecoder::new(&inner[..]).unwrap();
+        let mut d = read::GzDecoder::new(&inner[..]);
         let mut s = String::new();
         d.read_to_string(&mut s).unwrap();
         assert_eq!(s, "");
@@ -269,7 +269,7 @@ mod tests {
             w.write_all(to_write).unwrap();
         }
         let result = w.finish().unwrap();
-        let mut r = read::GzDecoder::new(&result[..]).unwrap();
+        let mut r = read::GzDecoder::new(&result[..]);
         let mut v = Vec::new();
         r.read_to_end(&mut v).unwrap();
         assert!(v == real);
@@ -281,7 +281,7 @@ mod tests {
             .gen_iter::<u8>()
             .take(1024 * 1024)
             .collect::<Vec<_>>();
-        let mut r = read::GzDecoder::new(read::GzEncoder::new(&v[..], Compression::default())).unwrap();
+        let mut r = read::GzDecoder::new(read::GzEncoder::new(&v[..], Compression::default()));
         let mut res = Vec::new();
         r.read_to_end(&mut res).unwrap();
         assert!(res == v);
@@ -290,15 +290,15 @@ mod tests {
     #[test]
     fn fields() {
         let r = vec![0, 2, 4, 6];
-        let e = Builder::new()
+        let e = GzBuilder::new()
             .filename("foo.rs")
             .comment("bar")
             .extra(vec![0, 1, 2, 3])
             .read(&r[..], Compression::default());
-        let mut d = read::GzDecoder::new(e).unwrap();
-        assert_eq!(d.header().filename(), Some(&b"foo.rs"[..]));
-        assert_eq!(d.header().comment(), Some(&b"bar"[..]));
-        assert_eq!(d.header().extra(), Some(&b"\x00\x01\x02\x03"[..]));
+        let mut d = read::GzDecoder::new(e);
+        assert_eq!(d.header().unwrap().filename(), Some(&b"foo.rs"[..]));
+        assert_eq!(d.header().unwrap().comment(), Some(&b"bar"[..]));
+        assert_eq!(d.header().unwrap().extra(), Some(&b"\x00\x01\x02\x03"[..]));
         let mut res = Vec::new();
         d.read_to_end(&mut res).unwrap();
         assert_eq!(res, vec![0, 2, 4, 6]);
@@ -309,7 +309,7 @@ mod tests {
         let mut e = write::GzEncoder::new(Vec::new(), Compression::default());
         e.write_all(b"foo bar baz").unwrap();
         let inner = e.finish().unwrap();
-        let mut d = read::GzDecoder::new(&inner[..]).unwrap();
+        let mut d = read::GzDecoder::new(&inner[..]);
         let mut s = String::new();
         d.read_to_string(&mut s).unwrap();
         assert_eq!(s, "foo bar baz");
@@ -323,7 +323,7 @@ mod tests {
 
         fn test(v: Vec<u8>) -> bool {
             let r = read::GzEncoder::new(&v[..], Compression::default());
-            let mut r = read::GzDecoder::new(r).unwrap();
+            let mut r = read::GzDecoder::new(r);
             let mut v2 = Vec::new();
             r.read_to_end(&mut v2).unwrap();
             v == v2

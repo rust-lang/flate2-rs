@@ -13,7 +13,7 @@ fn smoke() {
 
     let bytes = w.finish().unwrap();
 
-    let mut r = GzDecoder::new(&bytes[..]).unwrap();
+    let mut r = GzDecoder::new(&bytes[..]);
     let mut s = String::new();
     r.read_to_string(&mut s).unwrap();
     assert_eq!(s, "hello");
