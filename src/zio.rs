@@ -2,7 +2,7 @@ use std::io::prelude::*;
 use std::io;
 use std::mem;
 
-use {Decompress, Compress, Status, Flush, DataError};
+use {Decompress, Compress, Status, Flush, DecompressError};
 
 #[derive(Debug)]
 pub struct Writer<W: Write, D: Ops> {
@@ -15,21 +15,21 @@ pub trait Ops {
     fn total_in(&self) -> u64;
     fn total_out(&self) -> u64;
     fn run(&mut self, input: &[u8], output: &mut [u8], flush: Flush)
-           -> Result<Status, DataError>;
+           -> Result<Status, DecompressError>;
     fn run_vec(&mut self, input: &[u8], output: &mut Vec<u8>, flush: Flush)
-               -> Result<Status, DataError>;
+               -> Result<Status, DecompressError>;
 }
 
 impl Ops for Compress {
     fn total_in(&self) -> u64 { self.total_in() }
     fn total_out(&self) -> u64 { self.total_out() }
     fn run(&mut self, input: &[u8], output: &mut [u8], flush: Flush)
-           -> Result<Status, DataError> {
-        Ok(self.compress(input, output, flush))
+           -> Result<Status, DecompressError> {
+        Ok(self.compress(input, output, flush).unwrap())
     }
     fn run_vec(&mut self, input: &[u8], output: &mut Vec<u8>, flush: Flush)
-               -> Result<Status, DataError> {
-        Ok(self.compress_vec(input, output, flush))
+               -> Result<Status, DecompressError> {
+        Ok(self.compress_vec(input, output, flush).unwrap())
     }
 }
 
@@ -37,11 +37,11 @@ impl Ops for Decompress {
     fn total_in(&self) -> u64 { self.total_in() }
     fn total_out(&self) -> u64 { self.total_out() }
     fn run(&mut self, input: &[u8], output: &mut [u8], flush: Flush)
-           -> Result<Status, DataError> {
+           -> Result<Status, DecompressError> {
         self.decompress(input, output, flush)
     }
     fn run_vec(&mut self, input: &[u8], output: &mut Vec<u8>, flush: Flush)
-               -> Result<Status, DataError> {
+               -> Result<Status, DecompressError> {
         self.decompress_vec(input, output, flush)
     }
 }

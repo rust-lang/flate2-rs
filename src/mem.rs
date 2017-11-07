@@ -120,7 +120,12 @@ pub enum Flush {
 /// Error returned when a decompression object finds that the input stream of
 /// bytes was not a valid input stream of bytes.
 #[derive(Debug)]
-pub struct DataError(());
+pub struct DecompressError(());
+
+/// Error returned when a compression object is used incorrectly or otherwise
+/// generates an error.
+#[derive(Debug)]
+pub struct CompressError(());
 
 /// Possible status results of compressing some data or successfully
 /// decompressing a block of data.
@@ -216,7 +221,7 @@ impl Compress {
                     input: &[u8],
                     output: &mut [u8],
                     flush: Flush)
-                    -> Status {
+                    -> Result<Status, CompressError> {
         let raw = &mut *self.inner.stream_wrapper;
         raw.next_in = input.as_ptr() as *mut _;
         raw.avail_in = input.len() as c_uint;
@@ -233,9 +238,10 @@ impl Compress {
                                  output.as_ptr() as usize) as u64;
 
         match rc {
-            ffi::MZ_OK => Status::Ok,
-            ffi::MZ_BUF_ERROR => Status::BufError,
-            ffi::MZ_STREAM_END => Status::StreamEnd,
+            ffi::MZ_OK => Ok(Status::Ok),
+            ffi::MZ_BUF_ERROR => Ok(Status::BufError),
+            ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
+            ffi::MZ_STREAM_ERROR => Err(CompressError(())),
             c => panic!("unknown return code: {}", c),
         }
     }
@@ -252,7 +258,7 @@ impl Compress {
                         input: &[u8],
                         output: &mut Vec<u8>,
                         flush: Flush)
-                        -> Status {
+                        -> Result<Status, CompressError> {
         let cap = output.capacity();
         let len = output.len();
 
@@ -326,12 +332,12 @@ impl Decompress {
     ///
     /// If the input data to this instance of `Decompress` is not a valid
     /// zlib/deflate stream then this function may return an instance of
-    /// `DataError` to indicate that the stream of input bytes is corrupted.
+    /// `DecompressError` to indicate that the stream of input bytes is corrupted.
     pub fn decompress(&mut self,
                       input: &[u8],
                       output: &mut [u8],
                       flush: Flush)
-                      -> Result<Status, DataError> {
+                      -> Result<Status, DecompressError> {
         let raw = &mut *self.inner.stream_wrapper;
         raw.next_in = input.as_ptr() as *mut u8;
         raw.avail_in = input.len() as c_uint;
@@ -349,7 +355,7 @@ impl Decompress {
 
         match rc {
             ffi::MZ_DATA_ERROR |
-            ffi::MZ_STREAM_ERROR => Err(DataError(())),
+            ffi::MZ_STREAM_ERROR => Err(DecompressError(())),
             ffi::MZ_OK => Ok(Status::Ok),
             ffi::MZ_BUF_ERROR => Ok(Status::BufError),
             ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
@@ -370,12 +376,12 @@ impl Decompress {
     ///
     /// If the input data to this instance of `Decompress` is not a valid
     /// zlib/deflate stream then this function may return an instance of
-    /// `DataError` to indicate that the stream of input bytes is corrupted.
+    /// `DecompressError` to indicate that the stream of input bytes is corrupted.
     pub fn decompress_vec(&mut self,
                           input: &[u8],
                           output: &mut Vec<u8>,
                           flush: Flush)
-                          -> Result<Status, DataError> {
+                          -> Result<Status, DecompressError> {
         let cap = output.capacity();
         let len = output.len();
 
@@ -423,17 +429,33 @@ impl Decompress {
     }
 }
 
-impl Error for DataError {
-    fn description(&self) -> &str { "deflate data error" }
+impl Error for DecompressError {
+    fn description(&self) -> &str { "deflate decompression error" }
 }
 
-impl From<DataError> for io::Error {
-    fn from(data: DataError) -> io::Error {
+impl From<DecompressError> for io::Error {
+    fn from(data: DecompressError) -> io::Error {
         io::Error::new(io::ErrorKind::Other, data)
     }
 }
 
-impl fmt::Display for DataError {
+impl fmt::Display for DecompressError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.description().fmt(f)
+    }
+}
+
+impl Error for CompressError {
+    fn description(&self) -> &str { "deflate compression error" }
+}
+
+impl From<CompressError> for io::Error {
+    fn from(data: CompressError) -> io::Error {
+        io::Error::new(io::ErrorKind::Other, data)
+    }
+}
+
+impl fmt::Display for CompressError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.description().fmt(f)
     }

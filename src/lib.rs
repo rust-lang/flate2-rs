@@ -82,7 +82,7 @@ extern crate tokio_io;
 
 pub use gz::Builder as GzBuilder;
 pub use gz::Header as GzHeader;
-pub use mem::{Compress, DataError, Decompress, Flush, Status};
+pub use mem::{Compress, CompressError, DecompressError, Decompress, Flush, Status};
 pub use crc::{Crc, CrcReader};
 
 mod bufreader;
