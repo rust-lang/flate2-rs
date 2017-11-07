@@ -63,10 +63,10 @@ enum DirCompress {}
 #[derive(Debug)]
 enum DirDecompress {}
 
-/// Values which indicate the form of flushing to be used when compressing or
-/// decompressing in-memory data.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum Flush {
+/// Values which indicate the form of flushing to be used when compressing
+/// in-memory data.
+pub enum FlushCompress {
     /// A typical parameter for passing to compression/decompression functions,
     /// this indicates that the underlying stream to decide how much data to
     /// accumulate before producing output in order to maximize compression.
@@ -91,18 +91,6 @@ pub enum Flush {
     /// block before the empty fixed code block.
     Partial = ffi::MZ_PARTIAL_FLUSH as isize,
 
-    /// A deflate block is completed and emitted, as for `Flush::Sync`, but the
-    /// output is not aligned on a byte boundary and up to seven vits of the
-    /// current block are held to be written as the next byte after the next
-    /// deflate block is completed.
-    ///
-    /// In this case the decompressor may not be provided enough bits at this
-    /// point in order to complete decompression of the data provided so far to
-    /// the compressor, it may need to wait for the next block to be emitted.
-    /// This is for advanced applications that need to control the emission of
-    /// deflate blocks.
-    Block = ffi::MZ_BLOCK as isize,
-
     /// All output is flushed as with `Flush::Sync` and the compression state is
     /// reset so decompression can restart from this point if previous
     /// compressed data has been damaged or if random access is desired.
@@ -115,6 +103,37 @@ pub enum Flush {
     /// The return value may indicate that the stream is not yet done and more
     /// data has yet to be processed.
     Finish = ffi::MZ_FINISH as isize,
+
+    #[doc(hidden)]
+    _Nonexhaustive
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+/// Values which indicate the form of flushing to be used when
+/// decompressing in-memory data.
+pub enum FlushDecompress {
+    /// A typical parameter for passing to compression/decompression functions,
+    /// this indicates that the underlying stream to decide how much data to
+    /// accumulate before producing output in order to maximize compression.
+    None = ffi::MZ_NO_FLUSH as isize,
+
+    /// All pending output is flushed to the output buffer and the output is
+    /// aligned on a byte boundary so that the decompressor can get all input
+    /// data available so far.
+    ///
+    /// Flushing may degrade compression for some compression algorithms and so
+    /// it should only be used when necessary. This will complete the current
+    /// deflate block and follow it with an empty stored block.
+    Sync = ffi::MZ_SYNC_FLUSH as isize,
+
+    /// Pending input is processed and pending output is flushed.
+    ///
+    /// The return value may indicate that the stream is not yet done and more
+    /// data has yet to be processed.
+    Finish = ffi::MZ_FINISH as isize,
+
+    #[doc(hidden)]
+    _Nonexhaustive
 }
 
 /// Error returned when a decompression object finds that the input stream of
@@ -213,14 +232,14 @@ impl Compress {
     /// Compresses the input data into the output, consuming only as much
     /// input as needed and writing as much output as possible.
     ///
-    /// The flush option can be any of the available flushing parameters.
+    /// The flush option can be any of the available `FlushCompress` parameters.
     ///
     /// To learn how much data was consumed or how much output was produced, use
     /// the `total_in` and `total_out` functions before/after this is called.
     pub fn compress(&mut self,
                     input: &[u8],
                     output: &mut [u8],
-                    flush: Flush)
+                    flush: FlushCompress)
                     -> Result<Status, CompressError> {
         let raw = &mut *self.inner.stream_wrapper;
         raw.next_in = input.as_ptr() as *mut _;
@@ -257,7 +276,7 @@ impl Compress {
     pub fn compress_vec(&mut self,
                         input: &[u8],
                         output: &mut Vec<u8>,
-                        flush: Flush)
+                        flush: FlushCompress)
                         -> Result<Status, CompressError> {
         let cap = output.capacity();
         let len = output.len();
@@ -316,14 +335,16 @@ impl Decompress {
     /// Decompresses the input data into the output, consuming only as much
     /// input as needed and writing as much output as possible.
     ///
-    /// The flush option provided can either be `Flush::None`, `Flush::Sync`,
-    /// or `Flush::Finish`. If the first call passes `Flush::Finish` it is
-    /// assumed that the input and output buffers are both sized large enough to
-    /// decompress the entire stream in a single call.
+    /// The flush option can be any of the available `FlushDecompress` parameters.
     ///
-    /// A flush value of `Flush::Finish` indicates that there are no more source
-    /// bytes available beside what's already in the input buffer, and the
-    /// output buffer is large enough to hold the rest of the decompressed data.
+    /// If the first call passes `FlushDecompress::Finish` it is assumed that
+    /// the input and output buffers are both sized large enough to decompress
+    /// the entire stream in a single call.
+    ///
+    /// A flush value of `FlushDecompress::Finish` indicates that there are no
+    /// more source bytes available beside what's already in the input buffer,
+    /// and the output buffer is large enough to hold the rest of the
+    /// decompressed data.
     ///
     /// To learn how much data was consumed or how much output was produced, use
     /// the `total_in` and `total_out` functions before/after this is called.
@@ -336,7 +357,7 @@ impl Decompress {
     pub fn decompress(&mut self,
                       input: &[u8],
                       output: &mut [u8],
-                      flush: Flush)
+                      flush: FlushDecompress)
                       -> Result<Status, DecompressError> {
         let raw = &mut *self.inner.stream_wrapper;
         raw.next_in = input.as_ptr() as *mut u8;
@@ -380,7 +401,7 @@ impl Decompress {
     pub fn decompress_vec(&mut self,
                           input: &[u8],
                           output: &mut Vec<u8>,
-                          flush: Flush)
+                          flush: FlushDecompress)
                           -> Result<Status, DecompressError> {
         let cap = output.capacity();
         let len = output.len();
@@ -485,7 +506,7 @@ mod tests {
     use std::io::Write;
 
     use write;
-    use {Compression, Decompress, Flush};
+    use {Compression, Decompress, FlushDecompress};
 
     #[test]
     fn issue51() {
@@ -507,11 +528,11 @@ mod tests {
 
         let mut d = Decompress::new(false);
         // decompressed whole deflate stream
-        assert!(d.decompress_vec(&data[10..], &mut decoded, Flush::Finish).is_ok());
+        assert!(d.decompress_vec(&data[10..], &mut decoded, FlushDecompress::Finish).is_ok());
 
         // decompress data that has nothing to do with the deflate stream (this
         // used to panic)
-        drop(d.decompress_vec(&[0], &mut decoded, Flush::None));
+        drop(d.decompress_vec(&[0], &mut decoded, FlushDecompress::None));
     }
 
     #[test]
@@ -526,12 +547,12 @@ mod tests {
 
         let mut dst = [0; 1024];
         let mut decoder = Decompress::new(true);
-        decoder.decompress(&zlib, &mut dst, Flush::Finish).unwrap();
+        decoder.decompress(&zlib, &mut dst, FlushDecompress::Finish).unwrap();
         assert_eq!(decoder.total_out(), string.len() as u64);
         assert!(dst.starts_with(string));
 
         decoder.reset(false);
-        decoder.decompress(&deflate, &mut dst, Flush::Finish).unwrap();
+        decoder.decompress(&deflate, &mut dst, FlushDecompress::Finish).unwrap();
         assert_eq!(decoder.total_out(), string.len() as u64);
         assert!(dst.starts_with(string));
     }
