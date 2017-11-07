@@ -27,7 +27,7 @@ use super::bufread;
 /// fn gzencode_hello_world() -> io::Result<Vec<u8>> {
 ///     let mut ret_vec = [0;100];
 ///     let bytestring = b"hello world";
-///     let mut gz = GzEncoder::new(&bytestring[..], Compression::Fast);
+///     let mut gz = GzEncoder::new(&bytestring[..], Compression::fast());
 ///     let count = gz.read(&mut ret_vec)?;
 ///     Ok(ret_vec[0..count].to_vec())
 /// }
@@ -110,7 +110,7 @@ impl<R: Read + Write> Write for GzEncoder<R> {
 /// use flate2::read::GzDecoder;
 ///
 /// # fn main() {
-/// #    let mut e = GzEncoder::new(Vec::new(), Compression::Default);
+/// #    let mut e = GzEncoder::new(Vec::new(), Compression::default());
 /// #    e.write(b"Hello World").unwrap();
 /// #    let bytes = e.finish().unwrap();
 /// #    println!("{}", decode_reader(bytes).unwrap());
@@ -209,7 +209,7 @@ impl<R: Read + Write> Write for GzDecoder<R> {
 /// use flate2::read::MultiGzDecoder;
 ///
 /// # fn main() {
-/// #    let mut e = GzEncoder::new(Vec::new(), Compression::Default);
+/// #    let mut e = GzEncoder::new(Vec::new(), Compression::default());
 /// #    e.write(b"Hello World").unwrap();
 /// #    let bytes = e.finish().unwrap();
 /// #    println!("{}", decode_reader(bytes).unwrap());

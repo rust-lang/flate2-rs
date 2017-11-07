@@ -25,7 +25,7 @@
 //!
 //! # fn main() { let _ = run(); }
 //! # fn run() -> io::Result<()> {
-//! let mut encoder = GzEncoder::new(Vec::new(), Compression::Default);
+//! let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
 //! encoder.write(b"Example")?;
 //! # Ok(())
 //! # }
@@ -79,9 +79,6 @@ extern crate rand;
 #[cfg(feature = "tokio")]
 #[macro_use]
 extern crate tokio_io;
-
-use std::io::prelude::*;
-use std::io;
 
 pub use gz::Builder as GzBuilder;
 pub use gz::Header as GzHeader;
@@ -157,21 +154,43 @@ fn _assert_send_sync() {
 /// When compressing data, the compression level can be specified by a value in
 /// this enum.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum Compression {
+pub struct Compression(u32);
+
+impl Compression {
+    /// Creates a new description of the compression level with an explicitly
+    /// specified integer.
+    ///
+    /// The integer here is typically on a scale of 0-9 where 0 means "no
+    /// compression" and 9 means "take as long as you'd like".
+    pub fn new(level: u32) -> Compression {
+        Compression(level)
+    }
+
     /// No compression is to be performed, this may actually inflate data
     /// slightly when encoding.
-    None = 0,
+    pub fn none() -> Compression {
+        Compression(0)
+    }
+
     /// Optimize for the best speed of encoding.
-    Fast = 1,
+    pub fn fast() -> Compression {
+        Compression(1)
+    }
+
     /// Optimize for the size of data being encoded.
-    Best = 9,
-    /// Choose the default compression, a balance between speed and size.
-    Default = 6,
+    pub fn best() -> Compression {
+        Compression(9)
+    }
+
+    /// Returns an integer representing the compression level, typically on a
+    /// scale of 0-9
+    pub fn level(&self) -> u32 {
+        self.0
+    }
 }
 
-/// Default to Compression::Default.
 impl Default for Compression {
     fn default() -> Compression {
-        Compression::Default
+        Compression(6)
     }
 }

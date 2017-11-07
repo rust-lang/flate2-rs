@@ -133,7 +133,7 @@ fn read_gz_header<R: Read>(r: &mut R) -> io::Result<Header> {
 /// fn open_hello_world() -> io::Result<Vec<u8>> {
 ///     let f = File::open("examples/hello_world.txt")?;
 ///     let b = BufReader::new(f);
-///     let mut gz = GzEncoder::new(b, Compression::Fast);
+///     let mut gz = GzEncoder::new(b, Compression::fast());
 ///     let mut buffer = Vec::new();
 ///     gz.read_to_end(&mut buffer)?;
 ///     Ok(buffer)
@@ -262,7 +262,7 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
 /// use flate2::bufread::GzDecoder;
 ///
 /// # fn main() {
-/// #   let mut e = GzEncoder::new(Vec::new(), Compression::Default);
+/// #   let mut e = GzEncoder::new(Vec::new(), Compression::default());
 /// #   e.write(b"Hello World").unwrap();
 /// #   let bytes = e.finish().unwrap();
 /// #   println!("{}", decode_reader(bytes).unwrap());
@@ -409,7 +409,7 @@ impl<R: BufRead + Write> Write for GzDecoder<R> {
 /// use flate2::bufread::MultiGzDecoder;
 ///
 /// # fn main() {
-/// #   let mut e = GzEncoder::new(Vec::new(), Compression::Default);
+/// #   let mut e = GzEncoder::new(Vec::new(), Compression::default());
 /// #   e.write(b"Hello World").unwrap();
 /// #   let bytes = e.finish().unwrap();
 /// #   println!("{}", decode_reader(bytes).unwrap());

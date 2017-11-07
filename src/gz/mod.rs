@@ -94,7 +94,7 @@ impl Header {
 /// let mut gz = GzBuilder::new()
 ///                 .filename("hello_world.txt")
 ///                 .comment("test file, please delete")
-///                 .write(f, Compression::Default);
+///                 .write(f, Compression::default());
 /// gz.write(b"hello world")?;
 /// gz.finish()?;
 /// # Ok(())
@@ -218,11 +218,7 @@ impl Builder {
         header[5] = (mtime >> 8) as u8;
         header[6] = (mtime >> 16) as u8;
         header[7] = (mtime >> 24) as u8;
-        header[8] = match lvl {
-            Compression::Best => 2,
-            Compression::Fast => 4,
-            _ => 0,
-        };
+        header[8] = lvl.0 as u8;
 
         // Typically this byte indicates what OS the gz stream was created on,
         // but in an effort to have cross-platform reproducible streams just
@@ -238,12 +234,12 @@ mod tests {
     use std::io::prelude::*;
 
     use super::{read, write, Builder};
-    use Compression::Default;
+    use Compression;
     use rand::{thread_rng, Rng};
 
     #[test]
     fn roundtrip() {
-        let mut e = write::GzEncoder::new(Vec::new(), Default);
+        let mut e = write::GzEncoder::new(Vec::new(), Compression::default());
         e.write_all(b"foo bar baz").unwrap();
         let inner = e.finish().unwrap();
         let mut d = read::GzDecoder::new(&inner[..]).unwrap();
@@ -254,7 +250,7 @@ mod tests {
 
     #[test]
     fn roundtrip_zero() {
-        let e = write::GzEncoder::new(Vec::new(), Default);
+        let e = write::GzEncoder::new(Vec::new(), Compression::default());
         let inner = e.finish().unwrap();
         let mut d = read::GzDecoder::new(&inner[..]).unwrap();
         let mut s = String::new();
@@ -265,7 +261,7 @@ mod tests {
     #[test]
     fn roundtrip_big() {
         let mut real = Vec::new();
-        let mut w = write::GzEncoder::new(Vec::new(), Default);
+        let mut w = write::GzEncoder::new(Vec::new(), Compression::default());
         let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
         for _ in 0..200 {
             let to_write = &v[..thread_rng().gen_range(0, v.len())];
@@ -285,7 +281,7 @@ mod tests {
             .gen_iter::<u8>()
             .take(1024 * 1024)
             .collect::<Vec<_>>();
-        let mut r = read::GzDecoder::new(read::GzEncoder::new(&v[..], Default)).unwrap();
+        let mut r = read::GzDecoder::new(read::GzEncoder::new(&v[..], Compression::default())).unwrap();
         let mut res = Vec::new();
         r.read_to_end(&mut res).unwrap();
         assert!(res == v);
@@ -298,7 +294,7 @@ mod tests {
             .filename("foo.rs")
             .comment("bar")
             .extra(vec![0, 1, 2, 3])
-            .read(&r[..], Default);
+            .read(&r[..], Compression::default());
         let mut d = read::GzDecoder::new(e).unwrap();
         assert_eq!(d.header().filename(), Some(&b"foo.rs"[..]));
         assert_eq!(d.header().comment(), Some(&b"bar"[..]));
@@ -310,7 +306,7 @@ mod tests {
 
     #[test]
     fn keep_reading_after_end() {
-        let mut e = write::GzEncoder::new(Vec::new(), Default);
+        let mut e = write::GzEncoder::new(Vec::new(), Compression::default());
         e.write_all(b"foo bar baz").unwrap();
         let inner = e.finish().unwrap();
         let mut d = read::GzDecoder::new(&inner[..]).unwrap();
@@ -326,7 +322,7 @@ mod tests {
         ::quickcheck::quickcheck(test as fn(_) -> _);
 
         fn test(v: Vec<u8>) -> bool {
-            let r = read::GzEncoder::new(&v[..], Default);
+            let r = read::GzEncoder::new(&v[..], Compression::default());
             let mut r = read::GzDecoder::new(r).unwrap();
             let mut v2 = Vec::new();
             r.read_to_end(&mut v2).unwrap();
@@ -336,7 +332,7 @@ mod tests {
 
     #[test]
     fn flush_after_write() {
-        let mut f = write::GzEncoder::new(Vec::new(), Default);
+        let mut f = write::GzEncoder::new(Vec::new(), Compression::default());
         write!(f, "Hello world").unwrap();
         f.flush().unwrap();
     }

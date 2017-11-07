@@ -161,7 +161,7 @@ impl Compress {
         unsafe {
             let mut state = ffi::StreamWrapper::default();
             let ret = ffi::mz_deflateInit2(&mut *state,
-                                           level as c_int,
+                                           level.0 as c_int,
                                            ffi::MZ_DEFLATED,
                                            if zlib_header {
                                                ffi::MZ_DEFAULT_WINDOW_BITS
@@ -498,7 +498,7 @@ mod tests {
         let mut zlib = Vec::new();
         let mut deflate = Vec::new();
 
-        let comp = Compression::Default;
+        let comp = Compression::default();
         write::ZlibEncoder::new(&mut zlib, comp).write_all(string).unwrap();
         write::DeflateEncoder::new(&mut deflate, comp).write_all(string).unwrap();
 
