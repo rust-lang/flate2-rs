@@ -12,10 +12,11 @@
 //!
 //! # Organization
 //!
-//! This crate consists mainly of two modules, [`read`] and [`write`]. Each
-//! module contains a number of types used to encode and decode various streams
-//! of data. All types in the [`write`] module work on instances of [`Write`],
-//! whereas all types in the [`read`] module work on instances of [`Read`].
+//! This crate consists mainly of three modules, [`read`], [`write`], and
+//! [`bufread`]. Each module contains a number of types used to encode and
+//! decode various streams of data. All types in the [`write`] module work on
+//! instances of [`Write`], whereas all types in the [`read`] module work on
+//! instances of [`Read`] and [`bufread`] works with [`BufRead`].
 //!
 //! ```
 //! use flate2::write::GzEncoder;
@@ -33,12 +34,18 @@
 //!
 //!
 //! Other various types are provided at the top-level of the crate for
-//! management and dealing with encoders/decoders.
+//! management and dealing with encoders/decoders. Also note that types which
+//! operate over a specific trait often implement the mirroring trait as well.
+//! For example a `flate2::read::DeflateDecoder<T>` *also* implements the
+//! `Write` trait if `T: Write`. That is, the "dual trait" is forwarded directly
+//! to the underlying object if available.
 //!
 //! [`read`]: read/index.html
+//! [`bufread`]: bufread/index.html
 //! [`write`]: write/index.html
 //! [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 //! [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
+//! [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 //!
 //! # Async I/O
 //!
