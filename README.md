@@ -49,7 +49,7 @@ use flate2::Compression;
 use flate2::write::ZlibEncoder;
 
 fn main() {
-    let mut e = ZlibEncoder::new(Vec::new(), Compression::Default);
+    let mut e = ZlibEncoder::new(Vec::new(), Compression::default());
     e.write(b"foo");
     e.write(b"bar");
     let compressed_bytes = e.finish();
@@ -65,7 +65,7 @@ use std::io::prelude::*;
 use flate2::read::GzDecoder;
 
 fn main() {
-    let mut d = GzDecoder::new("...".as_bytes()).unwrap();
+    let mut d = GzDecoder::new("...".as_bytes());
     let mut s = String::new();
     d.read_to_string(&mut s).unwrap();
     println!("{}", s);
