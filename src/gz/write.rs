@@ -345,19 +345,8 @@ impl<W: Write> Write for GzDecoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<W: AsyncWrite> AsyncWrite for GzDecoder<W> {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        try_nb!(self.inner.finish());
-        self.inner.get_mut().shutdown()
-    }
-}
-
 impl<W: Read + Write> Read for GzDecoder<W> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.get_mut().get_mut().read(buf)
     }
 }
-
-#[cfg(feature = "tokio")]
-impl<W: AsyncRead + AsyncWrite> AsyncRead for GzDecoder<W> {}
