@@ -9,6 +9,7 @@ pub struct Writer<W: Write, D: Ops> {
     obj: Option<W>,
     pub data: D,
     buf: Vec<u8>,
+    op_status: Option<Status>,
 }
 
 pub trait Ops {
@@ -162,6 +163,7 @@ impl<W: Write, D: Ops> Writer<W, D> {
             obj: Some(w),
             data: d,
             buf: Vec::with_capacity(32 * 1024),
+            op_status: None,
         }
     }
 
@@ -202,6 +204,11 @@ impl<W: Write, D: Ops> Writer<W, D> {
         self.obj.is_some()
     }
 
+    // Status of last Ops operation
+    pub fn op_status(&self) -> Option<Status> {
+        self.op_status
+    }
+
     fn dump(&mut self) -> io::Result<()> {
         // TODO: should manage this buffer not with `drain` but probably more of
         // a deque-like strategy.
@@ -234,6 +241,7 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
             if buf.len() > 0 && written == 0 && ret.is_ok() {
                 continue;
             }
+            self.op_status = if let Ok(st) = ret { Some(st) } else { None };
             return match ret {
                 Ok(Status::Ok) | Ok(Status::BufError) | Ok(Status::StreamEnd) => Ok(written),
 

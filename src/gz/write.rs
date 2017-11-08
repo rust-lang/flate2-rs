@@ -9,7 +9,7 @@ use tokio_io::{AsyncRead, AsyncWrite};
 
 use super::{GzBuilder, GzHeader};
 use super::bufread::{corrupt, read_gz_header};
-use {Compress, Compression, Decompress};
+use {Compress, Compression, Decompress, Status};
 use crc::{Crc, CrcWriter};
 use zio;
 
@@ -314,10 +314,12 @@ impl<W: Write> GzDecoder<W> {
 
     fn write_buf(&mut self, buf: &[u8]) -> io::Result<usize> {
         let n = try!(self.inner.write(buf));
-        if n < buf.len() && self.crc_bytes.len() < 8 {
-            let d = cmp::min(buf.len(), n + 8 - self.crc_bytes.len());
-            self.crc_bytes.extend(&buf[n..d]);
-            return Ok(d)
+        if let Some(Status::StreamEnd) = self.inner.op_status() {
+            if n < buf.len() && self.crc_bytes.len() < 8 {
+                let d = cmp::min(buf.len(), n + 8 - self.crc_bytes.len());
+                self.crc_bytes.extend(&buf[n..d]);
+                return Ok(d)
+            }
         }
         Ok(n)
     }
