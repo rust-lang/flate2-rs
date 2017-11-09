@@ -15,8 +15,8 @@
 //! This crate consists mainly of three modules, [`read`], [`write`], and
 //! [`bufread`]. Each module contains a number of types used to encode and
 //! decode various streams of data. All types in the [`write`] module work on
-//! instances of [`Write`], whereas all types in the [`read`] module work on
-//! instances of [`Read`] and [`bufread`] works with [`BufRead`].
+//! instances of [`Write`][write], whereas all types in the [`read`] module work on
+//! instances of [`Read`][read] and [`bufread`] works with [`BufRead`][bufread].
 //!
 //! ```
 //! use flate2::write::GzEncoder;
@@ -43,9 +43,9 @@
 //! [`read`]: read/index.html
 //! [`bufread`]: bufread/index.html
 //! [`write`]: write/index.html
-//! [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
-//! [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
-//! [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
+//! [read]: https://doc.rust-lang.org/std/io/trait.Read.html
+//! [write]: https://doc.rust-lang.org/std/io/trait.Write.html
+//! [bufread]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 //!
 //! # Async I/O
 //!
