@@ -313,12 +313,9 @@ impl<W: Write> GzDecoder<W> {
     }
 
     fn write_buf(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let n = if let Some(Status::StreamEnd) = self.inner.op_status() {
-            0
-        } else {
-            try!(self.inner.write(buf))
-        };
-        if let Some(Status::StreamEnd) = self.inner.op_status() {
+        let (n, status) = try!(self.inner.write_with_status(buf));
+
+        if status == Status::StreamEnd {
             if n < buf.len() && self.crc_bytes.len() < 8 {
                 let d = cmp::min(buf.len(), n + 8 - self.crc_bytes.len());
                 self.crc_bytes.extend(&buf[n..d]);
