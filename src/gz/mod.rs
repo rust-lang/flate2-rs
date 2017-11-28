@@ -24,6 +24,7 @@ pub struct GzHeader {
     extra: Option<Vec<u8>>,
     filename: Option<Vec<u8>>,
     comment: Option<Vec<u8>>,
+    operating_system: u8,
     mtime: u32,
 }
 
@@ -41,6 +42,14 @@ impl GzHeader {
     /// Returns the `comment` field of this gzip stream's header, if present.
     pub fn comment(&self) -> Option<&[u8]> {
         self.comment.as_ref().map(|s| &s[..])
+    }
+
+    /// Returns the `operating_system` field of this gzip stream's header.
+    ///
+    /// There are predefined values for various operating systems.
+    /// 255 means that the value is unknown.
+    pub fn operating_system(&self) -> u8 {
+        self.operating_system
     }
 
     /// This gives the most recent modification time of the original file being compressed.
@@ -105,6 +114,7 @@ pub struct GzBuilder {
     extra: Option<Vec<u8>>,
     filename: Option<CString>,
     comment: Option<CString>,
+    operating_system: Option<u8>,
     mtime: u32,
 }
 
@@ -115,6 +125,7 @@ impl GzBuilder {
             extra: None,
             filename: None,
             comment: None,
+            operating_system: None,
             mtime: 0,
         }
     }
@@ -122,6 +133,12 @@ impl GzBuilder {
     /// Configure the `mtime` field in the gzip header.
     pub fn mtime(mut self, mtime: u32) -> GzBuilder {
         self.mtime = mtime;
+        self
+    }
+
+    /// Configure the `operating_system` field in the gzip header.
+    pub fn operating_system(mut self, os: u8) -> GzBuilder {
+        self.operating_system = Some(os);
         self
     }
 
@@ -183,6 +200,7 @@ impl GzBuilder {
             extra,
             filename,
             comment,
+            operating_system,
             mtime,
         } = self;
         let mut flg = 0;
@@ -222,9 +240,9 @@ impl GzBuilder {
 
         // Typically this byte indicates what OS the gz stream was created on,
         // but in an effort to have cross-platform reproducible streams just
-        // always set this to 255. I'm not sure that if we "correctly" set this
-        // it'd do anything anyway...
-        header[9] = 255;
+        // default this value to 255. I'm not sure that if we "correctly" set
+        // this it'd do anything anyway...
+        header[9] = operating_system.unwrap_or(255);
         return header;
     }
 }

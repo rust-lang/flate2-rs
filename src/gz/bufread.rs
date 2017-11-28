@@ -53,7 +53,7 @@ fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
     let mtime = ((header[4] as u32) << 0) | ((header[5] as u32) << 8) | ((header[6] as u32) << 16) |
         ((header[7] as u32) << 24);
     let _xfl = header[8];
-    let _os = header[9];
+    let os = header[9];
 
     let extra = if flg & FEXTRA != 0 {
         let xlen = try!(read_le_u16(&mut crc_reader));
@@ -104,6 +104,7 @@ fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
         extra: extra,
         filename: filename,
         comment: comment,
+        operating_system: os,
         mtime: mtime,
     })
 }
