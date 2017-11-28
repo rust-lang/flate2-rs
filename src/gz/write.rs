@@ -222,6 +222,8 @@ pub struct GzDecoder<W: Write> {
     header: Option<GzHeader>,
 }
 
+const CRC_BYTES_LEN: usize = 8;
+
 impl<W: Write> GzDecoder<W> {
     /// Creates a new decoder which will write uncompressed data to the stream.
     ///
@@ -230,7 +232,7 @@ impl<W: Write> GzDecoder<W> {
     pub fn new(w: W) -> GzDecoder<W> {
         GzDecoder {
             inner: zio::Writer::new(CrcWriter::new(w), Decompress::new(false)),
-            crc_bytes: Vec::with_capacity(8),
+            crc_bytes: Vec::with_capacity(CRC_BYTES_LEN),
             header: None,
         }
     }
@@ -317,9 +319,10 @@ impl<W: Write> GzDecoder<W> {
 
         if status == Status::StreamEnd {
             if n < buf.len() && self.crc_bytes.len() < 8 {
-                let d = cmp::min(buf.len(), n + 8 - self.crc_bytes.len());
-                self.crc_bytes.extend(&buf[n..d]);
-                return Ok(d)
+                let remaining = buf.len() - n;
+                let crc_bytes = cmp::min(remaining, CRC_BYTES_LEN - self.crc_bytes.len());
+                self.crc_bytes.extend(&buf[n..n+crc_bytes]);
+                return Ok(n+crc_bytes)
             }
         }
         Ok(n)
