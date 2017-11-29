@@ -15,7 +15,6 @@ Bindings to miniz.c for DEFLATE compression and decompression exposed as
 Reader/Writer streams. Contains bindings for zlib, deflate, and gzip-based
 streams.
 """
-publish = false # not quite done yet
 
 [workspace]
 
