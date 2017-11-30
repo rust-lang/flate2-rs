@@ -134,11 +134,6 @@ pub struct GzDecoder<R> {
 impl<R: Read> GzDecoder<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// gzip header.
-    ///
-    /// # Errors
-    ///
-    /// If an error is encountered when parsing the gzip header, an error is
-    /// returned.
     pub fn new(r: R) -> GzDecoder<R> {
         GzDecoder {
             inner: bufread::GzDecoder::new(BufReader::new(r)),
@@ -236,11 +231,6 @@ impl<R: Read> MultiGzDecoder<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// (first) gzip header. If the gzip stream contains multiple members all will
     /// be decoded.
-    ///
-    /// # Errors
-    ///
-    /// If an error is encountered when parsing the gzip header, an error is
-    /// returned.
     pub fn new(r: R) -> MultiGzDecoder<R> {
         MultiGzDecoder {
             inner: bufread::MultiGzDecoder::new(BufReader::new(r)),
