@@ -236,7 +236,13 @@ impl GzBuilder {
         header[5] = (mtime >> 8) as u8;
         header[6] = (mtime >> 16) as u8;
         header[7] = (mtime >> 24) as u8;
-        header[8] = lvl.0 as u8;
+        header[8] = if lvl.0 >= Compression::best().0 {
+            2
+        } else if lvl.0 <= Compression::fast().0 {
+            4
+        } else {
+            0
+        };
 
         // Typically this byte indicates what OS the gz stream was created on,
         // but in an effort to have cross-platform reproducible streams just
