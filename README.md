@@ -22,21 +22,21 @@ Supported formats:
 ```toml
 # Cargo.toml
 [dependencies]
-flate2 = "0.2"
+flate2 = "1.0"
 ```
 
 Using zlib instead of miniz:
 
 ```toml
 [dependencies]
-flate2 = { version = "0.2", features = ["zlib"], default-features = false }
+flate2 = { version = "1.0", features = ["zlib"], default-features = false }
 ```
 
 Using the rust back-end:
 
 ```toml
 [dependencies]
-flate2 = { version = "0.2", features = ["rust_backend"], default-features = false }
+flate2 = { version = "1.0", features = ["rust_backend"], default-features = false }
 ```
 
 ## Compression
