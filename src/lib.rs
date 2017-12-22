@@ -126,6 +126,7 @@ pub mod write {
     pub use zlib::write::ZlibEncoder;
     pub use zlib::write::ZlibDecoder;
     pub use gz::write::GzEncoder;
+    pub use gz::write::GzDecoder;
 }
 
 /// Types which operate over [`BufRead`] streams, both encoders and decoders for

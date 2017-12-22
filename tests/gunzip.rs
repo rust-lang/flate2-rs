@@ -57,3 +57,18 @@ fn extract_file_multi(path_compressed: &Path) -> io::Result<Vec<u8>>{
     try!(MultiGzDecoder::new(f).read_to_end(&mut v));
     Ok(v)
 }
+
+// Test writing and reading a gz stream via std::io::Write
+#[test]
+fn test_gz_write() {
+    let buf = Vec::new();
+    let mut w = flate2::write::GzEncoder::new(buf, flate2::Compression::new(0));
+    let content = b"one two three four five";
+    w.write_all(content).expect("could not write to gz");
+    let gz = w.finish().unwrap();
+    let buf = Vec::new();
+    let mut w = flate2::write::GzDecoder::new(buf);
+    w.write_all(&gz).expect("could write to gz decoder");
+    let out = w.finish().unwrap();
+    assert_eq!(content, &out[..]);
+}

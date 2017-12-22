@@ -10,6 +10,8 @@ use super::GzBuilder;
 use {Compress, Compression};
 use crc::Crc;
 use zio;
+use super::super::deflate::write::DeflateDecoder;
+use super::bufread::read_gz_header;
 
 /// A gzip streaming encoder
 ///
@@ -178,5 +180,63 @@ impl<W: Write> Drop for GzEncoder<W> {
         if self.inner.is_present() {
             let _ = self.try_finish();
         }
+    }
+}
+
+/// A gzip streaming decoder
+///
+/// This structure exposes a [`Write`] interface that will emit decompressed
+/// data to the underlying writer `W`.
+///
+/// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
+///
+/// ```
+#[derive(Debug)]
+pub struct GzDecoder<W: Write> {
+    skipped_header: bool,
+    inner: DeflateDecoder<W>,
+}
+
+impl<W: Write> GzDecoder<W> {
+    /// Creates a new decoder.
+    ///
+    /// The data written to the returned decoder will be decompressed and then
+    /// written to the stream `w`.
+    pub fn new(w: W) -> GzDecoder<W> {
+        GzDecoder{
+            skipped_header: false,
+            inner:DeflateDecoder::new(w)
+        }
+    }
+
+    /// Finish decoding this stream, returning the underlying writer once the
+    /// decoding is done.
+    pub fn finish(self) -> io::Result<W> {
+        self.inner.finish()
+    }
+}
+
+impl<W: Write> Write for GzDecoder<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if self.skipped_header {
+            return self.inner.write(buf);
+        }
+        let mut c = ::std::io::Cursor::new(buf);
+        match read_gz_header(&mut c) {
+            Ok(_) => {
+                self.skipped_header = true;
+                let start = c.position() as usize;
+                self.inner.write(&buf[start..])
+            }
+            Err(ref e) if e.kind() == ::std::io::ErrorKind::UnexpectedEof => {
+                // not enough data, sender should try again with more data
+                Ok(0)
+            }
+            Err(e) => Err(e)
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
     }
 }
