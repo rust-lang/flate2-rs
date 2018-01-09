@@ -220,6 +220,7 @@ pub struct GzDecoder<W: Write> {
     inner: zio::Writer<CrcWriter<W>, Decompress>,
     crc_bytes: Vec<u8>,
     header: Option<GzHeader>,
+    header_buf: io::Cursor<Vec<u8>>,
 }
 
 const CRC_BYTES_LEN: usize = 8;
@@ -234,6 +235,7 @@ impl<W: Write> GzDecoder<W> {
             inner: zio::Writer::new(CrcWriter::new(w), Decompress::new(false)),
             crc_bytes: Vec::with_capacity(CRC_BYTES_LEN),
             header: None,
+            header_buf: io::Cursor::new(Vec::new()),
         }
     }
 
@@ -332,13 +334,25 @@ impl<W: Write> GzDecoder<W> {
 impl<W: Write> Write for GzDecoder<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.header.is_none() {
-            let mut cur = io::Cursor::new(buf);
-            match read_gz_header(&mut cur) {
-                Err(err) => Err(err),
+            self.header_buf.get_mut().extend(buf);
+            self.header_buf.set_position(0);
+            match read_gz_header(&mut self.header_buf) {
+                Err(err) => {
+                    if err.kind() == io::ErrorKind::UnexpectedEof {
+                        Ok(buf.len())
+                    } else {
+                        Err(err)
+                    }
+                }
                 Ok(header) => {
                     self.header = Some(header);
-                    let pos = cur.position() as usize;
-                    Ok(try!(self.write_buf(&buf[pos..])))
+                    // position in buf
+                    let pos = buf.len() - (self.header_buf.get_ref().len() -
+                                           self.header_buf.position() as usize);
+                    self.header_buf.get_mut().truncate(0);
+
+                    let n = try!(self.write_buf(&buf[pos..]));
+                    Ok(n + pos)
                 }
             }
         } else {
@@ -351,8 +365,79 @@ impl<W: Write> Write for GzDecoder<W> {
     }
 }
 
+#[cfg(feature = "tokio")]
+impl<W: AsyncWrite> AsyncWrite for GzDecoder<W> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        try_nb!(self.inner.finish());
+        self.inner.get_mut().get_mut().shutdown()
+    }
+}
+
 impl<W: Read + Write> Read for GzDecoder<W> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.get_mut().get_mut().read(buf)
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<W: AsyncRead + AsyncWrite> AsyncRead for GzDecoder<W> {}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const STR: &'static str =
+        "Hello World Hello World Hello World Hello World Hello World \
+         Hello World Hello World Hello World Hello World Hello World \
+         Hello World Hello World Hello World Hello World Hello World \
+         Hello World Hello World Hello World Hello World Hello World \
+         Hello World Hello World Hello World Hello World Hello World";
+
+    #[test]
+    fn decode_writer_one_chunk() {
+        let mut e = GzEncoder::new(Vec::new(), Compression::default());
+        e.write(STR.as_ref()).unwrap();
+        let bytes = e.finish().unwrap();
+
+        let mut writer = Vec::new();
+        let mut decoder = GzDecoder::new(writer);
+        decoder.write(&bytes[..]).unwrap();
+        decoder.try_finish().unwrap();
+        writer = decoder.finish().unwrap();
+        let return_string = String::from_utf8(writer).expect("String parsing error");
+        assert_eq!(return_string, STR);
+    }
+
+    #[test]
+    fn decode_writer_partial_header() {
+        let mut e = GzEncoder::new(Vec::new(), Compression::default());
+        e.write(STR.as_ref()).unwrap();
+        let bytes = e.finish().unwrap();
+
+        let mut writer = Vec::new();
+        let mut decoder = GzDecoder::new(writer);
+        assert_eq!(decoder.write(&bytes[..5]).unwrap(), 5);
+        decoder.write(&bytes[5..]).unwrap();
+        decoder.try_finish().unwrap();
+        writer = decoder.finish().unwrap();
+        let return_string = String::from_utf8(writer).expect("String parsing error");
+        assert_eq!(return_string, STR);
+    }
+
+    #[test]
+    fn decode_writer_exact_header() {
+        let mut e = GzEncoder::new(Vec::new(), Compression::default());
+        e.write(STR.as_ref()).unwrap();
+        let bytes = e.finish().unwrap();
+
+        let mut writer = Vec::new();
+        let mut decoder = GzDecoder::new(writer);
+        assert_eq!(decoder.write(&bytes[..10]).unwrap(), 10);
+        decoder.write(&bytes[10..]).unwrap();
+        decoder.try_finish().unwrap();
+        writer = decoder.finish().unwrap();
+        let return_string = String::from_utf8(writer).expect("String parsing error");
+        assert_eq!(return_string, STR);
     }
 }
