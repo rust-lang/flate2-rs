@@ -334,11 +334,25 @@ impl<W: Write> GzDecoder<W> {
 impl<W: Write> Write for GzDecoder<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.header.is_none() {
-            self.header_buf.get_mut().extend(buf);
-            self.header_buf.set_position(0);
-            match read_gz_header(&mut self.header_buf) {
+            // trying to avoid buffer usage
+            let (res, pos) = if self.header_buf.get_ref().is_empty() {
+                let mut cur = io::Cursor::new(buf);
+                let res = read_gz_header(&mut cur);
+                (res, cur.position() as usize)
+            } else {
+                self.header_buf.get_mut().extend(buf);
+                self.header_buf.set_position(0);
+                let res = read_gz_header(&mut self.header_buf);
+                let pos = buf.len() - (self.header_buf.get_ref().len() -
+                                       self.header_buf.position() as usize);
+                (res, pos)
+            };
+
+            match res {
                 Err(err) => {
                     if err.kind() == io::ErrorKind::UnexpectedEof {
+                        // not enough data for header, need to use buffer
+                        self.header_buf.get_mut().extend(buf);
                         Ok(buf.len())
                     } else {
                         Err(err)
@@ -346,11 +360,7 @@ impl<W: Write> Write for GzDecoder<W> {
                 }
                 Ok(header) => {
                     self.header = Some(header);
-                    // position in buf
-                    let pos = buf.len() - (self.header_buf.get_ref().len() -
-                                           self.header_buf.position() as usize);
                     self.header_buf.get_mut().truncate(0);
-
                     let n = try!(self.write_buf(&buf[pos..]));
                     Ok(n + pos)
                 }
@@ -368,7 +378,7 @@ impl<W: Write> Write for GzDecoder<W> {
 #[cfg(feature = "tokio")]
 impl<W: AsyncWrite> AsyncWrite for GzDecoder<W> {
     fn shutdown(&mut self) -> Poll<(), io::Error> {
-        try_nb!(self.inner.finish());
+        try_nb!(self.inner.try_finish());
         self.inner.get_mut().get_mut().shutdown()
     }
 }
