@@ -274,25 +274,6 @@ impl<W: Write> GzDecoder<W> {
     /// errors which happen.
     pub fn try_finish(&mut self) -> io::Result<()> {
         try!(self.inner.finish());
-
-        if self.crc_bytes.len() != 8 {
-            return Err(corrupt())
-        }
-
-        let crc = ((self.crc_bytes[0] as u32) << 0)
-            | ((self.crc_bytes[1] as u32) << 8)
-            | ((self.crc_bytes[2] as u32) << 16)
-            | ((self.crc_bytes[3] as u32) << 24);
-        let amt = ((self.crc_bytes[4] as u32) << 0)
-            | ((self.crc_bytes[5] as u32) << 8)
-            | ((self.crc_bytes[6] as u32) << 16)
-            | ((self.crc_bytes[7] as u32) << 24);
-        if crc != self.inner.get_ref().crc().sum() as u32 {
-            return Err(corrupt());
-        }
-        if amt != self.inner.get_ref().crc().amount() {
-            return Err(corrupt());
-        }
         Ok(())
     }
 
@@ -313,6 +294,26 @@ impl<W: Write> GzDecoder<W> {
     /// errors which occur will be returned from this function.
     pub fn finish(mut self) -> io::Result<W> {
         try!(self.inner.finish());
+
+        if self.crc_bytes.len() != 8 {
+            return Err(corrupt())
+        }
+
+        let crc = ((self.crc_bytes[0] as u32) << 0)
+            | ((self.crc_bytes[1] as u32) << 8)
+            | ((self.crc_bytes[2] as u32) << 16)
+            | ((self.crc_bytes[3] as u32) << 24);
+        let amt = ((self.crc_bytes[4] as u32) << 0)
+            | ((self.crc_bytes[5] as u32) << 8)
+            | ((self.crc_bytes[6] as u32) << 16)
+            | ((self.crc_bytes[7] as u32) << 24);
+        if crc != self.inner.get_ref().crc().sum() as u32 {
+            return Err(corrupt());
+        }
+        if amt != self.inner.get_ref().crc().amount() {
+            return Err(corrupt());
+        }
+
         Ok(self.inner.take_inner().into_inner())
     }
 
@@ -378,7 +379,7 @@ impl<W: Write> Write for GzDecoder<W> {
 #[cfg(feature = "tokio")]
 impl<W: AsyncWrite> AsyncWrite for GzDecoder<W> {
     fn shutdown(&mut self) -> Poll<(), io::Error> {
-        try_nb!(self.inner.try_finish());
+        try_nb!(self.try_finish());
         self.inner.get_mut().get_mut().shutdown()
     }
 }
