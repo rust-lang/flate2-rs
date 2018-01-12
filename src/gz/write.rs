@@ -273,7 +273,7 @@ impl<W: Write> GzDecoder<W> {
     /// This function will perform I/O to finish the stream, returning any
     /// errors which happen.
     pub fn try_finish(&mut self) -> io::Result<()> {
-        try!(self.inner.finish());
+        try!(self.finish_and_check_crc());
         Ok(())
     }
 
@@ -293,6 +293,11 @@ impl<W: Write> GzDecoder<W> {
     /// This function will perform I/O to complete this stream, and any I/O
     /// errors which occur will be returned from this function.
     pub fn finish(mut self) -> io::Result<W> {
+        try!(self.finish_and_check_crc());
+        Ok(self.inner.take_inner().into_inner())
+    }
+
+    fn finish_and_check_crc(&mut self) -> io::Result<()> {
         try!(self.inner.finish());
 
         if self.crc_bytes.len() != 8 {
@@ -313,8 +318,7 @@ impl<W: Write> GzDecoder<W> {
         if amt != self.inner.get_ref().crc().amount() {
             return Err(corrupt());
         }
-
-        Ok(self.inner.take_inner().into_inner())
+        Ok(())
     }
 
     fn write_buf(&mut self, buf: &[u8]) -> io::Result<usize> {
