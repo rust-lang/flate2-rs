@@ -434,7 +434,6 @@ mod tests {
         let mut decoder = GzDecoder::new(writer);
         assert_eq!(decoder.write(&bytes[..5]).unwrap(), 5);
         decoder.write(&bytes[5..]).unwrap();
-        decoder.try_finish().unwrap();
         writer = decoder.finish().unwrap();
         let return_string = String::from_utf8(writer).expect("String parsing error");
         assert_eq!(return_string, STR);
@@ -450,9 +449,25 @@ mod tests {
         let mut decoder = GzDecoder::new(writer);
         assert_eq!(decoder.write(&bytes[..10]).unwrap(), 10);
         decoder.write(&bytes[10..]).unwrap();
-        decoder.try_finish().unwrap();
         writer = decoder.finish().unwrap();
         let return_string = String::from_utf8(writer).expect("String parsing error");
         assert_eq!(return_string, STR);
     }
+
+    #[test]
+    fn decode_writer_partial_crc() {
+        let mut e = GzEncoder::new(Vec::new(), Compression::default());
+        e.write(STR.as_ref()).unwrap();
+        let bytes = e.finish().unwrap();
+
+        let mut writer = Vec::new();
+        let mut decoder = GzDecoder::new(writer);
+        let l = bytes.len()-5;
+        decoder.write(&bytes[..l]).unwrap();
+        decoder.write(&bytes[l..]).unwrap();
+        writer = decoder.finish().unwrap();
+        let return_string = String::from_utf8(writer).expect("String parsing error");
+        assert_eq!(return_string, STR);
+    }
+
 }
