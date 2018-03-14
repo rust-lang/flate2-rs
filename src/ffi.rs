@@ -6,7 +6,7 @@ mod imp {
     extern crate libz_sys as z;
     use std::mem;
     use std::ops::{Deref, DerefMut};
-    use libc::{c_int, size_t, c_ulong, c_uint, c_char};
+    use libc::{c_char, c_int, c_uint, c_ulong, size_t};
 
     pub use self::z::*;
     pub use self::z::deflateEnd as mz_deflateEnd;
@@ -32,45 +32,54 @@ mod imp {
 
     pub const MZ_DEFAULT_WINDOW_BITS: c_int = 15;
 
-    pub unsafe extern fn mz_crc32(crc: c_ulong,
-                                  ptr: *const u8,
-                                  len: size_t) -> c_ulong {
+    pub unsafe extern "C" fn mz_crc32(crc: c_ulong, ptr: *const u8, len: size_t) -> c_ulong {
         z::crc32(crc, ptr, len as c_uint)
     }
 
-    pub unsafe extern fn mz_crc32_combine(crc1: c_ulong,
-                                          crc2: c_ulong,
-                                          len2: z_off_t) -> c_ulong {
-          z::crc32_combine(crc1, crc2, len2)
+    pub unsafe extern "C" fn mz_crc32_combine(
+        crc1: c_ulong,
+        crc2: c_ulong,
+        len2: z_off_t,
+    ) -> c_ulong {
+        z::crc32_combine(crc1, crc2, len2)
     }
 
     const ZLIB_VERSION: &'static str = "1.2.8\0";
 
-    pub unsafe extern fn mz_deflateInit2(stream: *mut mz_stream,
-                                         level: c_int,
-                                         method: c_int,
-                                         window_bits: c_int,
-                                         mem_level: c_int,
-                                         strategy: c_int) -> c_int {
-        z::deflateInit2_(stream, level, method, window_bits, mem_level,
-                         strategy,
-                         ZLIB_VERSION.as_ptr() as *const c_char,
-                         mem::size_of::<mz_stream>() as c_int)
+    pub unsafe extern "C" fn mz_deflateInit2(
+        stream: *mut mz_stream,
+        level: c_int,
+        method: c_int,
+        window_bits: c_int,
+        mem_level: c_int,
+        strategy: c_int,
+    ) -> c_int {
+        z::deflateInit2_(
+            stream,
+            level,
+            method,
+            window_bits,
+            mem_level,
+            strategy,
+            ZLIB_VERSION.as_ptr() as *const c_char,
+            mem::size_of::<mz_stream>() as c_int,
+        )
     }
-    pub unsafe extern fn mz_inflateInit2(stream: *mut mz_stream,
-                                         window_bits: c_int)
-                                         -> c_int {
-        z::inflateInit2_(stream, window_bits,
-                         ZLIB_VERSION.as_ptr() as *const c_char,
-                         mem::size_of::<mz_stream>() as c_int)
+    pub unsafe extern "C" fn mz_inflateInit2(stream: *mut mz_stream, window_bits: c_int) -> c_int {
+        z::inflateInit2_(
+            stream,
+            window_bits,
+            ZLIB_VERSION.as_ptr() as *const c_char,
+            mem::size_of::<mz_stream>() as c_int,
+        )
     }
 
-    pub struct StreamWrapper{
+    pub struct StreamWrapper {
         inner: Box<mz_stream>,
     }
 
-    impl ::std::fmt::Debug for StreamWrapper{
-        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
+    impl ::std::fmt::Debug for StreamWrapper {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
             write!(f, "StreamWrapper")
         }
     }
@@ -78,7 +87,7 @@ mod imp {
     impl Default for StreamWrapper {
         fn default() -> StreamWrapper {
             StreamWrapper {
-                inner: Box::new(unsafe{ mem::zeroed() })
+                inner: Box::new(unsafe { mem::zeroed() }),
             }
         }
     }
@@ -87,7 +96,7 @@ mod imp {
         type Target = mz_stream;
 
         fn deref(&self) -> &Self::Target {
-            & *self.inner
+            &*self.inner
         }
     }
 
@@ -140,8 +149,8 @@ mod imp {
         inner: mz_stream,
     }
 
-    impl ::std::fmt::Debug for StreamWrapper{
-        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
+    impl ::std::fmt::Debug for StreamWrapper {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
             write!(f, "StreamWrapper")
         }
     }
@@ -149,7 +158,7 @@ mod imp {
     impl Default for StreamWrapper {
         fn default() -> StreamWrapper {
             StreamWrapper {
-                inner : unsafe{ mem::zeroed() }
+                inner: unsafe { mem::zeroed() },
             }
         }
     }
@@ -172,10 +181,12 @@ mod imp {
 #[cfg(not(feature = "zlib"))]
 mod crc_imp {
     use libc::{c_ulong, off_t};
-    pub unsafe extern fn mz_crc32_combine(crc1: c_ulong,
-                                          crc2: c_ulong,
-                                          len2: off_t) -> c_ulong {
-          crc32_combine_(crc1, crc2, len2)
+    pub unsafe extern "C" fn mz_crc32_combine(
+        crc1: c_ulong,
+        crc2: c_ulong,
+        len2: off_t,
+    ) -> c_ulong {
+        crc32_combine_(crc1, crc2, len2)
     }
 
     // gf2_matrix_times, gf2_matrix_square and crc32_combine_ are ported from
@@ -212,7 +223,7 @@ mod crc_imp {
         }
 
         /* put operator for one zero bit in odd */
-        odd[0] = 0xedb88320;          /* CRC-32 polynomial */
+        odd[0] = 0xedb88320; /* CRC-32 polynomial */
         row = 1;
         for n in 1..32 {
             odd[n] = row;
@@ -261,8 +272,6 @@ mod crc_imp {
 
 #[test]
 fn crc32_combine() {
-    let crc32 = unsafe {
-        imp::mz_crc32_combine(1, 2, 3)
-    };
+    let crc32 = unsafe { imp::mz_crc32_combine(1, 2, 3) };
     assert_eq!(crc32, 29518389);
 }

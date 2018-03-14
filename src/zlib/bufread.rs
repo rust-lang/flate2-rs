@@ -43,7 +43,6 @@ pub struct ZlibEncoder<R> {
     data: Compress,
 }
 
-
 impl<R: BufRead> ZlibEncoder<R> {
     /// Creates a new encoder which will read uncompressed data from the given
     /// stream and emit the compressed stream.

@@ -12,7 +12,7 @@ fn main() {
 
 // Return a vector containing the GZ compressed version of hello world
 fn gzencoder_read_hello_world() -> io::Result<Vec<u8>> {
-    let mut ret_vec = [0;100];
+    let mut ret_vec = [0; 100];
     let c = b"hello world";
     let mut z = GzEncoder::new(&c[..], Compression::fast());
     let count = z.read(&mut ret_vec)?;

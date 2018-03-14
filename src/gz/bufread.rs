@@ -50,8 +50,8 @@ fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
     }
 
     let flg = header[3];
-    let mtime = ((header[4] as u32) << 0) | ((header[5] as u32) << 8) | ((header[6] as u32) << 16) |
-        ((header[7] as u32) << 24);
+    let mtime = ((header[4] as u32) << 0) | ((header[5] as u32) << 8) | ((header[6] as u32) << 16)
+        | ((header[7] as u32) << 24);
     let _xfl = header[8];
     let os = header[9];
 
@@ -109,7 +109,6 @@ fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
     })
 }
 
-
 /// A gzip streaming encoder
 ///
 /// This structure exposes a [`BufRead`] interface that will read uncompressed data
@@ -148,9 +147,7 @@ pub struct GzEncoder<R> {
     eof: bool,
 }
 
-pub fn gz_encoder<R: BufRead>(header: Vec<u8>, r: R, lvl: Compression)
-    -> GzEncoder<R>
-{
+pub fn gz_encoder<R: BufRead>(header: Vec<u8>, r: R, lvl: Compression) -> GzEncoder<R> {
     let crc = CrcReader::new(r);
     GzEncoder {
         inner: deflate::bufread::DeflateEncoder::new(crc, lvl),
@@ -245,7 +242,6 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
     }
 }
 
-
 /// A gzip streaming decoder
 ///
 /// This structure exposes a [`ReadBuf`] interface that will consume compressed
@@ -286,7 +282,6 @@ pub struct GzDecoder<R> {
     finished: bool,
 }
 
-
 impl<R: BufRead> GzDecoder<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// gzip header.
@@ -317,10 +312,10 @@ impl<R: BufRead> GzDecoder<R> {
             }
         }
 
-        let crc = ((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16) |
-            ((buf[3] as u32) << 24);
-        let amt = ((buf[4] as u32) << 0) | ((buf[5] as u32) << 8) | ((buf[6] as u32) << 16) |
-            ((buf[7] as u32) << 24);
+        let crc = ((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16)
+            | ((buf[3] as u32) << 24);
+        let amt = ((buf[4] as u32) << 0) | ((buf[5] as u32) << 8) | ((buf[6] as u32) << 16)
+            | ((buf[7] as u32) << 24);
         if crc != self.inner.crc().sum() as u32 {
             return Err(corrupt());
         }
@@ -361,7 +356,7 @@ impl<R: BufRead> Read for GzDecoder<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         if let Err(ref mut e) = self.header {
             let another_error = io::ErrorKind::Other.into();
-            return Err(mem::replace(e, another_error))
+            return Err(mem::replace(e, another_error));
         }
         match try!(self.inner.read(into)) {
             0 => {
@@ -382,8 +377,6 @@ impl<R: BufRead + Write> Write for GzDecoder<R> {
         self.get_mut().flush()
     }
 }
-
-
 
 /// A gzip streaming decoder that decodes all members of a multistream
 ///
@@ -432,7 +425,6 @@ pub struct MultiGzDecoder<R> {
     finished: bool,
 }
 
-
 impl<R: BufRead> MultiGzDecoder<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// (first) gzip header. If the gzip stream contains multiple members all will
@@ -464,10 +456,10 @@ impl<R: BufRead> MultiGzDecoder<R> {
             }
         }
 
-        let crc = ((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16) |
-            ((buf[3] as u32) << 24);
-        let amt = ((buf[4] as u32) << 0) | ((buf[5] as u32) << 8) | ((buf[6] as u32) << 16) |
-            ((buf[7] as u32) << 24);
+        let crc = ((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16)
+            | ((buf[3] as u32) << 24);
+        let amt = ((buf[4] as u32) << 0) | ((buf[5] as u32) << 8) | ((buf[6] as u32) << 16)
+            | ((buf[7] as u32) << 24);
         if crc != self.inner.crc().sum() as u32 {
             return Err(corrupt());
         }
@@ -522,7 +514,7 @@ impl<R: BufRead> Read for MultiGzDecoder<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         if let Err(ref mut e) = self.header {
             let another_error = io::ErrorKind::Other.into();
-            return Err(mem::replace(e, another_error))
+            return Err(mem::replace(e, another_error));
         }
         match try!(self.inner.read(into)) {
             0 => match self.finish_member() {

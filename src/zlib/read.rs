@@ -168,7 +168,6 @@ pub struct ZlibDecoder<R> {
     inner: bufread::ZlibDecoder<BufReader<R>>,
 }
 
-
 impl<R: Read> ZlibDecoder<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.

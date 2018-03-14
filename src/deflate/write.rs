@@ -221,7 +221,6 @@ pub struct DeflateDecoder<W: Write> {
     inner: zio::Writer<W, Decompress>,
 }
 
-
 impl<W: Write> DeflateDecoder<W> {
     /// Creates a new decoder which will write uncompressed data to the stream.
     ///

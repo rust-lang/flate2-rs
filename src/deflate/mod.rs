@@ -71,7 +71,8 @@ mod tests {
             .gen_iter::<u8>()
             .take(1024 * 1024)
             .collect::<Vec<_>>();
-        let mut r = read::DeflateDecoder::new(read::DeflateEncoder::new(&v[..], Compression::default()));
+        let mut r =
+            read::DeflateDecoder::new(read::DeflateEncoder::new(&v[..], Compression::default()));
         let mut ret = Vec::new();
         r.read_to_end(&mut ret).unwrap();
         assert_eq!(ret, v);
@@ -83,7 +84,10 @@ mod tests {
             .gen_iter::<u8>()
             .take(1024 * 1024)
             .collect::<Vec<_>>();
-        let mut w = write::DeflateEncoder::new(write::DeflateDecoder::new(Vec::new()), Compression::default());
+        let mut w = write::DeflateEncoder::new(
+            write::DeflateDecoder::new(Vec::new()),
+            Compression::default(),
+        );
         w.write_all(&v).unwrap();
         let w = w.finish().unwrap().finish().unwrap();
         assert!(w == v);
@@ -178,7 +182,10 @@ mod tests {
         ::quickcheck::quickcheck(test as fn(_) -> _);
 
         fn test(v: Vec<u8>) -> bool {
-            let mut r = read::DeflateDecoder::new(read::DeflateEncoder::new(&v[..], Compression::default()));
+            let mut r = read::DeflateDecoder::new(read::DeflateEncoder::new(
+                &v[..],
+                Compression::default(),
+            ));
             let mut v2 = Vec::new();
             r.read_to_end(&mut v2).unwrap();
             v == v2
@@ -190,7 +197,10 @@ mod tests {
         ::quickcheck::quickcheck(test as fn(_) -> _);
 
         fn test(v: Vec<u8>) -> bool {
-            let mut w = write::DeflateEncoder::new(write::DeflateDecoder::new(Vec::new()), Compression::default());
+            let mut w = write::DeflateEncoder::new(
+                write::DeflateDecoder::new(Vec::new()),
+                Compression::default(),
+            );
             w.write_all(&v).unwrap();
             v == w.finish().unwrap().finish().unwrap()
         }

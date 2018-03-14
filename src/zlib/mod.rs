@@ -2,7 +2,6 @@ pub mod bufread;
 pub mod read;
 pub mod write;
 
-
 #[cfg(test)]
 mod tests {
     use std::io::prelude::*;
@@ -85,7 +84,8 @@ mod tests {
             .gen_iter::<u8>()
             .take(1024 * 1024)
             .collect::<Vec<_>>();
-        let mut w = write::ZlibEncoder::new(write::ZlibDecoder::new(Vec::new()), Compression::default());
+        let mut w =
+            write::ZlibEncoder::new(write::ZlibDecoder::new(Vec::new()), Compression::default());
         w.write_all(&v).unwrap();
         let w = w.finish().unwrap().finish().unwrap();
         assert!(w == v);
@@ -144,7 +144,8 @@ mod tests {
         ::quickcheck::quickcheck(test as fn(_) -> _);
 
         fn test(v: Vec<u8>) -> bool {
-            let mut r = read::ZlibDecoder::new(read::ZlibEncoder::new(&v[..], Compression::default()));
+            let mut r =
+                read::ZlibDecoder::new(read::ZlibEncoder::new(&v[..], Compression::default()));
             let mut v2 = Vec::new();
             r.read_to_end(&mut v2).unwrap();
             v == v2
@@ -156,7 +157,10 @@ mod tests {
         ::quickcheck::quickcheck(test as fn(_) -> _);
 
         fn test(v: Vec<u8>) -> bool {
-            let mut w = write::ZlibEncoder::new(write::ZlibDecoder::new(Vec::new()), Compression::default());
+            let mut w = write::ZlibEncoder::new(
+                write::ZlibDecoder::new(Vec::new()),
+                Compression::default(),
+            );
             w.write_all(&v).unwrap();
             v == w.finish().unwrap().finish().unwrap()
         }

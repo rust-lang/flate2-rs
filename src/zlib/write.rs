@@ -37,7 +37,6 @@ pub struct ZlibEncoder<W: Write> {
     inner: zio::Writer<W, Compress>,
 }
 
-
 impl<W: Write> ZlibEncoder<W> {
     /// Creates a new encoder which will write compressed data to the stream
     /// given at the given compression level.
@@ -184,7 +183,6 @@ impl<W: Read + Write> Read for ZlibEncoder<W> {
 #[cfg(feature = "tokio")]
 impl<W: AsyncRead + AsyncWrite> AsyncRead for ZlibEncoder<W> {}
 
-
 /// A ZLIB decoder, or decompressor.
 ///
 /// This structure implements a [`Write`] and will emit a stream of decompressed
@@ -224,7 +222,6 @@ impl<W: AsyncRead + AsyncWrite> AsyncRead for ZlibEncoder<W> {}
 pub struct ZlibDecoder<W: Write> {
     inner: zio::Writer<W, Decompress>,
 }
-
 
 impl<W: Write> ZlibDecoder<W> {
     /// Creates a new decoder which will write uncompressed data to the stream.

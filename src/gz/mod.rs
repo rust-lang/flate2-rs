@@ -14,7 +14,6 @@ pub mod bufread;
 pub mod read;
 pub mod write;
 
-
 /// A structure representing the header of a gzip stream.
 ///
 /// The header can contain metadata about the file that was compressed, if

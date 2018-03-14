@@ -20,11 +20,17 @@ pub struct BufReader<R> {
     cap: usize,
 }
 
-impl<R> ::std::fmt::Debug for BufReader<R> where R: ::std::fmt::Debug {
-    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
+impl<R> ::std::fmt::Debug for BufReader<R>
+where
+    R: ::std::fmt::Debug,
+{
+    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         fmt.debug_struct("BufReader")
             .field("reader", &self.inner)
-            .field("buffer", &format_args!("{}/{}", self.cap - self.pos, self.buf.len()))
+            .field(
+                "buffer",
+                &format_args!("{}/{}", self.cap - self.pos, self.buf.len()),
+            )
             .finish()
     }
 }

@@ -169,8 +169,6 @@ pub struct DeflateDecoder<R> {
     inner: bufread::DeflateDecoder<BufReader<R>>,
 }
 
-
-
 impl<R: Read> DeflateDecoder<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.
