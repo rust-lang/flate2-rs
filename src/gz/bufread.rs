@@ -358,6 +358,9 @@ impl<R: BufRead> Read for GzDecoder<R> {
             let another_error = io::ErrorKind::Other.into();
             return Err(mem::replace(e, another_error));
         }
+        if into.is_empty() {
+            return Ok(0);
+        }
         match try!(self.inner.read(into)) {
             0 => {
                 try!(self.finish());
