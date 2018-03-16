@@ -19,8 +19,7 @@ fn deflate_decoder_empty_read() {
 #[test]
 fn deflate_encoder_empty_read() {
     let original: &[u8] = b"Lorem ipsum dolor sit amet.";
-    let mut encoder =
-        flate2::read::DeflateEncoder::new(original, flate2::Compression::default());
+    let mut encoder = flate2::read::DeflateEncoder::new(original, flate2::Compression::default());
     assert_eq!(encoder.read(&mut []).unwrap(), 0);
     let mut encoded = Vec::new();
     encoder.read_to_end(&mut encoded).unwrap();
