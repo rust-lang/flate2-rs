@@ -238,15 +238,17 @@ impl Compress {
     ///
     /// Returns the Adler-32 checksum of the dictionary.
     #[cfg(feature = "zlib")]
-    pub fn set_dictionary(&mut self, dictionary: &[u8]) -> u32 {
+    pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, CompressError> {
         let stream = &mut *self.inner.stream_wrapper;
         let rc = unsafe {
             ffi::deflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
         };
 
-        assert_eq!(rc, ffi::MZ_OK);
-
-        stream.adler as u32
+        match rc {
+            ffi::MZ_STREAM_ERROR => Err(CompressError(())),
+            ffi::MZ_OK => Ok(stream.adler as u32),
+            c => panic!("unknown return code: {}", c),
+        }
     }
 
     /// Quickly resets this compressor without having to reallocate anything.
@@ -455,13 +457,20 @@ impl Decompress {
 
     /// Specifies the decompression dictionary to use.
     #[cfg(feature = "zlib")]
-    pub fn set_dictionary(&mut self, dictionary: &[u8]) {
+    pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, DecompressError> {
         let stream = &mut *self.inner.stream_wrapper;
         let rc = unsafe {
             ffi::inflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
         };
 
-        assert_eq!(rc, ffi::MZ_OK);
+        match rc {
+            ffi::MZ_STREAM_ERROR => Err(DecompressError(Default::default())),
+            ffi::MZ_DATA_ERROR => Err(DecompressError(DecompressErrorInner {
+                needs_dictionary: Some(stream.adler as u32),
+            })),
+            ffi::MZ_OK => Ok(stream.adler as u32),
+            c => panic!("unknown return code: {}", c),
+        }
     }
 
     /// Performs the equivalent of replacing this decompression state with a
@@ -630,7 +639,7 @@ mod tests {
 
         let mut encoder = Compress::new(Compression::default(), true);
 
-        let dictionary_adler = encoder.set_dictionary(&dictionary);
+        let dictionary_adler = encoder.set_dictionary(&dictionary).unwrap();
 
         encoder
             .compress_vec(string, &mut encoded, FlushCompress::Finish)
@@ -645,12 +654,15 @@ mod tests {
             .decompress(&encoded, &mut decoded, FlushDecompress::Finish)
             .expect_err("decompression should fail due to requiring a dictionary");
 
-        let required_adler = decompress_error.needs_dictionary();
+        let required_adler = decompress_error.needs_dictionary()
+            .expect("the first call to decompress should indicate a dictionary is required along with the required Adler-32 checksum");
 
-        assert_eq!(required_adler, Some(dictionary_adler),
-            "the first call to decompress should indicate a dictionary is required along with the required Adler-32 checksum");
+        assert_eq!(required_adler, dictionary_adler,
+            "the Adler-32 checksum should match the value when the dictionary was set on the compressor");
 
-        decoder.set_dictionary(&dictionary);
+        let actual_adler = decoder.set_dictionary(&dictionary).unwrap();
+
+        assert_eq!(required_adler, actual_adler);
 
         // Decompress the rest of the input to the remainder of the output buffer
         let total_in = decoder.total_in();
@@ -676,7 +688,7 @@ mod tests {
 
         let mut encoder = Compress::new(Compression::default(), false);
 
-        encoder.set_dictionary(&dictionary);
+        encoder.set_dictionary(&dictionary).unwrap();
 
         encoder
             .compress_vec(string, &mut encoded, FlushCompress::Finish)
@@ -687,7 +699,7 @@ mod tests {
 
         let mut decoder = Decompress::new(false);
 
-        decoder.set_dictionary(&dictionary);
+        decoder.set_dictionary(&dictionary).unwrap();
 
         let mut decoded = [0; 1024];
         let decompress_result = decoder.decompress(&encoded, &mut decoded, FlushDecompress::Finish);
