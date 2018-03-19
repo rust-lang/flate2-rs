@@ -6,7 +6,7 @@ mod imp {
     extern crate libz_sys as z;
     use std::mem;
     use std::ops::{Deref, DerefMut};
-    use libc::{c_int, size_t, c_ulong, c_uint, c_char};
+    use libc::{c_char, c_int, c_uint, c_ulong, size_t};
 
     pub use self::z::*;
     pub use self::z::deflateEnd as mz_deflateEnd;
@@ -33,41 +33,62 @@ mod imp {
 
     pub const MZ_DEFAULT_WINDOW_BITS: c_int = 15;
 
-    pub unsafe extern fn mz_crc32(crc: c_ulong,
-                                  ptr: *const u8,
-                                  len: size_t) -> c_ulong {
+    pub unsafe extern "C" fn mz_crc32(crc: c_ulong, ptr: *const u8, len: size_t) -> c_ulong {
         z::crc32(crc, ptr, len as c_uint)
+    }
+
+    pub unsafe extern "C" fn mz_crc32_combine(
+        crc1: c_ulong,
+        crc2: c_ulong,
+        len2: z_off_t,
+    ) -> c_ulong {
+        z::crc32_combine(crc1, crc2, len2)
     }
 
     const ZLIB_VERSION: &'static str = "1.2.8\0";
 
-    pub unsafe extern fn mz_deflateInit2(stream: *mut mz_stream,
-                                         level: c_int,
-                                         method: c_int,
-                                         window_bits: c_int,
-                                         mem_level: c_int,
-                                         strategy: c_int) -> c_int {
-        z::deflateInit2_(stream, level, method, window_bits, mem_level,
-                         strategy,
-                         ZLIB_VERSION.as_ptr() as *const c_char,
-                         mem::size_of::<mz_stream>() as c_int)
+    pub unsafe extern "C" fn mz_deflateInit2(
+        stream: *mut mz_stream,
+        level: c_int,
+        method: c_int,
+        window_bits: c_int,
+        mem_level: c_int,
+        strategy: c_int,
+    ) -> c_int {
+        z::deflateInit2_(
+            stream,
+            level,
+            method,
+            window_bits,
+            mem_level,
+            strategy,
+            ZLIB_VERSION.as_ptr() as *const c_char,
+            mem::size_of::<mz_stream>() as c_int,
+        )
     }
-    pub unsafe extern fn mz_inflateInit2(stream: *mut mz_stream,
-                                         window_bits: c_int)
-                                         -> c_int {
-        z::inflateInit2_(stream, window_bits,
-                         ZLIB_VERSION.as_ptr() as *const c_char,
-                         mem::size_of::<mz_stream>() as c_int)
+    pub unsafe extern "C" fn mz_inflateInit2(stream: *mut mz_stream, window_bits: c_int) -> c_int {
+        z::inflateInit2_(
+            stream,
+            window_bits,
+            ZLIB_VERSION.as_ptr() as *const c_char,
+            mem::size_of::<mz_stream>() as c_int,
+        )
     }
 
-    pub struct StreamWrapper{
+    pub struct StreamWrapper {
         inner: Box<mz_stream>,
+    }
+
+    impl ::std::fmt::Debug for StreamWrapper {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+            write!(f, "StreamWrapper")
+        }
     }
 
     impl Default for StreamWrapper {
         fn default() -> StreamWrapper {
             StreamWrapper {
-                inner: Box::new(unsafe{ mem::zeroed() })
+                inner: Box::new(unsafe { mem::zeroed() }),
             }
         }
     }
@@ -76,7 +97,7 @@ mod imp {
         type Target = mz_stream;
 
         fn deref(&self) -> &Self::Target {
-            & *self.inner
+            &*self.inner
         }
     }
 
@@ -87,22 +108,58 @@ mod imp {
     }
 }
 
-#[cfg(not(feature = "zlib"))]
+#[cfg(all(not(feature = "zlib"), feature = "rust_backend"))]
+mod imp {
+    extern crate miniz_oxide_c_api;
+    use std::ops::{Deref, DerefMut};
+
+    pub use ffi::crc_imp::*;
+    pub use self::miniz_oxide_c_api::*;
+    pub use self::miniz_oxide_c_api::lib_oxide::*;
+
+    #[derive(Debug, Default)]
+    pub struct StreamWrapper {
+        inner: mz_stream,
+    }
+
+    impl Deref for StreamWrapper {
+        type Target = mz_stream;
+
+        fn deref(&self) -> &Self::Target {
+            &self.inner
+        }
+    }
+
+    impl DerefMut for StreamWrapper {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.inner
+        }
+    }
+}
+
+#[cfg(all(not(feature = "zlib"), not(feature = "rust_backend")))]
 mod imp {
     extern crate miniz_sys;
     use std::mem;
     use std::ops::{Deref, DerefMut};
 
     pub use self::miniz_sys::*;
+    pub use ffi::crc_imp::*;
 
     pub struct StreamWrapper {
         inner: mz_stream,
     }
 
+    impl ::std::fmt::Debug for StreamWrapper {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+            write!(f, "StreamWrapper")
+        }
+    }
+
     impl Default for StreamWrapper {
         fn default() -> StreamWrapper {
             StreamWrapper {
-                inner : unsafe{ mem::zeroed() }
+                inner: unsafe { mem::zeroed() },
             }
         }
     }
@@ -120,4 +177,102 @@ mod imp {
             &mut self.inner
         }
     }
+}
+
+#[cfg(not(feature = "zlib"))]
+mod crc_imp {
+    use libc::{c_ulong, off_t};
+    pub unsafe extern "C" fn mz_crc32_combine(
+        crc1: c_ulong,
+        crc2: c_ulong,
+        len2: off_t,
+    ) -> c_ulong {
+        crc32_combine_(crc1, crc2, len2)
+    }
+
+    // gf2_matrix_times, gf2_matrix_square and crc32_combine_ are ported from
+    // zlib.
+
+    fn gf2_matrix_times(mat: &[c_ulong; 32], mut vec: c_ulong) -> c_ulong {
+        let mut sum = 0;
+        let mut mat_pos = 0;
+        while vec != 0 {
+            if vec & 1 == 1 {
+                sum ^= mat[mat_pos];
+            }
+            vec >>= 1;
+            mat_pos += 1;
+        }
+        sum
+    }
+
+    fn gf2_matrix_square(square: &mut [c_ulong; 32], mat: &[c_ulong; 32]) {
+        for n in 0..32 {
+            square[n] = gf2_matrix_times(mat, mat[n]);
+        }
+    }
+
+    fn crc32_combine_(mut crc1: c_ulong, crc2: c_ulong, mut len2: off_t) -> c_ulong {
+        let mut row;
+
+        let mut even = [0; 32]; /* even-power-of-two zeros operator */
+        let mut odd = [0; 32]; /* odd-power-of-two zeros operator */
+
+        /* degenerate case (also disallow negative lengths) */
+        if len2 <= 0 {
+            return crc1;
+        }
+
+        /* put operator for one zero bit in odd */
+        odd[0] = 0xedb88320; /* CRC-32 polynomial */
+        row = 1;
+        for n in 1..32 {
+            odd[n] = row;
+            row <<= 1;
+        }
+
+        /* put operator for two zero bits in even */
+        gf2_matrix_square(&mut even, &odd);
+
+        /* put operator for four zero bits in odd */
+        gf2_matrix_square(&mut odd, &even);
+
+        /* apply len2 zeros to crc1 (first square will put the operator for one
+           zero byte, eight zero bits, in even) */
+        loop {
+            /* apply zeros operator for this bit of len2 */
+            gf2_matrix_square(&mut even, &odd);
+            if len2 & 1 == 1 {
+                crc1 = gf2_matrix_times(&even, crc1);
+            }
+            len2 >>= 1;
+
+            /* if no more bits set, then done */
+            if len2 == 0 {
+                break;
+            }
+
+            /* another iteration of the loop with odd and even swapped */
+            gf2_matrix_square(&mut odd, &even);
+            if len2 & 1 == 1 {
+                crc1 = gf2_matrix_times(&odd, crc1);
+            }
+            len2 >>= 1;
+
+            /* if no more bits set, then done */
+            if len2 == 0 {
+                break;
+            }
+        }
+
+        /* return combined crc */
+        crc1 ^= crc2;
+        crc1
+    }
+}
+
+#[test]
+fn crc32_combine() {
+    let crc32 = unsafe { imp::mz_crc32_combine(1, 2, 3) };
+    assert_eq!(crc32, 29518389);
 }

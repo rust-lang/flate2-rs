@@ -2,8 +2,9 @@ use std::io::prelude::*;
 use std::io;
 use std::mem;
 
-use {Decompress, Compress, Status, Flush, DataError};
+use {Compress, Decompress, DecompressError, FlushCompress, FlushDecompress, Status};
 
+#[derive(Debug)]
 pub struct Writer<W: Write, D: Ops> {
     obj: Option<W>,
     pub data: D,
@@ -11,42 +12,113 @@ pub struct Writer<W: Write, D: Ops> {
 }
 
 pub trait Ops {
+    type Flush: Flush;
     fn total_in(&self) -> u64;
     fn total_out(&self) -> u64;
-    fn run(&mut self, input: &[u8], output: &mut [u8], flush: Flush)
-           -> Result<Status, DataError>;
-    fn run_vec(&mut self, input: &[u8], output: &mut Vec<u8>, flush: Flush)
-               -> Result<Status, DataError>;
+    fn run(
+        &mut self,
+        input: &[u8],
+        output: &mut [u8],
+        flush: Self::Flush,
+    ) -> Result<Status, DecompressError>;
+    fn run_vec(
+        &mut self,
+        input: &[u8],
+        output: &mut Vec<u8>,
+        flush: Self::Flush,
+    ) -> Result<Status, DecompressError>;
 }
 
 impl Ops for Compress {
-    fn total_in(&self) -> u64 { self.total_in() }
-    fn total_out(&self) -> u64 { self.total_out() }
-    fn run(&mut self, input: &[u8], output: &mut [u8], flush: Flush)
-           -> Result<Status, DataError> {
-        Ok(self.compress(input, output, flush))
+    type Flush = FlushCompress;
+    fn total_in(&self) -> u64 {
+        self.total_in()
     }
-    fn run_vec(&mut self, input: &[u8], output: &mut Vec<u8>, flush: Flush)
-               -> Result<Status, DataError> {
-        Ok(self.compress_vec(input, output, flush))
+    fn total_out(&self) -> u64 {
+        self.total_out()
+    }
+    fn run(
+        &mut self,
+        input: &[u8],
+        output: &mut [u8],
+        flush: FlushCompress,
+    ) -> Result<Status, DecompressError> {
+        Ok(self.compress(input, output, flush).unwrap())
+    }
+    fn run_vec(
+        &mut self,
+        input: &[u8],
+        output: &mut Vec<u8>,
+        flush: FlushCompress,
+    ) -> Result<Status, DecompressError> {
+        Ok(self.compress_vec(input, output, flush).unwrap())
     }
 }
 
 impl Ops for Decompress {
-    fn total_in(&self) -> u64 { self.total_in() }
-    fn total_out(&self) -> u64 { self.total_out() }
-    fn run(&mut self, input: &[u8], output: &mut [u8], flush: Flush)
-           -> Result<Status, DataError> {
+    type Flush = FlushDecompress;
+    fn total_in(&self) -> u64 {
+        self.total_in()
+    }
+    fn total_out(&self) -> u64 {
+        self.total_out()
+    }
+    fn run(
+        &mut self,
+        input: &[u8],
+        output: &mut [u8],
+        flush: FlushDecompress,
+    ) -> Result<Status, DecompressError> {
         self.decompress(input, output, flush)
     }
-    fn run_vec(&mut self, input: &[u8], output: &mut Vec<u8>, flush: Flush)
-               -> Result<Status, DataError> {
+    fn run_vec(
+        &mut self,
+        input: &[u8],
+        output: &mut Vec<u8>,
+        flush: FlushDecompress,
+    ) -> Result<Status, DecompressError> {
         self.decompress_vec(input, output, flush)
     }
 }
 
+pub trait Flush {
+    fn none() -> Self;
+    fn sync() -> Self;
+    fn finish() -> Self;
+}
+
+impl Flush for FlushCompress {
+    fn none() -> Self {
+        FlushCompress::None
+    }
+
+    fn sync() -> Self {
+        FlushCompress::Sync
+    }
+
+    fn finish() -> Self {
+        FlushCompress::Finish
+    }
+}
+
+impl Flush for FlushDecompress {
+    fn none() -> Self {
+        FlushDecompress::None
+    }
+
+    fn sync() -> Self {
+        FlushDecompress::Sync
+    }
+
+    fn finish() -> Self {
+        FlushDecompress::Finish
+    }
+}
+
 pub fn read<R, D>(obj: &mut R, data: &mut D, dst: &mut [u8]) -> io::Result<usize>
-    where R: BufRead, D: Ops
+where
+    R: BufRead,
+    D: Ops,
 {
     loop {
         let (read, consumed, ret, eof);
@@ -55,7 +127,11 @@ pub fn read<R, D>(obj: &mut R, data: &mut D, dst: &mut [u8]) -> io::Result<usize
             eof = input.is_empty();
             let before_out = data.total_out();
             let before_in = data.total_in();
-            let flush = if eof {Flush::Finish} else {Flush::None};
+            let flush = if eof {
+                D::Flush::finish()
+            } else {
+                D::Flush::none()
+            };
             ret = data.run(input, dst, flush);
             read = (data.total_out() - before_out) as usize;
             consumed = (data.total_in() - before_in) as usize;
@@ -67,19 +143,15 @@ pub fn read<R, D>(obj: &mut R, data: &mut D, dst: &mut [u8]) -> io::Result<usize
             // then we need to keep asking for more data because if we
             // return that 0 bytes of data have been read then it will
             // be interpreted as EOF.
-            Ok(Status::Ok) |
-            Ok(Status::BufError) if read == 0 && !eof && dst.len() > 0 => {
-                continue
+            Ok(Status::Ok) | Ok(Status::BufError) if read == 0 && !eof && dst.len() > 0 => continue,
+            Ok(Status::Ok) | Ok(Status::BufError) | Ok(Status::StreamEnd) => return Ok(read),
+
+            Err(..) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "corrupt deflate stream",
+                ))
             }
-            Ok(Status::Ok) |
-            Ok(Status::BufError) |
-            Ok(Status::StreamEnd) => return Ok(read),
-
-            Ok(Status::NeedDictionary { adler }) => return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                                 format!("an inflate dictionary with Adler-32 '{}' is required", adler))),
-
-            Err(..) => return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                                 "corrupt deflate stream"))
         }
     }
 }
@@ -98,38 +170,47 @@ impl<W: Write, D: Ops> Writer<W, D> {
             try!(self.dump());
 
             let before = self.data.total_out();
-            try!(self.data.run_vec(&[], &mut self.buf, Flush::Finish));
+            try!(self.data.run_vec(&[], &mut self.buf, D::Flush::finish()));
             if before == self.data.total_out() {
-                return Ok(())
+                return Ok(());
             }
         }
     }
 
     pub fn replace(&mut self, w: W) -> W {
         self.buf.truncate(0);
-        mem::replace(&mut self.obj, Some(w)).unwrap()
+        mem::replace(self.get_mut(), w)
     }
 
-    pub fn get_ref(&self) -> Option<&W> {
-        self.obj.as_ref()
+    pub fn get_ref(&self) -> &W {
+        self.obj.as_ref().unwrap()
     }
 
-    pub fn get_mut(&mut self) -> Option<&mut W> {
-        self.obj.as_mut()
+    pub fn get_mut(&mut self) -> &mut W {
+        self.obj.as_mut().unwrap()
     }
 
-    pub fn take_inner(&mut self) -> Option<W> {
-        self.obj.take()
+    // Note that this should only be called if the outer object is just about
+    // to be consumed!
+    //
+    // (e.g. an implementation of `into_inner`)
+    pub fn take_inner(&mut self) -> W {
+        self.obj.take().unwrap()
     }
 
-    pub fn into_inner(mut self) -> W {
-        self.take_inner().unwrap()
+    pub fn is_present(&self) -> bool {
+        self.obj.is_some()
     }
 
     fn dump(&mut self) -> io::Result<()> {
-        if self.buf.len() > 0 {
-            try!(self.obj.as_mut().unwrap().write_all(&self.buf));
-            self.buf.truncate(0);
+        // TODO: should manage this buffer not with `drain` but probably more of
+        // a deque-like strategy.
+        while self.buf.len() > 0 {
+            let n = try!(self.obj.as_mut().unwrap().write(&self.buf));
+            if n == 0 {
+                return Err(io::ErrorKind::WriteZero.into());
+            }
+            self.buf.drain(..n);
         }
         Ok(())
     }
@@ -147,28 +228,27 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
             try!(self.dump());
 
             let before_in = self.data.total_in();
-            let ret = self.data.run_vec(buf, &mut self.buf, Flush::None);
+            let ret = self.data.run_vec(buf, &mut self.buf, D::Flush::none());
             let written = (self.data.total_in() - before_in) as usize;
 
             if buf.len() > 0 && written == 0 && ret.is_ok() {
-                continue
+                continue;
             }
             return match ret {
-                Ok(Status::Ok) |
-                Ok(Status::BufError) |
-                Ok(Status::StreamEnd) => Ok(written),
+                Ok(Status::Ok) | Ok(Status::BufError) | Ok(Status::StreamEnd) => Ok(written),
 
-                Ok(Status::NeedDictionary { adler }) => return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                                 format!("an inflate dictionary with Adler-32 '{}'is required", adler))),
-
-                Err(..) => Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                              "corrupt deflate stream"))
-            }
+                Err(..) => Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "corrupt deflate stream",
+                )),
+            };
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.data.run_vec(&[], &mut self.buf, Flush::Sync).unwrap();
+        self.data
+            .run_vec(&[], &mut self.buf, D::Flush::sync())
+            .unwrap();
 
         // Unfortunately miniz doesn't actually tell us when we're done with
         // pulling out all the data from the internal stream. To remedy this we
@@ -178,9 +258,11 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
         loop {
             try!(self.dump());
             let before = self.data.total_out();
-            self.data.run_vec(&[], &mut self.buf, Flush::None).unwrap();
+            self.data
+                .run_vec(&[], &mut self.buf, D::Flush::none())
+                .unwrap();
             if before == self.data.total_out() {
-                break
+                break;
             }
         }
 

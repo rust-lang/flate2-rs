@@ -2,7 +2,7 @@
 
 name = "flate2"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
-version = "0.2.17"
+version = "1.0.1"
 license = "MIT/Apache-2.0"
 readme = "README.md"
 keywords = ["gzip", "flate", "zlib", "encoding"]
@@ -22,11 +22,21 @@ streams.
 libc = "0.2"
 miniz-sys = { path = "miniz-sys", version = "0.1.7", optional = true }
 libz-sys = { version = "1.0", optional = true }
+tokio-io = { version = "0.1", optional = true }
+futures = { version = "0.1", optional = true }
+miniz_oxide_c_api = { version = "0.1", optional = true, features = ["no_c_export"]}
 
 [dev-dependencies]
-rand = "0.3"
-quickcheck = { version = "0.4", default-features = false }
+rand = "0.4"
+quickcheck = { version = "0.6", default-features = false }
+tokio-core = "0.1"
 
 [features]
 default = ["miniz-sys"]
 zlib = ["libz-sys"]
+rust_backend = ["miniz_oxide_c_api"]
+tokio = ["tokio-io", "futures"]
+
+[badges]
+travis-ci = { repository = "alexcrichton/flate2-rs" }
+appveyor = { repository = "alexcrichton/flate2-rs" }

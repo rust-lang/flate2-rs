@@ -6,66 +6,98 @@ use libc;
 
 use ffi;
 
+/// The CRC calculated by a [`CrcReader`].
+///
+/// [`CrcReader`]: struct.CrcReader.html
+#[derive(Debug)]
 pub struct Crc {
     crc: libc::c_ulong,
     amt: u32,
 }
 
+/// A wrapper around a [`Read`] that calculates the CRC.
+///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+#[derive(Debug)]
 pub struct CrcReader<R> {
     inner: R,
     crc: Crc,
 }
 
 impl Crc {
+    /// Create a new CRC.
     pub fn new() -> Crc {
         Crc { crc: 0, amt: 0 }
     }
 
+    /// bla
     pub fn sum(&self) -> u32 {
         self.crc as u32
     }
 
-    pub fn amt_as_u32(&self) -> u32 {
+    /// The number of bytes that have been used to calculate the CRC.
+    /// This value is only accurate if the amount is lower than 2<sup>32</sup>.
+    pub fn amount(&self) -> u32 {
         self.amt
     }
 
+    /// Update the CRC with the bytes in `data`.
     pub fn update(&mut self, data: &[u8]) {
         self.amt = self.amt.wrapping_add(data.len() as u32);
-        self.crc = unsafe {
-            ffi::mz_crc32(self.crc, data.as_ptr(), data.len() as libc::size_t)
-        };
+        self.crc = unsafe { ffi::mz_crc32(self.crc, data.as_ptr(), data.len() as libc::size_t) };
     }
 
+    /// Reset the CRC.
     pub fn reset(&mut self) {
         self.crc = 0;
         self.amt = 0;
     }
+
+    /// Combine the CRC with the CRC for the subsequent block of bytes.
+    pub fn combine(&mut self, additional_crc: &Crc) {
+        self.crc = unsafe {
+            ffi::mz_crc32_combine(
+                self.crc as ::libc::c_ulong,
+                additional_crc.crc as ::libc::c_ulong,
+                additional_crc.amt as ::libc::off_t,
+            )
+        };
+        self.amt += additional_crc.amt;
+    }
 }
 
 impl<R: Read> CrcReader<R> {
+    /// Create a new CrcReader.
     pub fn new(r: R) -> CrcReader<R> {
         CrcReader {
             inner: r,
             crc: Crc::new(),
         }
     }
+}
 
+impl<R> CrcReader<R> {
+    /// Get the Crc for this CrcReader.
     pub fn crc(&self) -> &Crc {
         &self.crc
     }
 
+    /// Get the reader that is wrapped by this CrcReader.
     pub fn into_inner(self) -> R {
         self.inner
     }
 
+    /// Get the reader that is wrapped by this CrcReader by reference.
     pub fn get_ref(&self) -> &R {
         &self.inner
     }
 
+    /// Get a mutable reference to the reader that is wrapped by this CrcReader.
     pub fn get_mut(&mut self) -> &mut R {
         &mut self.inner
     }
 
+    /// Reset the Crc in this CrcReader.
     pub fn reset(&mut self) {
         self.crc.reset();
     }
