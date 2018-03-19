@@ -134,10 +134,26 @@ pub enum FlushDecompress {
     #[doc(hidden)] _Nonexhaustive,
 }
 
+/// The inner state for an error when decompressing
+#[derive(Debug, Default)]
+struct DecompressErrorInner {
+    needs_dictionary: Option<u32>,
+}
+
 /// Error returned when a decompression object finds that the input stream of
 /// bytes was not a valid input stream of bytes.
 #[derive(Debug)]
-pub struct DecompressError(());
+pub struct DecompressError(DecompressErrorInner);
+
+impl DecompressError {
+    /// Indicates whether decompression failed due to requiring a dictionary.
+    /// 
+    /// The resulting integer is the Adler-32 checksum of the dictionary
+    /// required.
+    pub fn needs_dictionary(&self) -> Option<u32> {
+        self.0.needs_dictionary
+    }
+}
 
 /// Error returned when a compression object is used incorrectly or otherwise
 /// generates an error.
@@ -171,12 +187,6 @@ pub enum Status {
     /// For decompression with zlib streams the adler-32 of the decompressed
     /// data has also been verified.
     StreamEnd,
-
-    /// Indicates that an inflate dictionary is required.
-    NeedDictionary {
-        /// The Adler-32 checksum of the dictionary required.
-        adler: u32
-    },
 }
 
 impl Compress {
@@ -395,13 +405,13 @@ impl Decompress {
         self.inner.total_out += (raw.next_out as usize - output.as_ptr() as usize) as u64;
 
         match rc {
-            ffi::MZ_DATA_ERROR | ffi::MZ_STREAM_ERROR => Err(DecompressError(())),
+            ffi::MZ_DATA_ERROR | ffi::MZ_STREAM_ERROR => Err(DecompressError(Default::default())),
             ffi::MZ_OK => Ok(Status::Ok),
             ffi::MZ_BUF_ERROR => Ok(Status::BufError),
             ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
-            ffi::MZ_NEED_DICT => Ok(Status::NeedDictionary { 
-                adler: raw.adler as u32
-            }),
+            ffi::MZ_NEED_DICT => Err(DecompressError(DecompressErrorInner {
+                needs_dictionary: Some(raw.adler as u32)
+            })),
             c => panic!("unknown return code: {}", c),
         }
     }
@@ -545,7 +555,7 @@ mod tests {
     use {Compression, Decompress, FlushCompress, FlushDecompress};
 
     #[cfg(feature = "zlib")]
-    use {Compress, Status};
+    use Compress;
 
     #[test]
     fn issue51() {
@@ -626,14 +636,13 @@ mod tests {
 
         let mut decoder = Decompress::new(true);        
         let mut decoded = [0; 1024];
-        let decompress_result = decoder.decompress(&encoded, &mut decoded, Flush::Finish);
+        let decompress_error = decoder.decompress(&encoded, &mut decoded, FlushDecompress::Finish)
+            .expect_err("decompression should fail due to requiring a dictionary");
     
-        let required_adler = match decompress_result { 
-            Ok(Status::NeedDictionary { adler })  => Some(adler), 
-            _ => None
-        };
+        let required_adler = decompress_error.needs_dictionary();
 
-        assert_eq!(required_adler, Some(dictionary_adler), "the first call to decompress should indicate a dictionary is required along with the required Adler-32 checksum");
+        assert_eq!(required_adler, Some(dictionary_adler), 
+            "the first call to decompress should indicate a dictionary is required along with the required Adler-32 checksum");
 
         decoder.set_dictionary(&dictionary);
         
