@@ -147,7 +147,7 @@ pub struct DecompressError(DecompressErrorInner);
 
 impl DecompressError {
     /// Indicates whether decompression failed due to requiring a dictionary.
-    /// 
+    ///
     /// The resulting integer is the Adler-32 checksum of the dictionary
     /// required.
     pub fn needs_dictionary(&self) -> Option<u32> {
@@ -240,7 +240,9 @@ impl Compress {
     #[cfg(feature = "zlib")]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> u32 {
         let stream = &mut *self.inner.stream_wrapper;
-        let rc = unsafe { ffi::deflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt) };
+        let rc = unsafe {
+            ffi::deflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
+        };
 
         assert_eq!(rc, ffi::MZ_OK);
 
@@ -410,7 +412,7 @@ impl Decompress {
             ffi::MZ_BUF_ERROR => Ok(Status::BufError),
             ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
             ffi::MZ_NEED_DICT => Err(DecompressError(DecompressErrorInner {
-                needs_dictionary: Some(raw.adler as u32)
+                needs_dictionary: Some(raw.adler as u32),
             })),
             c => panic!("unknown return code: {}", c),
         }
@@ -454,9 +456,11 @@ impl Decompress {
     /// Specifies the decompression dictionary to use.
     #[cfg(feature = "zlib")]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) {
-        let stream = &mut *self.inner.stream_wrapper; 
-        let rc = unsafe { ffi::inflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt) };
-        
+        let stream = &mut *self.inner.stream_wrapper;
+        let rc = unsafe {
+            ffi::inflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
+        };
+
         assert_eq!(rc, ffi::MZ_OK);
     }
 
@@ -615,75 +619,82 @@ mod tests {
         assert_eq!(decoder.total_out(), string.len() as u64);
         assert!(dst.starts_with(string));
     }
-    
+
     #[cfg(feature = "zlib")]
     #[test]
-    fn set_dictionary_with_zlib_header () {
+    fn set_dictionary_with_zlib_header() {
         let string = "hello, hello!".as_bytes();
         let dictionary = "hello".as_bytes();
-        
+
         let mut encoded = Vec::with_capacity(1024);
 
         let mut encoder = Compress::new(Compression::default(), true);
 
         let dictionary_adler = encoder.set_dictionary(&dictionary);
 
-        encoder.compress_vec(string, &mut encoded, FlushCompress::Finish).unwrap();
+        encoder
+            .compress_vec(string, &mut encoded, FlushCompress::Finish)
+            .unwrap();
 
         assert_eq!(encoder.total_in(), string.len() as u64);
         assert_eq!(encoder.total_out(), encoded.len() as u64);
 
-
-        let mut decoder = Decompress::new(true);        
+        let mut decoder = Decompress::new(true);
         let mut decoded = [0; 1024];
-        let decompress_error = decoder.decompress(&encoded, &mut decoded, FlushDecompress::Finish)
+        let decompress_error = decoder
+            .decompress(&encoded, &mut decoded, FlushDecompress::Finish)
             .expect_err("decompression should fail due to requiring a dictionary");
-    
+
         let required_adler = decompress_error.needs_dictionary();
 
-        assert_eq!(required_adler, Some(dictionary_adler), 
+        assert_eq!(required_adler, Some(dictionary_adler),
             "the first call to decompress should indicate a dictionary is required along with the required Adler-32 checksum");
 
         decoder.set_dictionary(&dictionary);
-        
+
         // Decompress the rest of the input to the remainder of the output buffer
         let total_in = decoder.total_in();
         let total_out = decoder.total_out();
 
-        let decompress_result = decoder.decompress(&encoded[total_in as usize..], &mut decoded[total_out as usize..], FlushDecompress::Finish);
+        let decompress_result = decoder.decompress(
+            &encoded[total_in as usize..],
+            &mut decoded[total_out as usize..],
+            FlushDecompress::Finish,
+        );
         assert!(decompress_result.is_ok());
-        
+
         assert_eq!(&decoded[..decoder.total_out() as usize], string);
     }
 
     #[cfg(feature = "zlib")]
     #[test]
-    fn set_dictionary_raw () {
+    fn set_dictionary_raw() {
         let string = "hello, hello!".as_bytes();
         let dictionary = "hello".as_bytes();
-        
+
         let mut encoded = Vec::with_capacity(1024);
 
         let mut encoder = Compress::new(Compression::default(), false);
 
         encoder.set_dictionary(&dictionary);
 
-        encoder.compress_vec(string, &mut encoded, FlushCompress::Finish).unwrap();
+        encoder
+            .compress_vec(string, &mut encoded, FlushCompress::Finish)
+            .unwrap();
 
         assert_eq!(encoder.total_in(), string.len() as u64);
         assert_eq!(encoder.total_out(), encoded.len() as u64);
 
+        let mut decoder = Decompress::new(false);
 
-        let mut decoder = Decompress::new(false); 
-        
         decoder.set_dictionary(&dictionary);
 
         let mut decoded = [0; 1024];
         let decompress_result = decoder.decompress(&encoded, &mut decoded, FlushDecompress::Finish);
 
         assert!(decompress_result.is_ok());
-        
+
         assert_eq!(&decoded[..decoder.total_out() as usize], string);
     }
-    
+
 }
