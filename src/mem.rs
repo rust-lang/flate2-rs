@@ -552,10 +552,10 @@ mod tests {
     use std::io::Write;
 
     use write;
-    use {Compression, Decompress, FlushCompress, FlushDecompress};
+    use {Compression, Decompress, FlushDecompress};
 
     #[cfg(feature = "zlib")]
-    use Compress;
+    use {Compress, FlushCompress};
 
     #[test]
     fn issue51() {
