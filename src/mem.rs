@@ -134,10 +134,26 @@ pub enum FlushDecompress {
     #[doc(hidden)] _Nonexhaustive,
 }
 
+/// The inner state for an error when decompressing
+#[derive(Debug, Default)]
+struct DecompressErrorInner {
+    needs_dictionary: Option<u32>,
+}
+
 /// Error returned when a decompression object finds that the input stream of
 /// bytes was not a valid input stream of bytes.
 #[derive(Debug)]
-pub struct DecompressError(());
+pub struct DecompressError(DecompressErrorInner);
+
+impl DecompressError {
+    /// Indicates whether decompression failed due to requiring a dictionary.
+    ///
+    /// The resulting integer is the Adler-32 checksum of the dictionary
+    /// required.
+    pub fn needs_dictionary(&self) -> Option<u32> {
+        self.0.needs_dictionary
+    }
+}
 
 /// Error returned when a compression object is used incorrectly or otherwise
 /// generates an error.
@@ -216,6 +232,23 @@ impl Compress {
     /// this compression object.
     pub fn total_out(&self) -> u64 {
         self.inner.total_out
+    }
+
+    /// Specifies the compression dictionary to use.
+    ///
+    /// Returns the Adler-32 checksum of the dictionary.
+    #[cfg(feature = "zlib")]
+    pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, CompressError> {
+        let stream = &mut *self.inner.stream_wrapper;
+        let rc = unsafe {
+            ffi::deflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
+        };
+
+        match rc {
+            ffi::MZ_STREAM_ERROR => Err(CompressError(())),
+            ffi::MZ_OK => Ok(stream.adler as u32),
+            c => panic!("unknown return code: {}", c),
+        }
     }
 
     /// Quickly resets this compressor without having to reallocate anything.
@@ -376,10 +409,13 @@ impl Decompress {
         self.inner.total_out += (raw.next_out as usize - output.as_ptr() as usize) as u64;
 
         match rc {
-            ffi::MZ_DATA_ERROR | ffi::MZ_STREAM_ERROR => Err(DecompressError(())),
+            ffi::MZ_DATA_ERROR | ffi::MZ_STREAM_ERROR => Err(DecompressError(Default::default())),
             ffi::MZ_OK => Ok(Status::Ok),
             ffi::MZ_BUF_ERROR => Ok(Status::BufError),
             ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
+            ffi::MZ_NEED_DICT => Err(DecompressError(DecompressErrorInner {
+                needs_dictionary: Some(raw.adler as u32),
+            })),
             c => panic!("unknown return code: {}", c),
         }
     }
@@ -416,6 +452,24 @@ impl Decompress {
             };
             output.set_len((self.total_out() - before) as usize + len);
             return ret;
+        }
+    }
+
+    /// Specifies the decompression dictionary to use.
+    #[cfg(feature = "zlib")]
+    pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, DecompressError> {
+        let stream = &mut *self.inner.stream_wrapper;
+        let rc = unsafe {
+            ffi::inflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
+        };
+
+        match rc {
+            ffi::MZ_STREAM_ERROR => Err(DecompressError(Default::default())),
+            ffi::MZ_DATA_ERROR => Err(DecompressError(DecompressErrorInner {
+                needs_dictionary: Some(stream.adler as u32),
+            })),
+            ffi::MZ_OK => Ok(stream.adler as u32),
+            c => panic!("unknown return code: {}", c),
         }
     }
 
@@ -513,6 +567,9 @@ mod tests {
     use write;
     use {Compression, Decompress, FlushDecompress};
 
+    #[cfg(feature = "zlib")]
+    use {Compress, FlushCompress};
+
     #[test]
     fn issue51() {
         let data = vec![
@@ -571,4 +628,85 @@ mod tests {
         assert_eq!(decoder.total_out(), string.len() as u64);
         assert!(dst.starts_with(string));
     }
+
+    #[cfg(feature = "zlib")]
+    #[test]
+    fn set_dictionary_with_zlib_header() {
+        let string = "hello, hello!".as_bytes();
+        let dictionary = "hello".as_bytes();
+
+        let mut encoded = Vec::with_capacity(1024);
+
+        let mut encoder = Compress::new(Compression::default(), true);
+
+        let dictionary_adler = encoder.set_dictionary(&dictionary).unwrap();
+
+        encoder
+            .compress_vec(string, &mut encoded, FlushCompress::Finish)
+            .unwrap();
+
+        assert_eq!(encoder.total_in(), string.len() as u64);
+        assert_eq!(encoder.total_out(), encoded.len() as u64);
+
+        let mut decoder = Decompress::new(true);
+        let mut decoded = [0; 1024];
+        let decompress_error = decoder
+            .decompress(&encoded, &mut decoded, FlushDecompress::Finish)
+            .expect_err("decompression should fail due to requiring a dictionary");
+
+        let required_adler = decompress_error.needs_dictionary()
+            .expect("the first call to decompress should indicate a dictionary is required along with the required Adler-32 checksum");
+
+        assert_eq!(required_adler, dictionary_adler,
+            "the Adler-32 checksum should match the value when the dictionary was set on the compressor");
+
+        let actual_adler = decoder.set_dictionary(&dictionary).unwrap();
+
+        assert_eq!(required_adler, actual_adler);
+
+        // Decompress the rest of the input to the remainder of the output buffer
+        let total_in = decoder.total_in();
+        let total_out = decoder.total_out();
+
+        let decompress_result = decoder.decompress(
+            &encoded[total_in as usize..],
+            &mut decoded[total_out as usize..],
+            FlushDecompress::Finish,
+        );
+        assert!(decompress_result.is_ok());
+
+        assert_eq!(&decoded[..decoder.total_out() as usize], string);
+    }
+
+    #[cfg(feature = "zlib")]
+    #[test]
+    fn set_dictionary_raw() {
+        let string = "hello, hello!".as_bytes();
+        let dictionary = "hello".as_bytes();
+
+        let mut encoded = Vec::with_capacity(1024);
+
+        let mut encoder = Compress::new(Compression::default(), false);
+
+        encoder.set_dictionary(&dictionary).unwrap();
+
+        encoder
+            .compress_vec(string, &mut encoded, FlushCompress::Finish)
+            .unwrap();
+
+        assert_eq!(encoder.total_in(), string.len() as u64);
+        assert_eq!(encoder.total_out(), encoded.len() as u64);
+
+        let mut decoder = Decompress::new(false);
+
+        decoder.set_dictionary(&dictionary).unwrap();
+
+        let mut decoded = [0; 1024];
+        let decompress_result = decoder.decompress(&encoded, &mut decoded, FlushDecompress::Finish);
+
+        assert!(decompress_result.is_ok());
+
+        assert_eq!(&decoded[..decoder.total_out() as usize], string);
+    }
+
 }
