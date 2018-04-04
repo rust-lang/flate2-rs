@@ -17,11 +17,6 @@ matrix:
       after_success:
         - travis-cargo --only nightly doc-upload
 
-    - install: rustup component add rustfmt-preview
-      script:
-        - cargo fmt -- --write-mode diff
-        - (cd miniz-sys && cargo fmt -- --write-mode diff)
-
 script:
   - export CARGO_TARGET_DIR=`pwd`/target
   - cargo build --verbose
