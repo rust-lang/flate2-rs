@@ -29,7 +29,7 @@ use zio;
 /// # fn main() {
 ///
 /// let mut e = GzEncoder::new(Vec::new(), Compression::default());
-/// e.write(b"Hello World").unwrap();
+/// e.write_all(b"Hello World").unwrap();
 /// println!("{:?}", e.finish().unwrap());
 /// # }
 /// ```

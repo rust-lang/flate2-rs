@@ -103,7 +103,7 @@ impl GzHeader {
 ///                 .filename("hello_world.txt")
 ///                 .comment("test file, please delete")
 ///                 .write(f, Compression::default());
-/// gz.write(b"hello world")?;
+/// gz.write_all(b"hello world")?;
 /// gz.finish()?;
 /// # Ok(())
 /// # }

@@ -9,7 +9,7 @@ use flate2::read::GzDecoder;
 fn smoke() {
     let mut w = GzEncoder::new(Vec::new(), flate2::Compression::default());
     w.flush().unwrap();
-    w.write(b"hello").unwrap();
+    w.write_all(b"hello").unwrap();
 
     let bytes = w.finish().unwrap();
 

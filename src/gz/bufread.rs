@@ -260,7 +260,7 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
 ///
 /// # fn main() {
 /// #   let mut e = GzEncoder::new(Vec::new(), Compression::default());
-/// #   e.write(b"Hello World").unwrap();
+/// #   e.write_all(b"Hello World").unwrap();
 /// #   let bytes = e.finish().unwrap();
 /// #   println!("{}", decode_reader(bytes).unwrap());
 /// # }
@@ -406,7 +406,7 @@ impl<R: BufRead + Write> Write for GzDecoder<R> {
 ///
 /// # fn main() {
 /// #   let mut e = GzEncoder::new(Vec::new(), Compression::default());
-/// #   e.write(b"Hello World").unwrap();
+/// #   e.write_all(b"Hello World").unwrap();
 /// #   let bytes = e.finish().unwrap();
 /// #   println!("{}", decode_reader(bytes).unwrap());
 /// # }

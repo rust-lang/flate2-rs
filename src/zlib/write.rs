@@ -27,7 +27,7 @@ use {Compress, Decompress};
 ///
 /// # fn zlib_encoding() -> std::io::Result<()> {
 /// let mut e = ZlibEncoder::new(Vec::new(), Compression::default());
-/// e.write(b"Hello World")?;
+/// e.write_all(b"Hello World")?;
 /// let compressed = e.finish()?;
 /// # Ok(())
 /// # }
@@ -201,7 +201,7 @@ impl<W: AsyncRead + AsyncWrite> AsyncRead for ZlibEncoder<W> {}
 ///
 /// # fn main() {
 /// #    let mut e = ZlibEncoder::new(Vec::new(), Compression::default());
-/// #    e.write(b"Hello World").unwrap();
+/// #    e.write_all(b"Hello World").unwrap();
 /// #    let bytes = e.finish().unwrap();
 /// #    println!("{}", decode_reader(bytes).unwrap());
 /// # }
@@ -212,7 +212,7 @@ impl<W: AsyncRead + AsyncWrite> AsyncRead for ZlibEncoder<W> {}
 /// fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
 ///    let mut writer = Vec::new();
 ///    let mut z = ZlibDecoder::new(writer);
-///    z.write(&bytes[..])?;
+///    z.write_all(&bytes[..])?;
 ///    writer = z.finish()?;
 ///    let return_string = String::from_utf8(writer).expect("String parsing error");
 ///    Ok(return_string)

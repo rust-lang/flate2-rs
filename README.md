@@ -50,8 +50,8 @@ use flate2::write::ZlibEncoder;
 
 fn main() {
     let mut e = ZlibEncoder::new(Vec::new(), Compression::default());
-    e.write(b"foo");
-    e.write(b"bar");
+    e.write_all(b"foo");
+    e.write_all(b"bar");
     let compressed_bytes = e.finish();
 }
 ```

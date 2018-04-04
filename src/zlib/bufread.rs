@@ -150,7 +150,7 @@ impl<R: AsyncWrite + BufRead> AsyncWrite for ZlibEncoder<R> {
 ///
 /// # fn main() {
 /// # let mut e = ZlibEncoder::new(Vec::new(), Compression::default());
-/// # e.write(b"Hello World").unwrap();
+/// # e.write_all(b"Hello World").unwrap();
 /// # let bytes = e.finish().unwrap();
 /// # println!("{}", decode_bufreader(bytes).unwrap());
 /// # }

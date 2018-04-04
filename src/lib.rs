@@ -27,7 +27,7 @@
 //! # fn main() { let _ = run(); }
 //! # fn run() -> io::Result<()> {
 //! let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-//! encoder.write(b"Example")?;
+//! encoder.write_all(b"Example")?;
 //! # Ok(())
 //! # }
 //! ```
