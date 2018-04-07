@@ -262,6 +262,31 @@ impl Compress {
         self.inner.total_out = 0;
     }
 
+    /// Dynamically updates the compression level.
+    ///
+    /// This can be used to switch between compression levels for different
+    /// kinds of data, or it can be used in conjunction with a call to reset
+    /// to reuse the compressor.
+    ///
+    /// This may return an error if there wasn't enough output space to complete
+    /// the compression of the available input data before changing the
+    /// compression level. Flushing the stream before calling this method
+    /// ensures that the function will succeed on the first call.
+    #[cfg(feature = "zlib")]
+    pub fn set_level(&mut self, level: Compression) -> Result<(), CompressError> {
+        let stream = &mut *self.inner.stream_wrapper;
+
+        let rc = unsafe {
+            ffi::deflateParams(stream, level.0 as c_int, ffi::MZ_DEFAULT_STRATEGY)
+        };
+
+        match rc {
+            ffi::MZ_OK => Ok(()),
+            ffi::MZ_BUF_ERROR => Err(CompressError(())),
+            c => panic!("unknown return code: {}", c),
+        }
+    }
+
     /// Compresses the input data into the output, consuming only as much
     /// input as needed and writing as much output as possible.
     ///
