@@ -123,7 +123,7 @@ where
     loop {
         let (read, consumed, ret, eof);
         {
-            let input = try!(obj.fill_buf());
+            let input = obj.fill_buf()?;
             eof = input.is_empty();
             let before_out = data.total_out();
             let before_in = data.total_in();
@@ -167,10 +167,10 @@ impl<W: Write, D: Ops> Writer<W, D> {
 
     pub fn finish(&mut self) -> io::Result<()> {
         loop {
-            try!(self.dump());
+            self.dump()?;
 
             let before = self.data.total_out();
-            try!(self.data.run_vec(&[], &mut self.buf, D::Flush::finish()));
+            self.data.run_vec(&[], &mut self.buf, D::Flush::finish())?;
             if before == self.data.total_out() {
                 return Ok(());
             }
@@ -206,7 +206,7 @@ impl<W: Write, D: Ops> Writer<W, D> {
         // TODO: should manage this buffer not with `drain` but probably more of
         // a deque-like strategy.
         while self.buf.len() > 0 {
-            let n = try!(self.obj.as_mut().unwrap().write(&self.buf));
+            let n = self.obj.as_mut().unwrap().write(&self.buf)?;
             if n == 0 {
                 return Err(io::ErrorKind::WriteZero.into());
             }
@@ -225,7 +225,7 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
         // As a result we execute this in a loop to ensure that we try our
         // darndest to write the data.
         loop {
-            try!(self.dump());
+            self.dump()?;
 
             let before_in = self.data.total_in();
             let ret = self.data.run_vec(buf, &mut self.buf, D::Flush::none());
@@ -256,7 +256,7 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
         // give us a chunk of memory the same size as our own internal buffer,
         // at which point we assume it's reached the end.
         loop {
-            try!(self.dump());
+            self.dump()?;
             let before = self.data.total_out();
             self.data
                 .run_vec(&[], &mut self.buf, D::Flush::none())

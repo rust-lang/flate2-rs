@@ -30,14 +30,14 @@ fn bad_header() -> io::Error {
 
 fn read_le_u16<R: Read>(r: &mut R) -> io::Result<u16> {
     let mut b = [0; 2];
-    try!(r.read_exact(&mut b));
+    r.read_exact(&mut b)?;
     Ok((b[0] as u16) | ((b[1] as u16) << 8))
 }
 
 fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
     let mut crc_reader = CrcReader::new(r);
     let mut header = [0; 10];
-    try!(crc_reader.read_exact(&mut header));
+    crc_reader.read_exact(&mut header)?;
 
     let id1 = header[0];
     let id2 = header[1];
@@ -56,9 +56,9 @@ fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
     let os = header[9];
 
     let extra = if flg & FEXTRA != 0 {
-        let xlen = try!(read_le_u16(&mut crc_reader));
+        let xlen = read_le_u16(&mut crc_reader)?;
         let mut extra = vec![0; xlen as usize];
-        try!(crc_reader.read_exact(&mut extra));
+        crc_reader.read_exact(&mut extra)?;
         Some(extra)
     } else {
         None
@@ -67,7 +67,7 @@ fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
         // wow this is slow
         let mut b = Vec::new();
         for byte in crc_reader.by_ref().bytes() {
-            let byte = try!(byte);
+            let byte = byte?;
             if byte == 0 {
                 break;
             }
@@ -81,7 +81,7 @@ fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
         // wow this is slow
         let mut b = Vec::new();
         for byte in crc_reader.by_ref().bytes() {
-            let byte = try!(byte);
+            let byte = byte?;
             if byte == 0 {
                 break;
             }
@@ -94,7 +94,7 @@ fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
 
     if flg & FHCRC != 0 {
         let calced_crc = crc_reader.crc().sum() as u16;
-        let stored_crc = try!(read_le_u16(&mut crc_reader));
+        let stored_crc = read_le_u16(&mut crc_reader)?;
         if calced_crc != stored_crc {
             return Err(corrupt());
         }
@@ -221,7 +221,7 @@ impl<R: BufRead> Read for GzEncoder<R> {
             let tmp = into;
             into = &mut tmp[amt..];
         }
-        match try!(self.inner.read(into)) {
+        match self.inner.read(into)? {
             0 => {
                 self.eof = true;
                 self.pos = 0;
@@ -305,7 +305,7 @@ impl<R: BufRead> GzDecoder<R> {
             let mut len = 0;
 
             while len < buf.len() {
-                match try!(self.inner.get_mut().get_mut().read(&mut buf[len..])) {
+                match self.inner.get_mut().get_mut().read(&mut buf[len..])? {
                     0 => return Err(corrupt()),
                     n => len += n,
                 }
@@ -361,9 +361,9 @@ impl<R: BufRead> Read for GzDecoder<R> {
         if into.is_empty() {
             return Ok(0);
         }
-        match try!(self.inner.read(into)) {
+        match self.inner.read(into)? {
             0 => {
-                try!(self.finish());
+                self.finish()?;
                 Ok(0)
             }
             n => Ok(n),
@@ -452,7 +452,7 @@ impl<R: BufRead> MultiGzDecoder<R> {
             let mut len = 0;
 
             while len < buf.len() {
-                match try!(self.inner.get_mut().get_mut().read(&mut buf[len..])) {
+                match self.inner.get_mut().get_mut().read(&mut buf[len..])? {
                     0 => return Err(corrupt()),
                     n => len += n,
                 }
@@ -519,7 +519,7 @@ impl<R: BufRead> Read for MultiGzDecoder<R> {
             let another_error = io::ErrorKind::Other.into();
             return Err(mem::replace(e, another_error));
         }
-        match try!(self.inner.read(into)) {
+        match self.inner.read(into)? {
             0 => match self.finish_member() {
                 Ok(0) => Ok(0),
                 Ok(_) => self.read(into),
