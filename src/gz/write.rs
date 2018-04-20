@@ -91,8 +91,8 @@ impl<W: Write> GzEncoder<W> {
     /// This function will perform I/O to complete this stream, and any I/O
     /// errors which occur will be returned from this function.
     pub fn try_finish(&mut self) -> io::Result<()> {
-        try!(self.write_header());
-        try!(self.inner.finish());
+        self.write_header()?;
+        self.inner.finish()?;
 
         while self.crc_bytes_written < 8 {
             let (sum, amt) = (self.crc.sum() as u32, self.crc.amount());
@@ -107,7 +107,7 @@ impl<W: Write> GzEncoder<W> {
                 (amt >> 24) as u8,
             ];
             let inner = self.inner.get_mut();
-            let n = try!(inner.write(&buf[self.crc_bytes_written..]));
+            let n = inner.write(&buf[self.crc_bytes_written..])?;
             self.crc_bytes_written += n;
         }
         Ok(())
@@ -127,13 +127,13 @@ impl<W: Write> GzEncoder<W> {
     /// This function will perform I/O to complete this stream, and any I/O
     /// errors which occur will be returned from this function.
     pub fn finish(mut self) -> io::Result<W> {
-        try!(self.try_finish());
+        self.try_finish()?;
         Ok(self.inner.take_inner())
     }
 
     fn write_header(&mut self) -> io::Result<()> {
         while self.header.len() > 0 {
-            let n = try!(self.inner.get_mut().write(&self.header));
+            let n = self.inner.get_mut().write(&self.header)?;
             self.header.drain(..n);
         }
         Ok(())
@@ -143,15 +143,15 @@ impl<W: Write> GzEncoder<W> {
 impl<W: Write> Write for GzEncoder<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         assert_eq!(self.crc_bytes_written, 0);
-        try!(self.write_header());
-        let n = try!(self.inner.write(buf));
+        self.write_header()?;
+        let n = self.inner.write(buf)?;
         self.crc.update(&buf[..n]);
         Ok(n)
     }
 
     fn flush(&mut self) -> io::Result<()> {
         assert_eq!(self.crc_bytes_written, 0);
-        try!(self.write_header());
+        self.write_header()?;
         self.inner.flush()
     }
 }

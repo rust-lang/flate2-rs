@@ -78,7 +78,7 @@ impl<W: Write> DeflateEncoder<W> {
     /// This function will perform I/O to complete this stream, and any I/O
     /// errors which occur will be returned from this function.
     pub fn reset(&mut self, w: W) -> io::Result<W> {
-        try!(self.inner.finish());
+        self.inner.finish()?;
         self.inner.data.reset();
         Ok(self.inner.replace(w))
     }
@@ -118,7 +118,7 @@ impl<W: Write> DeflateEncoder<W> {
     /// This function will perform I/O to complete this stream, and any I/O
     /// errors which occur will be returned from this function.
     pub fn finish(mut self) -> io::Result<W> {
-        try!(self.inner.finish());
+        self.inner.finish()?;
         Ok(self.inner.take_inner())
     }
 
@@ -135,7 +135,7 @@ impl<W: Write> DeflateEncoder<W> {
     /// This function will perform I/O to complete this stream, and any I/O
     /// errors which occur will be returned from this function.
     pub fn flush_finish(mut self) -> io::Result<W> {
-        try!(self.inner.flush());
+        self.inner.flush()?;
         Ok(self.inner.take_inner())
     }
 
@@ -261,7 +261,7 @@ impl<W: Write> DeflateDecoder<W> {
     /// This function will perform I/O to finish the stream, and if that I/O
     /// returns an error then that will be returned from this function.
     pub fn reset(&mut self, w: W) -> io::Result<W> {
-        try!(self.inner.finish());
+        self.inner.finish()?;
         self.inner.data = Decompress::new(false);
         Ok(self.inner.replace(w))
     }
@@ -301,7 +301,7 @@ impl<W: Write> DeflateDecoder<W> {
     /// This function will perform I/O to complete this stream, and any I/O
     /// errors which occur will be returned from this function.
     pub fn finish(mut self) -> io::Result<W> {
-        try!(self.inner.finish());
+        self.inner.finish()?;
         Ok(self.inner.take_inner())
     }
 

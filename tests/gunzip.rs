@@ -52,8 +52,8 @@ fn test_extract_success_multi() {
 // Tries to extract path into memory (assuming a .gz file).
 fn extract_file(path_compressed: &Path) -> io::Result<Vec<u8>> {
     let mut v = Vec::new();
-    let f = try!(File::open(path_compressed));
-    try!(GzDecoder::new(f).read_to_end(&mut v));
+    let f = File::open(path_compressed)?;
+    GzDecoder::new(f).read_to_end(&mut v)?;
     Ok(v)
 }
 
@@ -61,7 +61,7 @@ fn extract_file(path_compressed: &Path) -> io::Result<Vec<u8>> {
 // of a multi member .gz file).
 fn extract_file_multi(path_compressed: &Path) -> io::Result<Vec<u8>> {
     let mut v = Vec::new();
-    let f = try!(File::open(path_compressed));
-    try!(MultiGzDecoder::new(f).read_to_end(&mut v));
+    let f = File::open(path_compressed)?;
+    MultiGzDecoder::new(f).read_to_end(&mut v)?;
     Ok(v)
 }
