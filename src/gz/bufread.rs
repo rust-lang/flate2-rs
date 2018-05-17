@@ -1,13 +1,13 @@
 use std::cmp;
-use std::io::prelude::*;
 use std::io;
+use std::io::prelude::*;
 use std::mem;
 
 use super::{GzBuilder, GzHeader};
 use super::{FCOMMENT, FEXTRA, FHCRC, FNAME};
-use Compression;
 use crc::CrcReader;
 use deflate;
+use Compression;
 
 fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
     let min = cmp::min(into.len(), from.len() - *pos);
@@ -50,7 +50,9 @@ fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
     }
 
     let flg = header[3];
-    let mtime = ((header[4] as u32) << 0) | ((header[5] as u32) << 8) | ((header[6] as u32) << 16)
+    let mtime = ((header[4] as u32) << 0)
+        | ((header[5] as u32) << 8)
+        | ((header[6] as u32) << 16)
         | ((header[7] as u32) << 24);
     let _xfl = header[8];
     let os = header[9];
@@ -312,9 +314,13 @@ impl<R: BufRead> GzDecoder<R> {
             }
         }
 
-        let crc = ((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16)
+        let crc = ((buf[0] as u32) << 0)
+            | ((buf[1] as u32) << 8)
+            | ((buf[2] as u32) << 16)
             | ((buf[3] as u32) << 24);
-        let amt = ((buf[4] as u32) << 0) | ((buf[5] as u32) << 8) | ((buf[6] as u32) << 16)
+        let amt = ((buf[4] as u32) << 0)
+            | ((buf[5] as u32) << 8)
+            | ((buf[6] as u32) << 16)
             | ((buf[7] as u32) << 24);
         if crc != self.inner.crc().sum() as u32 {
             return Err(corrupt());
@@ -354,6 +360,27 @@ impl<R> GzDecoder<R> {
 
 impl<R: BufRead> Read for GzDecoder<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
+        if self.header.is_err() {
+            let hdr = match self.header {
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                    Some(read_gz_header(&mut self.inner.get_mut().get_mut()))
+                }
+                _ => None,
+            };
+            match hdr {
+                Some(Ok(hdr)) => self.header = Ok(hdr),
+                Some(Err(e)) => {
+                    let e = mem::replace(&mut self.header, Err(e));
+                    return Err(e.err().unwrap());
+                }
+                None => {
+                    let another_error = io::ErrorKind::Other.into();
+                    let e = mem::replace(&mut self.header, Err(another_error));
+                    return Err(e.err().unwrap());
+                }
+            }
+        }
+
         if let Err(ref mut e) = self.header {
             let another_error = io::ErrorKind::Other.into();
             return Err(mem::replace(e, another_error));
@@ -459,9 +486,13 @@ impl<R: BufRead> MultiGzDecoder<R> {
             }
         }
 
-        let crc = ((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16)
+        let crc = ((buf[0] as u32) << 0)
+            | ((buf[1] as u32) << 8)
+            | ((buf[2] as u32) << 16)
             | ((buf[3] as u32) << 24);
-        let amt = ((buf[4] as u32) << 0) | ((buf[5] as u32) << 8) | ((buf[6] as u32) << 16)
+        let amt = ((buf[4] as u32) << 0)
+            | ((buf[5] as u32) << 8)
+            | ((buf[6] as u32) << 16)
             | ((buf[7] as u32) << 24);
         if crc != self.inner.crc().sum() as u32 {
             return Err(corrupt());

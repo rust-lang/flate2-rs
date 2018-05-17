@@ -1,10 +1,10 @@
-use std::io::prelude::*;
 use std::io;
+use std::io::prelude::*;
 
-use super::{GzBuilder, GzHeader};
-use Compression;
-use bufreader::BufReader;
 use super::bufread;
+use super::{GzBuilder, GzHeader};
+use bufreader::BufReader;
+use Compression;
 
 /// A gzip streaming encoder
 ///
@@ -274,5 +274,65 @@ impl<R: Read + Write> Write for MultiGzDecoder<R> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.get_mut().flush()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cmp;
+    use write::GzEncoder;
+
+    struct Reader {
+        buf: Vec<u8>,
+        eof: bool,
+    }
+
+    impl io::Read for Reader {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            if self.eof {
+                Ok(0)
+            } else {
+                if self.buf.is_empty() {
+                    Err(io::Error::new(io::ErrorKind::WouldBlock, ""))
+                } else {
+                    let len = cmp::min(buf.len(), self.buf.len());
+                    buf[..len].copy_from_slice(&self.buf[..len]);
+                    self.buf.drain(..len);
+                    Ok(len)
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn decode_async() {
+        let mut e = GzEncoder::new(Vec::new(), Compression::default());
+        e.write_all(b"Hello World").unwrap();
+        let bytes = e.finish().unwrap();
+
+        let r = Reader {
+            buf: Vec::new(),
+            eof: false,
+        };
+        let mut decoder = GzDecoder::new(r);
+
+        let mut data: [u8; 11] = [0; 11];
+        match decoder.read(&mut data[..]) {
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => (),
+            _ => panic!(),
+        }
+
+        decoder.get_mut().buf.extend(bytes);
+        match decoder.read(&mut data[..]) {
+            Ok(n) if n == 11 => assert_eq!(&data[..], b"Hello World"),
+            _ => panic!(),
+        }
+
+        decoder.get_mut().eof = true;
+        match decoder.read(&mut data[..]) {
+            Ok(n) if n == 0 => (),
+            _ => panic!(),
+        }
     }
 }
