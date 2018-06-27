@@ -65,3 +65,13 @@ fn extract_file_multi(path_compressed: &Path) -> io::Result<Vec<u8>> {
     MultiGzDecoder::new(f).read_to_end(&mut v)?;
     Ok(v)
 }
+
+#[test]
+fn empty_error_once() {
+    let data: &[u8] = &[];
+    let cbjson = GzDecoder::new(data);
+    let reader = BufReader::new(cbjson);
+    let mut stream = reader.lines();
+    assert!(stream.next().unwrap().is_err());
+    assert!(stream.next().is_none());
+}

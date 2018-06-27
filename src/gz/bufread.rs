@@ -278,7 +278,7 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
 #[derive(Debug)]
 pub struct GzDecoder<R> {
     inner: CrcReader<deflate::bufread::DeflateDecoder<R>>,
-    header: io::Result<GzHeader>,
+    header: Option<io::Result<GzHeader>>,
     finished: bool,
 }
 
@@ -291,7 +291,7 @@ impl<R: BufRead> GzDecoder<R> {
         let flate = deflate::bufread::DeflateDecoder::new(r);
         GzDecoder {
             inner: CrcReader::new(flate),
-            header: header,
+            header: Some(header),
             finished: false,
         }
     }
@@ -330,7 +330,7 @@ impl<R: BufRead> GzDecoder<R> {
 impl<R> GzDecoder<R> {
     /// Returns the header associated with this stream, if it was valid
     pub fn header(&self) -> Option<&GzHeader> {
-        self.header.as_ref().ok()
+        self.header.as_ref()?.as_ref().ok()
     }
 
     /// Acquires a reference to the underlying reader.
@@ -354,9 +354,15 @@ impl<R> GzDecoder<R> {
 
 impl<R: BufRead> Read for GzDecoder<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
-        if let Err(ref mut e) = self.header {
-            let another_error = io::ErrorKind::Other.into();
-            return Err(mem::replace(e, another_error));
+        match self.header {
+            None => return Ok(0), // error already returned,
+            Some(Ok(_)) => {}
+            Some(Err(_)) => {
+                match self.header.take().unwrap() {
+                    Ok(_) => panic!(),
+                    Err(e) => return Err(e)
+                }
+            }
         }
         if into.is_empty() {
             return Ok(0);
