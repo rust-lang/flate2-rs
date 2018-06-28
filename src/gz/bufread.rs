@@ -330,7 +330,7 @@ impl<R: BufRead> GzDecoder<R> {
 impl<R> GzDecoder<R> {
     /// Returns the header associated with this stream, if it was valid
     pub fn header(&self) -> Option<&GzHeader> {
-        self.header.as_ref()?.as_ref().ok()
+        self.header.as_ref().and_then(|h| h.as_ref().ok())
     }
 
     /// Acquires a reference to the underlying reader.
