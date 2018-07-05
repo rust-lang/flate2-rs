@@ -202,3 +202,11 @@ impl Default for Compression {
         Compression(6)
     }
 }
+
+#[cfg(test)]
+fn random_bytes() -> impl Iterator<Item = u8> {
+    use std::iter;
+    use rand::Rng;
+
+    iter::repeat(()).map(|_| rand::thread_rng().gen())
+}
