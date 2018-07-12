@@ -8,6 +8,12 @@ matrix:
     - rust: beta
     - rust: nightly
 
+    - rust: stable
+      env: RUST_BACKEND=1
+      script:
+        - cargo test --features rust_backend
+        - cargo test --features rust_backend --no-default-features
+
     - rust: nightly
       before_script:
         - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
@@ -15,6 +21,9 @@ matrix:
         - cargo doc --no-deps --all-features
       after_success:
         - travis-cargo --only nightly doc-upload
+
+  allow_failures:
+    - env: RUST_BACKEND=1
 
 script:
   - export CARGO_TARGET_DIR=`pwd`/target
@@ -25,8 +34,6 @@ script:
   - cargo test --features tokio
   - cargo test --features 'tokio zlib'
   - cargo test --features zlib --no-default-features
-  - cargo test --features rust_backend
-  - cargo test --features rust_backend --no-default-features
   - cargo clean && cargo build
   - cargo doc --no-deps
   - cargo doc --no-deps --manifest-path=miniz-sys/Cargo.toml
