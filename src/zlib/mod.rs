@@ -16,7 +16,7 @@ mod tests {
     fn roundtrip() {
         let mut real = Vec::new();
         let mut w = write::ZlibEncoder::new(Vec::new(), Compression::default());
-        let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
+        let v = ::random_bytes().take(1024).collect::<Vec<_>>();
         for _ in 0..200 {
             let to_write = &v[..thread_rng().gen_range(0, v.len())];
             real.extend(to_write.iter().map(|x| *x));
@@ -45,7 +45,7 @@ mod tests {
     fn total_in() {
         let mut real = Vec::new();
         let mut w = write::ZlibEncoder::new(Vec::new(), Compression::default());
-        let v = thread_rng().gen_iter::<u8>().take(1024).collect::<Vec<_>>();
+        let v = ::random_bytes().take(1024).collect::<Vec<_>>();
         for _ in 0..200 {
             let to_write = &v[..thread_rng().gen_range(0, v.len())];
             real.extend(to_write.iter().map(|x| *x));
@@ -68,10 +68,7 @@ mod tests {
 
     #[test]
     fn roundtrip2() {
-        let v = thread_rng()
-            .gen_iter::<u8>()
-            .take(1024 * 1024)
-            .collect::<Vec<_>>();
+        let v = ::random_bytes().take(1024 * 1024).collect::<Vec<_>>();
         let mut r = read::ZlibDecoder::new(read::ZlibEncoder::new(&v[..], Compression::default()));
         let mut ret = Vec::new();
         r.read_to_end(&mut ret).unwrap();
@@ -80,10 +77,7 @@ mod tests {
 
     #[test]
     fn roundtrip3() {
-        let v = thread_rng()
-            .gen_iter::<u8>()
-            .take(1024 * 1024)
-            .collect::<Vec<_>>();
+        let v = ::random_bytes().take(1024 * 1024).collect::<Vec<_>>();
         let mut w =
             write::ZlibEncoder::new(write::ZlibDecoder::new(Vec::new()), Compression::default());
         w.write_all(&v).unwrap();
@@ -93,10 +87,7 @@ mod tests {
 
     #[test]
     fn reset_decoder() {
-        let v = thread_rng()
-            .gen_iter::<u8>()
-            .take(1024 * 1024)
-            .collect::<Vec<_>>();
+        let v = ::random_bytes().take(1024 * 1024).collect::<Vec<_>>();
         let mut w = write::ZlibEncoder::new(Vec::new(), Compression::default());
         w.write_all(&v).unwrap();
         let data = w.finish().unwrap();
