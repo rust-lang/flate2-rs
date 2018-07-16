@@ -9,6 +9,9 @@ matrix:
     - rust: nightly
 
     - rust: stable
+      script: cargo run --manifest-path systest/Cargo.toml
+
+    - rust: stable
       env: RUST_BACKEND=1
       script:
         - cargo test --features rust_backend
@@ -26,7 +29,6 @@ matrix:
     - env: RUST_BACKEND=1
 
 script:
-  - export CARGO_TARGET_DIR=`pwd`/target
   - cargo build
   - rustdoc --test README.md -L target/debug/deps --extern flate2=target/debug/libflate2.rlib
   - cargo test
