@@ -203,7 +203,7 @@ impl<W: Write, D: Ops> Writer<W, D> {
     }
 
     // Returns total written bytes and status of underlying codec
-    pub fn write_with_status(&mut self, buf: &[u8]) -> io::Result<(usize, Status)> {
+    pub(crate) fn write_with_status(&mut self, buf: &[u8]) -> io::Result<(usize, Status)> {
         // miniz isn't guaranteed to actually write any of the buffer provided,
         // it may be in a flushing mode where it's just giving us data before
         // we're actually giving it any data. We don't want to spuriously return

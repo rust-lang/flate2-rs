@@ -1,17 +1,17 @@
 use std::cmp;
-use std::io::prelude::*;
 use std::io;
+use std::io::prelude::*;
 
 #[cfg(feature = "tokio")]
 use futures::Poll;
 #[cfg(feature = "tokio")]
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{GzBuilder, GzHeader};
 use super::bufread::{corrupt, read_gz_header};
-use {Compress, Compression, Decompress, Status};
+use super::{GzBuilder, GzHeader};
 use crc::{Crc, CrcWriter};
 use zio;
+use {Compress, Compression, Decompress, Status};
 
 /// A gzip streaming encoder
 ///
@@ -220,7 +220,7 @@ pub struct GzDecoder<W: Write> {
     inner: zio::Writer<CrcWriter<W>, Decompress>,
     crc_bytes: Vec<u8>,
     header: Option<GzHeader>,
-    header_buf: io::Cursor<Vec<u8>>,
+    header_buf: Vec<u8>,
 }
 
 const CRC_BYTES_LEN: usize = 8;
@@ -235,7 +235,7 @@ impl<W: Write> GzDecoder<W> {
             inner: zio::Writer::new(CrcWriter::new(w), Decompress::new(false)),
             crc_bytes: Vec::with_capacity(CRC_BYTES_LEN),
             header: None,
-            header_buf: io::Cursor::new(Vec::new()),
+            header_buf: Vec::new(),
         }
     }
 
@@ -301,7 +301,7 @@ impl<W: Write> GzDecoder<W> {
         try!(self.inner.finish());
 
         if self.crc_bytes.len() != 8 {
-            return Err(corrupt())
+            return Err(corrupt());
         }
 
         let crc = ((self.crc_bytes[0] as u32) << 0)
@@ -328,11 +328,47 @@ impl<W: Write> GzDecoder<W> {
             if n < buf.len() && self.crc_bytes.len() < 8 {
                 let remaining = buf.len() - n;
                 let crc_bytes = cmp::min(remaining, CRC_BYTES_LEN - self.crc_bytes.len());
-                self.crc_bytes.extend(&buf[n..n+crc_bytes]);
-                return Ok(n+crc_bytes)
+                self.crc_bytes.extend(&buf[n..n + crc_bytes]);
+                return Ok(n + crc_bytes);
             }
         }
         Ok(n)
+    }
+}
+
+struct Wrapper<'a> {
+    buf: &'a [u8],
+    header_buf: &'a mut Vec<u8>,
+    pos: usize,
+}
+
+impl<'a> Wrapper<'a> {
+    fn buf_pos(&self) -> usize {
+        self.pos - self.header_buf.len()
+    }
+}
+
+impl<'a> Read for Wrapper<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let mut buf_pos = 0;
+
+        // read from header buffer
+        if self.pos < self.header_buf.len() {
+            buf_pos = cmp::min(buf.len(), self.header_buf.len() - self.pos);
+            (&mut buf[..buf_pos]).copy_from_slice(&self.header_buf[self.pos..self.pos + buf_pos]);
+            self.pos += buf_pos;
+        }
+
+        // read from current buf
+        if buf_pos < buf.len() && self.pos >= self.header_buf.len() {
+            let diff = self.pos - self.header_buf.len();
+            let size = cmp::min(buf.len() - buf_pos, self.buf.len() - diff);
+            (&mut buf[buf_pos..buf_pos + size]).copy_from_slice(&self.buf[..size]);
+            self.pos += size;
+            buf_pos += size;
+        }
+
+        Ok(buf_pos)
     }
 }
 
@@ -340,24 +376,25 @@ impl<W: Write> Write for GzDecoder<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.header.is_none() {
             // trying to avoid buffer usage
-            let (res, pos) = if self.header_buf.get_ref().is_empty() {
+            let (res, pos) = if self.header_buf.is_empty() {
                 let mut cur = io::Cursor::new(buf);
                 let res = read_gz_header(&mut cur);
                 (res, cur.position() as usize)
             } else {
-                self.header_buf.get_mut().extend(buf);
-                self.header_buf.set_position(0);
-                let res = read_gz_header(&mut self.header_buf);
-                let pos = buf.len() - (self.header_buf.get_ref().len() -
-                                       self.header_buf.position() as usize);
-                (res, pos)
+                let mut wrp = Wrapper {
+                    buf: buf,
+                    header_buf: &mut self.header_buf,
+                    pos: 0,
+                };
+                let res = read_gz_header(&mut wrp);
+                (res, wrp.buf_pos())
             };
 
             match res {
                 Err(err) => {
                     if err.kind() == io::ErrorKind::UnexpectedEof {
-                        // not enough data for header, need to use buffer
-                        self.header_buf.get_mut().extend(buf);
+                        // not enough data for header, save to the buffer
+                        self.header_buf.extend(buf);
                         Ok(buf.len())
                     } else {
                         Err(err)
@@ -365,7 +402,7 @@ impl<W: Write> Write for GzDecoder<W> {
                 }
                 Ok(header) => {
                     self.header = Some(header);
-                    self.header_buf.get_mut().truncate(0);
+                    self.header_buf.truncate(0);
                     let n = try!(self.write_buf(&buf[pos..]));
                     Ok(n + pos)
                 }
@@ -397,17 +434,15 @@ impl<W: Read + Write> Read for GzDecoder<W> {
 #[cfg(feature = "tokio")]
 impl<W: AsyncRead + AsyncWrite> AsyncRead for GzDecoder<W> {}
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const STR: &'static str =
-        "Hello World Hello World Hello World Hello World Hello World \
-         Hello World Hello World Hello World Hello World Hello World \
-         Hello World Hello World Hello World Hello World Hello World \
-         Hello World Hello World Hello World Hello World Hello World \
-         Hello World Hello World Hello World Hello World Hello World";
+    const STR: &'static str = "Hello World Hello World Hello World Hello World Hello World \
+                               Hello World Hello World Hello World Hello World Hello World \
+                               Hello World Hello World Hello World Hello World Hello World \
+                               Hello World Hello World Hello World Hello World Hello World \
+                               Hello World Hello World Hello World Hello World Hello World";
 
     #[test]
     fn decode_writer_one_chunk() {
@@ -462,7 +497,7 @@ mod tests {
 
         let mut writer = Vec::new();
         let mut decoder = GzDecoder::new(writer);
-        let l = bytes.len()-5;
+        let l = bytes.len() - 5;
         decoder.write(&bytes[..l]).unwrap();
         decoder.write(&bytes[l..]).unwrap();
         writer = decoder.finish().unwrap();
