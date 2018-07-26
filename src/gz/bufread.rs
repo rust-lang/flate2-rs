@@ -17,7 +17,8 @@ fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
     *pos += min;
     return min;
 }
-pub fn corrupt() -> io::Error {
+
+pub(crate) fn corrupt() -> io::Error {
     io::Error::new(
         io::ErrorKind::InvalidInput,
         "corrupt gzip stream does not have a matching checksum",
@@ -34,7 +35,7 @@ fn read_le_u16<R: Read>(r: &mut R) -> io::Result<u16> {
     Ok((b[0] as u16) | ((b[1] as u16) << 8))
 }
 
-pub fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
+pub(crate) fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
     let mut crc_reader = CrcReader::new(r);
     let mut header = [0; 10];
     crc_reader.read_exact(&mut header)?;

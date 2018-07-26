@@ -273,7 +273,7 @@ impl<W: Write> GzDecoder<W> {
     /// This function will perform I/O to finish the stream, returning any
     /// errors which happen.
     pub fn try_finish(&mut self) -> io::Result<()> {
-        try!(self.finish_and_check_crc());
+        self.finish_and_check_crc()?;
         Ok(())
     }
 
@@ -293,12 +293,12 @@ impl<W: Write> GzDecoder<W> {
     /// This function will perform I/O to complete this stream, and any I/O
     /// errors which occur will be returned from this function.
     pub fn finish(mut self) -> io::Result<W> {
-        try!(self.finish_and_check_crc());
+        self.finish_and_check_crc()?;
         Ok(self.inner.take_inner().into_inner())
     }
 
     fn finish_and_check_crc(&mut self) -> io::Result<()> {
-        try!(self.inner.finish());
+        self.inner.finish()?;
 
         if self.crc_bytes.len() != 8 {
             return Err(corrupt());
@@ -322,7 +322,7 @@ impl<W: Write> GzDecoder<W> {
     }
 
     fn write_buf(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let (n, status) = try!(self.inner.write_with_status(buf));
+        let (n, status) = self.inner.write_with_status(buf)?;
 
         if status == Status::StreamEnd {
             if n < buf.len() && self.crc_bytes.len() < 8 {
@@ -403,7 +403,7 @@ impl<W: Write> Write for GzDecoder<W> {
                 Ok(header) => {
                     self.header = Some(header);
                     self.header_buf.truncate(0);
-                    let n = try!(self.write_buf(&buf[pos..]));
+                    let n = self.write_buf(&buf[pos..])?;
                     Ok(n + pos)
                 }
             }
