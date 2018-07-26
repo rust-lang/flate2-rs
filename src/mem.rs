@@ -137,7 +137,7 @@ pub enum FlushDecompress {
 }
 
 /// The inner state for an error when decompressing
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 struct DecompressErrorInner {
     needs_dictionary: Option<u32>,
 }
