@@ -322,39 +322,16 @@ impl<W: Write> GzDecoder<W> {
     }
 }
 
-struct Wrapper<'a> {
-    buf: &'a [u8],
-    header_buf: &'a mut Vec<u8>,
+struct Counter<T: Read> {
+    inner: T,
     pos: usize,
 }
 
-impl<'a> Wrapper<'a> {
-    fn buf_pos(&self) -> usize {
-        self.pos - self.header_buf.len()
-    }
-}
-
-impl<'a> Read for Wrapper<'a> {
+impl<T: Read> Read for Counter<T> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let mut buf_pos = 0;
-
-        // read from header buffer
-        if self.pos < self.header_buf.len() {
-            buf_pos = cmp::min(buf.len(), self.header_buf.len() - self.pos);
-            (&mut buf[..buf_pos]).copy_from_slice(&self.header_buf[self.pos..self.pos + buf_pos]);
-            self.pos += buf_pos;
-        }
-
-        // read from current buf
-        if buf_pos < buf.len() && self.pos >= self.header_buf.len() {
-            let diff = self.pos - self.header_buf.len();
-            let size = cmp::min(buf.len() - buf_pos, self.buf.len() - diff);
-            (&mut buf[buf_pos..buf_pos + size]).copy_from_slice(&self.buf[..size]);
-            self.pos += size;
-            buf_pos += size;
-        }
-
-        Ok(buf_pos)
+        let pos = self.inner.read(buf)?;
+        self.pos += pos;
+        Ok(pos)
     }
 }
 
@@ -363,13 +340,12 @@ impl<W: Write> Write for GzDecoder<W> {
         if self.header.is_none() {
             // trying to avoid buffer usage
             let (res, pos) = {
-                let mut wrp = Wrapper {
-                    buf: buf,
-                    header_buf: &mut self.header_buf,
+                let mut counter = Counter {
+                    inner: self.header_buf.chain(buf),
                     pos: 0,
                 };
-                let res = read_gz_header(&mut wrp);
-                (res, wrp.buf_pos())
+                let res = read_gz_header(&mut counter);
+                (res, counter.pos)
             };
 
             match res {
@@ -384,6 +360,7 @@ impl<W: Write> Write for GzDecoder<W> {
                 }
                 Ok(header) => {
                     self.header = Some(header);
+                    let pos = pos - self.header_buf.len();
                     self.header_buf.truncate(0);
                     Ok(pos)
                 }
