@@ -137,14 +137,14 @@ pub enum FlushDecompress {
 }
 
 /// The inner state for an error when decompressing
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default)]
 struct DecompressErrorInner {
     needs_dictionary: Option<u32>,
 }
 
 /// Error returned when a decompression object finds that the input stream of
 /// bytes was not a valid input stream of bytes.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct DecompressError(DecompressErrorInner);
 
 impl DecompressError {

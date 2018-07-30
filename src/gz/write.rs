@@ -209,7 +209,7 @@ impl<W: Write> Drop for GzEncoder<W> {
 /// fn decode_writer(bytes: Vec<u8>) -> io::Result<String> {
 ///    let mut writer = Vec::new();
 ///    let mut decoder = GzDecoder::new(writer);
-///    decoder.write(&bytes[..])?;
+///    decoder.write_all(&bytes[..])?;
 ///    writer = decoder.finish()?;
 ///    let return_string = String::from_utf8(writer).expect("String parsing error");
 ///    Ok(return_string)
@@ -320,20 +320,6 @@ impl<W: Write> GzDecoder<W> {
         }
         Ok(())
     }
-
-    fn write_buf(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let (n, status) = self.inner.write_with_status(buf)?;
-
-        if status == Status::StreamEnd {
-            if n < buf.len() && self.crc_bytes.len() < 8 {
-                let remaining = buf.len() - n;
-                let crc_bytes = cmp::min(remaining, CRC_BYTES_LEN - self.crc_bytes.len());
-                self.crc_bytes.extend(&buf[n..n + crc_bytes]);
-                return Ok(n + crc_bytes);
-            }
-        }
-        Ok(n)
-    }
 }
 
 struct Wrapper<'a> {
@@ -376,11 +362,7 @@ impl<W: Write> Write for GzDecoder<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.header.is_none() {
             // trying to avoid buffer usage
-            let (res, pos) = if self.header_buf.is_empty() {
-                let mut cur = io::Cursor::new(buf);
-                let res = read_gz_header(&mut cur);
-                (res, cur.position() as usize)
-            } else {
+            let (res, pos) = {
                 let mut wrp = Wrapper {
                     buf: buf,
                     header_buf: &mut self.header_buf,
@@ -403,12 +385,21 @@ impl<W: Write> Write for GzDecoder<W> {
                 Ok(header) => {
                     self.header = Some(header);
                     self.header_buf.truncate(0);
-                    let n = self.write_buf(&buf[pos..])?;
-                    Ok(n + pos)
+                    Ok(pos)
                 }
             }
         } else {
-            self.write_buf(buf)
+            let (n, status) = self.inner.write_with_status(buf)?;
+
+            if status == Status::StreamEnd {
+                if n < buf.len() && self.crc_bytes.len() < 8 {
+                    let remaining = buf.len() - n;
+                    let crc_bytes = cmp::min(remaining, CRC_BYTES_LEN - self.crc_bytes.len());
+                    self.crc_bytes.extend(&buf[n..n + crc_bytes]);
+                    return Ok(n + crc_bytes);
+                }
+            }
+            Ok(n)
         }
     }
 
@@ -452,7 +443,8 @@ mod tests {
 
         let mut writer = Vec::new();
         let mut decoder = GzDecoder::new(writer);
-        decoder.write(&bytes[..]).unwrap();
+        let n = decoder.write(&bytes[..]).unwrap();
+        decoder.write(&bytes[n..]).unwrap();
         decoder.try_finish().unwrap();
         writer = decoder.finish().unwrap();
         let return_string = String::from_utf8(writer).expect("String parsing error");
@@ -468,7 +460,10 @@ mod tests {
         let mut writer = Vec::new();
         let mut decoder = GzDecoder::new(writer);
         assert_eq!(decoder.write(&bytes[..5]).unwrap(), 5);
-        decoder.write(&bytes[5..]).unwrap();
+        let n = decoder.write(&bytes[5..]).unwrap();
+        if n < bytes.len() - 5 {
+            decoder.write(&bytes[n + 5..]).unwrap();
+        }
         writer = decoder.finish().unwrap();
         let return_string = String::from_utf8(writer).expect("String parsing error");
         assert_eq!(return_string, STR);
@@ -498,8 +493,8 @@ mod tests {
         let mut writer = Vec::new();
         let mut decoder = GzDecoder::new(writer);
         let l = bytes.len() - 5;
-        decoder.write(&bytes[..l]).unwrap();
-        decoder.write(&bytes[l..]).unwrap();
+        let n = decoder.write(&bytes[..l]).unwrap();
+        decoder.write(&bytes[n..]).unwrap();
         writer = decoder.finish().unwrap();
         let return_string = String::from_utf8(writer).expect("String parsing error");
         assert_eq!(return_string, STR);

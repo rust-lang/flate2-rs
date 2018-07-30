@@ -217,7 +217,12 @@ impl<W: Write, D: Ops> Writer<W, D> {
             let ret = self.data.run_vec(buf, &mut self.buf, D::Flush::none());
             let written = (self.data.total_in() - before_in) as usize;
 
-            if buf.len() > 0 && written == 0 && ret.is_ok() && ret != Ok(Status::StreamEnd) {
+            let is_stream_end = match ret {
+                Ok(Status::StreamEnd) => true,
+                _ => false,
+            };
+
+            if buf.len() > 0 && written == 0 && ret.is_ok() && !is_stream_end {
                 continue;
             }
             return match ret {
