@@ -14,9 +14,12 @@
 //!
 //! This crate consists mainly of three modules, [`read`], [`write`], and
 //! [`bufread`]. Each module contains a number of types used to encode and
-//! decode various streams of data. All types in the [`write`] module work on
-//! instances of [`Write`][write], whereas all types in the [`read`] module work on
-//! instances of [`Read`][read] and [`bufread`] works with [`BufRead`][bufread].
+//! decode various streams of data.
+//!
+//! All types in the [`write`] module work on instances of [`Write`][write],
+//! whereas all types in the [`read`] module work on instances of
+//! [`Read`][read] and [`bufread`] works with [`BufRead`][bufread]. If you
+//! are decoding directly from a `&[u8]`, use the [`bufread`] types.
 //!
 //! ```
 //! use flate2::write::GzEncoder;
