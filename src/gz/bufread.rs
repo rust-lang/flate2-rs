@@ -1,13 +1,13 @@
 use std::cmp;
-use std::io::prelude::*;
 use std::io;
+use std::io::prelude::*;
 use std::mem;
 
 use super::{GzBuilder, GzHeader};
 use super::{FCOMMENT, FEXTRA, FHCRC, FNAME};
-use Compression;
 use crc::CrcReader;
 use deflate;
+use Compression;
 
 fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
     let min = cmp::min(into.len(), from.len() - *pos);
@@ -17,7 +17,8 @@ fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
     *pos += min;
     return min;
 }
-fn corrupt() -> io::Error {
+
+pub(crate) fn corrupt() -> io::Error {
     io::Error::new(
         io::ErrorKind::InvalidInput,
         "corrupt gzip stream does not have a matching checksum",
@@ -34,7 +35,7 @@ fn read_le_u16<R: Read>(r: &mut R) -> io::Result<u16> {
     Ok((b[0] as u16) | ((b[1] as u16) << 8))
 }
 
-fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
+pub(crate) fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
     let mut crc_reader = CrcReader::new(r);
     let mut header = [0; 10];
     crc_reader.read_exact(&mut header)?;
@@ -50,7 +51,9 @@ fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
     }
 
     let flg = header[3];
-    let mtime = ((header[4] as u32) << 0) | ((header[5] as u32) << 8) | ((header[6] as u32) << 16)
+    let mtime = ((header[4] as u32) << 0)
+        | ((header[5] as u32) << 8)
+        | ((header[6] as u32) << 16)
         | ((header[7] as u32) << 24);
     let _xfl = header[8];
     let os = header[9];
@@ -312,11 +315,15 @@ impl<R: BufRead> GzDecoder<R> {
             }
         }
 
-        let crc = ((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16)
+        let crc = ((buf[0] as u32) << 0)
+            | ((buf[1] as u32) << 8)
+            | ((buf[2] as u32) << 16)
             | ((buf[3] as u32) << 24);
-        let amt = ((buf[4] as u32) << 0) | ((buf[5] as u32) << 8) | ((buf[6] as u32) << 16)
+        let amt = ((buf[4] as u32) << 0)
+            | ((buf[5] as u32) << 8)
+            | ((buf[6] as u32) << 16)
             | ((buf[7] as u32) << 24);
-        if crc != self.inner.crc().sum() as u32 {
+        if crc != self.inner.crc().sum() {
             return Err(corrupt());
         }
         if amt != self.inner.crc().amount() {
@@ -357,12 +364,10 @@ impl<R: BufRead> Read for GzDecoder<R> {
         match self.header {
             None => return Ok(0), // error already returned,
             Some(Ok(_)) => {}
-            Some(Err(_)) => {
-                match self.header.take().unwrap() {
-                    Ok(_) => panic!(),
-                    Err(e) => return Err(e)
-                }
-            }
+            Some(Err(_)) => match self.header.take().unwrap() {
+                Ok(_) => panic!(),
+                Err(e) => return Err(e),
+            },
         }
         if into.is_empty() {
             return Ok(0);
@@ -465,9 +470,13 @@ impl<R: BufRead> MultiGzDecoder<R> {
             }
         }
 
-        let crc = ((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16)
+        let crc = ((buf[0] as u32) << 0)
+            | ((buf[1] as u32) << 8)
+            | ((buf[2] as u32) << 16)
             | ((buf[3] as u32) << 24);
-        let amt = ((buf[4] as u32) << 0) | ((buf[5] as u32) << 8) | ((buf[6] as u32) << 16)
+        let amt = ((buf[4] as u32) << 0)
+            | ((buf[5] as u32) << 8)
+            | ((buf[6] as u32) << 16)
             | ((buf[7] as u32) << 24);
         if crc != self.inner.crc().sum() as u32 {
             return Err(corrupt());

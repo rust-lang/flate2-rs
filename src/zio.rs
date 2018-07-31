@@ -1,5 +1,5 @@
-use std::io::prelude::*;
 use std::io;
+use std::io::prelude::*;
 use std::mem;
 
 use {Compress, Decompress, DecompressError, FlushCompress, FlushDecompress, Status};
@@ -202,22 +202,8 @@ impl<W: Write, D: Ops> Writer<W, D> {
         self.obj.is_some()
     }
 
-    fn dump(&mut self) -> io::Result<()> {
-        // TODO: should manage this buffer not with `drain` but probably more of
-        // a deque-like strategy.
-        while self.buf.len() > 0 {
-            let n = self.obj.as_mut().unwrap().write(&self.buf)?;
-            if n == 0 {
-                return Err(io::ErrorKind::WriteZero.into());
-            }
-            self.buf.drain(..n);
-        }
-        Ok(())
-    }
-}
-
-impl<W: Write, D: Ops> Write for Writer<W, D> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+    // Returns total written bytes and status of underlying codec
+    pub(crate) fn write_with_status(&mut self, buf: &[u8]) -> io::Result<(usize, Status)> {
         // miniz isn't guaranteed to actually write any of the buffer provided,
         // it may be in a flushing mode where it's just giving us data before
         // we're actually giving it any data. We don't want to spuriously return
@@ -231,18 +217,43 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
             let ret = self.data.run_vec(buf, &mut self.buf, D::Flush::none());
             let written = (self.data.total_in() - before_in) as usize;
 
-            if buf.len() > 0 && written == 0 && ret.is_ok() {
+            let is_stream_end = match ret {
+                Ok(Status::StreamEnd) => true,
+                _ => false,
+            };
+
+            if buf.len() > 0 && written == 0 && ret.is_ok() && !is_stream_end {
                 continue;
             }
             return match ret {
-                Ok(Status::Ok) | Ok(Status::BufError) | Ok(Status::StreamEnd) => Ok(written),
-
+                Ok(st) => match st {
+                    Status::Ok | Status::BufError | Status::StreamEnd => Ok((written, st)),
+                },
                 Err(..) => Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
                     "corrupt deflate stream",
                 )),
             };
         }
+    }
+
+    fn dump(&mut self) -> io::Result<()> {
+        // TODO: should manage this buffer not with `drain` but probably more of
+        // a deque-like strategy.
+        while self.buf.len() > 0 {
+            let n = try!(self.obj.as_mut().unwrap().write(&self.buf));
+            if n == 0 {
+                return Err(io::ErrorKind::WriteZero.into());
+            }
+            self.buf.drain(..n);
+        }
+        Ok(())
+    }
+}
+
+impl<W: Write, D: Ops> Write for Writer<W, D> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.write_with_status(buf).map(|res| res.0)
     }
 
     fn flush(&mut self) -> io::Result<()> {

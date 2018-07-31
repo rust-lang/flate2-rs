@@ -6,8 +6,8 @@ use std::slice;
 
 use libc::{c_int, c_uint};
 
-use Compression;
 use ffi;
+use Compression;
 
 /// Raw in-memory compression stream for blocks of data.
 ///
@@ -104,7 +104,8 @@ pub enum FlushCompress {
     /// data has yet to be processed.
     Finish = ffi::MZ_FINISH as isize,
 
-    #[doc(hidden)] _Nonexhaustive,
+    #[doc(hidden)]
+    _Nonexhaustive,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -131,7 +132,8 @@ pub enum FlushDecompress {
     /// data has yet to be processed.
     Finish = ffi::MZ_FINISH as isize,
 
-    #[doc(hidden)] _Nonexhaustive,
+    #[doc(hidden)]
+    _Nonexhaustive,
 }
 
 /// The inner state for an error when decompressing
@@ -276,9 +278,7 @@ impl Compress {
     pub fn set_level(&mut self, level: Compression) -> Result<(), CompressError> {
         let stream = &mut *self.inner.stream_wrapper;
 
-        let rc = unsafe {
-            ffi::deflateParams(stream, level.0 as c_int, ffi::MZ_DEFAULT_STRATEGY)
-        };
+        let rc = unsafe { ffi::deflateParams(stream, level.0 as c_int, ffi::MZ_DEFAULT_STRATEGY) };
 
         match rc {
             ffi::MZ_OK => Ok(()),
