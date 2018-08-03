@@ -81,7 +81,17 @@
 
 #[cfg(feature = "tokio")]
 extern crate futures;
+#[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
 extern crate libc;
+#[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+mod libc {
+    #![allow(non_camel_case_types)]
+    pub type c_ulong = u64;
+    pub type off_t = i64;
+    pub type c_int = i32;
+    pub type c_uint = u32;
+    pub type size_t = usize;
+}
 #[cfg(test)]
 extern crate quickcheck;
 #[cfg(test)]

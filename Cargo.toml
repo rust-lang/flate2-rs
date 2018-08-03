@@ -27,6 +27,9 @@ tokio-io = { version = "0.1", optional = true }
 futures = { version = "0.1", optional = true }
 miniz_oxide_c_api = { version = "0.1", optional = true, features = ["no_c_export"]}
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+miniz_oxide_c_api = { version = "0.1", optional = false, features = ["no_c_export"]}
+
 [dev-dependencies]
 rand = "0.5"
 quickcheck = { version = "0.7", default-features = false }
