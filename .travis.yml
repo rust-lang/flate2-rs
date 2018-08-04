@@ -11,6 +11,10 @@ matrix:
     - rust: stable
       script: cargo run --manifest-path systest/Cargo.toml
 
+    - rust: nightly
+      install: rustup target add wasm32-unknown-unknown
+      script: cargo build --target wasm32-unknown-unknown
+
     - rust: stable
       env: RUST_BACKEND=1
       script:
