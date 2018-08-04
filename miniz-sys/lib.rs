@@ -1,5 +1,6 @@
 #![doc(html_root_url = "https://docs.rs/miniz-sys/0.1")]
 #![allow(bad_style)]
+#![cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
 
 extern crate libc;
 use libc::*;
