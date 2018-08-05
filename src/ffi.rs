@@ -108,7 +108,7 @@ mod imp {
     }
 }
 
-#[cfg(any(all(not(feature = "zlib"), feature = "rust_backend"), target_arch="wasm32"))]
+#[cfg(any(all(not(feature = "zlib"), feature = "rust_backend"), all(target_arch = "wasm32", not(target_os = "emscripten"))))]
 mod imp {
     extern crate miniz_oxide_c_api;
     use std::ops::{Deref, DerefMut};
@@ -137,7 +137,7 @@ mod imp {
     }
 }
 
-#[cfg(all(not(feature = "zlib"), not(feature = "rust_backend"), not(target_arch="wasm32")))]
+#[cfg(all(not(feature = "zlib"), not(feature = "rust_backend"), not(all(target_arch = "wasm32", not(target_os = "emscripten")))))]
 mod imp {
     extern crate miniz_sys;
     use std::mem;
