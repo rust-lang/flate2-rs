@@ -4,7 +4,7 @@ fn main() {
     let mut cfg = ctest::TestGenerator::new();
     cfg.header("miniz.h")
         .include(concat!(env!("CARGO_MANIFEST_DIR"), "/../miniz-sys"))
-        .type_name(|s, _| {
+        .type_name(|s, _, _| {
             if s == "mz_internal_state" {
                 "struct mz_internal_state".to_string()
             } else {
