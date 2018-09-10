@@ -8,7 +8,7 @@ use flate2::write::{GzEncoder, GzDecoder};
 // Compress a sample string and print it after transformation.
 fn main() {
     let mut e = GzEncoder::new(Vec::new(), Compression::default());
-    e.write(b"Hello World").unwrap();
+    e.write_all(b"Hello World").unwrap();
     let bytes = e.finish().unwrap();
     println!("{}", decode_writer(bytes).unwrap());
 }
@@ -18,7 +18,7 @@ fn main() {
 fn decode_writer(bytes: Vec<u8>) -> io::Result<String> {
     let mut writer = Vec::new();
     let mut decoder = GzDecoder::new(writer);
-    decoder.write(&bytes[..])?;
+    decoder.write_all(&bytes[..])?;
     decoder.try_finish()?;
     writer = decoder.finish()?;
     let return_string = String::from_utf8(writer).expect("String parsing error");
