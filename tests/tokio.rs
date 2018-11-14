@@ -6,9 +6,10 @@ extern crate rand;
 extern crate tokio_core;
 extern crate tokio_io;
 
-use std::thread;
-use std::net::{Shutdown, TcpListener};
 use std::io::{Read, Write};
+use std::iter;
+use std::net::{Shutdown, TcpListener};
+use std::thread;
 
 use flate2::Compression;
 use flate2::read;
@@ -76,9 +77,9 @@ fn tcp_stream_echo_pattern() {
 
 #[test]
 fn echo_random() {
-    let v = thread_rng()
-        .gen_iter::<u8>()
+    let v = iter::repeat(())
         .take(1024 * 1024)
+        .map(|()| thread_rng().gen::<u8>())
         .collect::<Vec<_>>();
     let mut core = Core::new().unwrap();
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();

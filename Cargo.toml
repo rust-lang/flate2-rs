@@ -31,7 +31,7 @@ miniz_oxide_c_api = { version = "0.2", optional = true, features = ["no_c_export
 miniz_oxide_c_api = { version = "0.2", features = ["no_c_export"] }
 
 [dev-dependencies]
-rand = "0.5"
+rand = "0.6"
 quickcheck = { version = "0.7", default-features = false }
 tokio-core = "0.1"
 
