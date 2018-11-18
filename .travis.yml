@@ -10,10 +10,12 @@ matrix:
 
     - rust: stable
       script: cargo run --manifest-path systest/Cargo.toml
+      name: "systest"
 
     - rust: nightly
       install: rustup target add wasm32-unknown-unknown
       script: cargo build --target wasm32-unknown-unknown
+      name: "wasm"
 
     - rust: stable
       env: RUST_BACKEND=1
@@ -28,6 +30,7 @@ matrix:
         - cargo doc --no-deps --all-features
       after_success:
         - travis-cargo --only nightly doc-upload
+      name: "docs"
 
   allow_failures:
     - env: RUST_BACKEND=1
@@ -40,9 +43,15 @@ script:
   - cargo test --features tokio
   - cargo test --features 'tokio zlib'
   - cargo test --features zlib --no-default-features
+  - cargo test --manifest-path flate2-crc/Cargo.toml
+  - cargo test --release --manifest-path flate2-crc/Cargo.toml
   - cargo clean && cargo build
   - cargo doc --no-deps
   - cargo doc --no-deps --manifest-path=miniz-sys/Cargo.toml
+
+branches:
+  only:
+    - master
 
 env:
   global:

@@ -20,5 +20,11 @@ install:
 build: false
 
 test_script:
-  - cargo test --verbose --target %TARGET%
-  - cargo test --verbose --target %TARGET% --features tokio
+  - cargo test --target %TARGET%
+  - cargo test --target %TARGET% --features tokio
+  - cargo test --target %TARGET% --manifest-path flate2-crc/Cargo.toml
+  - cargo test --target %TARGET% --manifest-path flate2-crc/Cargo.toml --release
+
+branches:
+  only:
+    - master

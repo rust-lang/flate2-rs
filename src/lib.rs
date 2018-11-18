@@ -79,6 +79,7 @@
 #![allow(trivial_numeric_casts)]
 #![cfg_attr(test, deny(warnings))]
 
+extern crate flate2_crc;
 #[cfg(feature = "tokio")]
 extern crate futures;
 #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
