@@ -2,6 +2,8 @@
 
 use std::io::prelude::*;
 use std::io;
+
+use flate2_crc::Hardware;
 use libc;
 
 use ffi;
@@ -11,8 +13,9 @@ use ffi;
 /// [`CrcReader`]: struct.CrcReader.html
 #[derive(Debug)]
 pub struct Crc {
-    crc: libc::c_ulong,
+    crc: u32,
     amt: u32,
+    hardware: Hardware,
 }
 
 /// A wrapper around a [`Read`] that calculates the CRC.
@@ -27,10 +30,10 @@ pub struct CrcReader<R> {
 impl Crc {
     /// Create a new CRC.
     pub fn new() -> Crc {
-        Crc { crc: 0, amt: 0 }
+        Crc { crc: 0, amt: 0, hardware: Hardware::detect() }
     }
 
-    /// bla
+    /// Returns the current crc32 checksum.
     pub fn sum(&self) -> u32 {
         self.crc as u32
     }
@@ -44,7 +47,15 @@ impl Crc {
     /// Update the CRC with the bytes in `data`.
     pub fn update(&mut self, data: &[u8]) {
         self.amt = self.amt.wrapping_add(data.len() as u32);
-        self.crc = unsafe { ffi::mz_crc32(self.crc, data.as_ptr(), data.len() as libc::size_t) };
+        self.crc = self.hardware.calculate(self.crc, data, |crc, data| {
+            unsafe {
+                ffi::mz_crc32(
+                    crc as libc::c_ulong,
+                    data.as_ptr(),
+                    data.len() as libc::size_t,
+                ) as u32
+            }
+        });
     }
 
     /// Reset the CRC.
@@ -57,10 +68,10 @@ impl Crc {
     pub fn combine(&mut self, additional_crc: &Crc) {
         self.crc = unsafe {
             ffi::mz_crc32_combine(
-                self.crc as ::libc::c_ulong,
-                additional_crc.crc as ::libc::c_ulong,
-                additional_crc.amt as ::libc::off_t,
-            )
+                self.crc as libc::c_ulong,
+                additional_crc.crc as libc::c_ulong,
+                additional_crc.amt as libc::off_t,
+            ) as u32
         };
         self.amt += additional_crc.amt;
     }
