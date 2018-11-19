@@ -14,7 +14,7 @@ SIMD acceleration for CRC-32 checksums used in the gzip format
 cfg-if = "0.1.6"
 
 [dev-dependencies]
-miniz-sys = { path = '../miniz-sys' }
+miniz-sys = { path = '../miniz-sys', version = '0.1' }
 rand = "0.6"
 libz-sys = "1.0"
 rayon = "1.0.3"
