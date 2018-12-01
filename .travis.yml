@@ -43,8 +43,6 @@ script:
   - cargo test --features tokio
   - cargo test --features 'tokio zlib'
   - cargo test --features zlib --no-default-features
-  - cargo test --manifest-path flate2-crc/Cargo.toml
-  - cargo test --release --manifest-path flate2-crc/Cargo.toml
   - cargo clean && cargo build
   - cargo doc --no-deps
   - cargo doc --no-deps --manifest-path=miniz-sys/Cargo.toml
