@@ -1,5 +1,9 @@
+//! Deprecated crate, use `crc32fast`
+
 // Note that this isn't really intended to be a user-facing crate, that's
 // `flate2::Crc`
+
+#![deprecated(note = "use the `crc32fast` crate instead")]
 
 #[macro_use]
 extern crate cfg_if;
