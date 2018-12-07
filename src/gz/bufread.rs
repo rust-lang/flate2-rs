@@ -3,6 +3,11 @@ use std::io;
 use std::io::prelude::*;
 use std::mem;
 
+#[cfg(feature = "tokio")]
+use futures::Poll;
+#[cfg(feature = "tokio")]
+use tokio_io::{AsyncRead, AsyncWrite};
+
 use super::{GzBuilder, GzHeader};
 use super::{FCOMMENT, FEXTRA, FHCRC, FNAME};
 use crc::CrcReader;
@@ -235,6 +240,9 @@ impl<R: BufRead> Read for GzEncoder<R> {
     }
 }
 
+#[cfg(feature = "tokio")]
+impl<R: AsyncRead + BufRead> AsyncRead for GzEncoder<R> {}
+
 impl<R: BufRead + Write> Write for GzEncoder<R> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.get_mut().write(buf)
@@ -242,6 +250,13 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.get_mut().flush()
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<R: AsyncWrite + BufRead> AsyncWrite for GzEncoder<R> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        self.get_mut().shutdown()
     }
 }
 
@@ -382,6 +397,9 @@ impl<R: BufRead> Read for GzDecoder<R> {
     }
 }
 
+#[cfg(feature = "tokio")]
+impl<R: AsyncRead + BufRead> AsyncRead for GzDecoder<R> {}
+
 impl<R: BufRead + Write> Write for GzDecoder<R> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.get_mut().write(buf)
@@ -389,6 +407,13 @@ impl<R: BufRead + Write> Write for GzDecoder<R> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.get_mut().flush()
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<R: AsyncWrite + BufRead> AsyncWrite for GzDecoder<R> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        self.get_mut().shutdown()
     }
 }
 
