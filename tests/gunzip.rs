@@ -1,11 +1,11 @@
 extern crate flate2;
 
+use flate2::read::GzDecoder;
+use flate2::read::MultiGzDecoder;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufReader};
 use std::path::Path;
-use flate2::read::GzDecoder;
-use flate2::read::MultiGzDecoder;
 
 // test extraction of a gzipped file
 #[test]

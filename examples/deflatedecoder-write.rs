@@ -1,10 +1,10 @@
 extern crate flate2;
 
-use std::io::prelude::*;
-use std::io;
-use flate2::Compression;
-use flate2::write::DeflateEncoder;
 use flate2::write::DeflateDecoder;
+use flate2::write::DeflateEncoder;
+use flate2::Compression;
+use std::io;
+use std::io::prelude::*;
 
 // Compress a sample string and print it after transformation.
 fn main() {

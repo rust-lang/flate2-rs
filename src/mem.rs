@@ -614,10 +614,9 @@ mod tests {
 
         let mut d = Decompress::new(false);
         // decompressed whole deflate stream
-        assert!(
-            d.decompress_vec(&data[10..], &mut decoded, FlushDecompress::Finish)
-                .is_ok()
-        );
+        assert!(d
+            .decompress_vec(&data[10..], &mut decoded, FlushDecompress::Finish)
+            .is_ok());
 
         // decompress data that has nothing to do with the deflate stream (this
         // used to panic)

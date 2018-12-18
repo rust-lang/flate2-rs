@@ -1,9 +1,9 @@
 extern crate flate2;
 
-use std::io::prelude::*;
-use std::io;
+use flate2::write::{GzDecoder, GzEncoder};
 use flate2::Compression;
-use flate2::write::{GzEncoder, GzDecoder};
+use std::io;
+use std::io::prelude::*;
 
 // Compress a sample string and print it after transformation.
 fn main() {

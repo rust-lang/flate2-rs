@@ -4,8 +4,8 @@ pub mod write;
 
 #[cfg(test)]
 mod tests {
-    use std::io::prelude::*;
     use std::io;
+    use std::io::prelude::*;
 
     use rand::{thread_rng, Rng};
 

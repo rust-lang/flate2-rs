@@ -1,10 +1,10 @@
-use std::io::prelude::*;
 use std::io;
+use std::io::prelude::*;
 
-use super::{GzBuilder, GzHeader};
-use Compression;
-use bufreader::BufReader;
 use super::bufread;
+use super::{GzBuilder, GzHeader};
+use bufreader::BufReader;
+use Compression;
 
 /// A gzip streaming encoder
 ///

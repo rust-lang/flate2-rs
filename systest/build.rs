@@ -15,9 +15,7 @@ fn main() {
             // We switched this from `*mut c_char` to `*const c_char`
             s == "mz_stream" && f == "msg"
         })
-        .skip_signededness(|s| {
-            s.ends_with("_func")
-        });
+        .skip_signededness(|s| s.ends_with("_func"));
 
     cfg.generate("../miniz-sys/lib.rs", "all.rs");
 }

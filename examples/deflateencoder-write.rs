@@ -1,8 +1,8 @@
 extern crate flate2;
 
-use std::io::prelude::*;
-use flate2::Compression;
 use flate2::write::DeflateEncoder;
+use flate2::Compression;
+use std::io::prelude::*;
 
 // Vec<u8> implements Write to print the compressed bytes of sample string
 fn main() {

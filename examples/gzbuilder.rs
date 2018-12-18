@@ -1,10 +1,10 @@
 extern crate flate2;
 
-use std::io::prelude::*;
-use std::io;
-use std::fs::File;
-use flate2::GzBuilder;
 use flate2::Compression;
+use flate2::GzBuilder;
+use std::fs::File;
+use std::io;
+use std::io::prelude::*;
 
 // Open file and debug print the contents compressed with gzip
 fn main() {

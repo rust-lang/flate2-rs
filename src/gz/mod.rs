@@ -2,8 +2,8 @@ use std::ffi::CString;
 use std::io::prelude::*;
 use std::time;
 
-use Compression;
 use bufreader::BufReader;
+use Compression;
 
 pub static FHCRC: u8 = 1 << 1;
 pub static FEXTRA: u8 = 1 << 2;
@@ -257,8 +257,8 @@ mod tests {
     use std::io::prelude::*;
 
     use super::{read, write, GzBuilder};
-    use Compression;
     use rand::{thread_rng, Rng};
+    use Compression;
 
     #[test]
     fn roundtrip() {

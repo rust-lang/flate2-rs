@@ -1,9 +1,9 @@
 extern crate flate2;
 
-use std::io::prelude::*;
-use std::io;
-use flate2::Compression;
 use flate2::read::GzEncoder;
+use flate2::Compression;
+use std::io;
+use std::io::prelude::*;
 
 // Print the GZ compressed representation of hello world
 fn main() {

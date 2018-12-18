@@ -4,17 +4,17 @@ pub use self::imp::*;
 #[allow(bad_style)]
 mod imp {
     extern crate libz_sys as z;
+    use libc::{c_char, c_int};
     use std::mem;
     use std::ops::{Deref, DerefMut};
-    use libc::{c_char, c_int};
 
-    pub use self::z::*;
-    pub use self::z::deflateEnd as mz_deflateEnd;
-    pub use self::z::inflateEnd as mz_inflateEnd;
-    pub use self::z::deflateReset as mz_deflateReset;
     pub use self::z::deflate as mz_deflate;
+    pub use self::z::deflateEnd as mz_deflateEnd;
+    pub use self::z::deflateReset as mz_deflateReset;
     pub use self::z::inflate as mz_inflate;
+    pub use self::z::inflateEnd as mz_inflateEnd;
     pub use self::z::z_stream as mz_stream;
+    pub use self::z::*;
 
     pub use self::z::Z_BLOCK as MZ_BLOCK;
     pub use self::z::Z_BUF_ERROR as MZ_BUF_ERROR;
@@ -23,13 +23,13 @@ mod imp {
     pub use self::z::Z_DEFLATED as MZ_DEFLATED;
     pub use self::z::Z_FINISH as MZ_FINISH;
     pub use self::z::Z_FULL_FLUSH as MZ_FULL_FLUSH;
+    pub use self::z::Z_NEED_DICT as MZ_NEED_DICT;
     pub use self::z::Z_NO_FLUSH as MZ_NO_FLUSH;
     pub use self::z::Z_OK as MZ_OK;
     pub use self::z::Z_PARTIAL_FLUSH as MZ_PARTIAL_FLUSH;
     pub use self::z::Z_STREAM_END as MZ_STREAM_END;
-    pub use self::z::Z_SYNC_FLUSH as MZ_SYNC_FLUSH;
     pub use self::z::Z_STREAM_ERROR as MZ_STREAM_ERROR;
-    pub use self::z::Z_NEED_DICT as MZ_NEED_DICT;
+    pub use self::z::Z_SYNC_FLUSH as MZ_SYNC_FLUSH;
 
     pub const MZ_DEFAULT_WINDOW_BITS: c_int = 15;
 
@@ -96,13 +96,16 @@ mod imp {
     }
 }
 
-#[cfg(any(all(not(feature = "zlib"), feature = "rust_backend"), all(target_arch = "wasm32", not(target_os = "emscripten"))))]
+#[cfg(any(
+    all(not(feature = "zlib"), feature = "rust_backend"),
+    all(target_arch = "wasm32", not(target_os = "emscripten"))
+))]
 mod imp {
     extern crate miniz_oxide_c_api;
     use std::ops::{Deref, DerefMut};
 
-    pub use self::miniz_oxide_c_api::*;
     pub use self::miniz_oxide_c_api::lib_oxide::*;
+    pub use self::miniz_oxide_c_api::*;
 
     #[derive(Debug, Default)]
     pub struct StreamWrapper {
@@ -124,7 +127,11 @@ mod imp {
     }
 }
 
-#[cfg(all(not(feature = "zlib"), not(feature = "rust_backend"), not(all(target_arch = "wasm32", not(target_os = "emscripten")))))]
+#[cfg(all(
+    not(feature = "zlib"),
+    not(feature = "rust_backend"),
+    not(all(target_arch = "wasm32", not(target_os = "emscripten")))
+))]
 mod imp {
     extern crate miniz_sys;
     use std::mem;
@@ -164,4 +171,3 @@ mod imp {
         }
     }
 }
-

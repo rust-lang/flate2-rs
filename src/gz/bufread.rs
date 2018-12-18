@@ -485,12 +485,14 @@ impl<R: BufRead> MultiGzDecoder<R> {
             return Err(corrupt());
         }
         let remaining = match self.inner.get_mut().get_mut().fill_buf() {
-            Ok(b) => if b.is_empty() {
-                self.finished = true;
-                return Ok(0);
-            } else {
-                b.len()
-            },
+            Ok(b) => {
+                if b.is_empty() {
+                    self.finished = true;
+                    return Ok(0);
+                } else {
+                    b.len()
+                }
+            }
             Err(e) => return Err(e),
         };
 

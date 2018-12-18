@@ -11,15 +11,15 @@ use std::iter;
 use std::net::{Shutdown, TcpListener};
 use std::thread;
 
-use flate2::Compression;
 use flate2::read;
 use flate2::write;
+use flate2::Compression;
 use futures::Future;
 use rand::{thread_rng, Rng};
 use tokio_core::net::TcpStream;
 use tokio_core::reactor::Core;
-use tokio_io::AsyncRead;
 use tokio_io::io::{copy, shutdown};
+use tokio_io::AsyncRead;
 
 #[test]
 fn tcp_stream_echo_pattern() {

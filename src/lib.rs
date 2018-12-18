@@ -108,19 +108,19 @@ mod libc {
     pub type size_t = usize;
 }
 
+pub use crc::{Crc, CrcReader, CrcWriter};
 pub use gz::GzBuilder;
 pub use gz::GzHeader;
 pub use mem::{Compress, CompressError, Decompress, DecompressError, Status};
 pub use mem::{FlushCompress, FlushDecompress};
-pub use crc::{Crc, CrcReader, CrcWriter};
 
 mod bufreader;
 mod crc;
 mod deflate;
 mod ffi;
 mod gz;
-mod zio;
 mod mem;
+mod zio;
 mod zlib;
 
 /// Types which operate over [`Read`] streams, both encoders and decoders for
@@ -128,13 +128,13 @@ mod zlib;
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub mod read {
-    pub use deflate::read::DeflateEncoder;
     pub use deflate::read::DeflateDecoder;
-    pub use zlib::read::ZlibEncoder;
-    pub use zlib::read::ZlibDecoder;
-    pub use gz::read::GzEncoder;
+    pub use deflate::read::DeflateEncoder;
     pub use gz::read::GzDecoder;
+    pub use gz::read::GzEncoder;
     pub use gz::read::MultiGzDecoder;
+    pub use zlib::read::ZlibDecoder;
+    pub use zlib::read::ZlibEncoder;
 }
 
 /// Types which operate over [`Write`] streams, both encoders and decoders for
@@ -142,12 +142,12 @@ pub mod read {
 ///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 pub mod write {
-    pub use deflate::write::DeflateEncoder;
     pub use deflate::write::DeflateDecoder;
-    pub use zlib::write::ZlibEncoder;
-    pub use zlib::write::ZlibDecoder;
-    pub use gz::write::GzEncoder;
+    pub use deflate::write::DeflateEncoder;
     pub use gz::write::GzDecoder;
+    pub use gz::write::GzEncoder;
+    pub use zlib::write::ZlibDecoder;
+    pub use zlib::write::ZlibEncoder;
 }
 
 /// Types which operate over [`BufRead`] streams, both encoders and decoders for
@@ -155,13 +155,13 @@ pub mod write {
 ///
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 pub mod bufread {
-    pub use deflate::bufread::DeflateEncoder;
     pub use deflate::bufread::DeflateDecoder;
-    pub use zlib::bufread::ZlibEncoder;
-    pub use zlib::bufread::ZlibDecoder;
-    pub use gz::bufread::GzEncoder;
+    pub use deflate::bufread::DeflateEncoder;
     pub use gz::bufread::GzDecoder;
+    pub use gz::bufread::GzEncoder;
     pub use gz::bufread::MultiGzDecoder;
+    pub use zlib::bufread::ZlibDecoder;
+    pub use zlib::bufread::ZlibEncoder;
 }
 
 fn _assert_send_sync() {
@@ -228,8 +228,8 @@ impl Default for Compression {
 
 #[cfg(test)]
 fn random_bytes() -> impl Iterator<Item = u8> {
-    use std::iter;
     use rand::Rng;
+    use std::iter;
 
     iter::repeat(()).map(|_| rand::thread_rng().gen())
 }

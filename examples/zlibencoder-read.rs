@@ -1,9 +1,9 @@
 extern crate flate2;
 
-use std::io::prelude::*;
-use flate2::Compression;
 use flate2::read::ZlibEncoder;
+use flate2::Compression;
 use std::fs::File;
+use std::io::prelude::*;
 
 // Open file and debug print the compressed contents
 fn main() {

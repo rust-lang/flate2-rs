@@ -1,13 +1,13 @@
-use std::io::prelude::*;
 use std::io;
+use std::io::prelude::*;
 
 #[cfg(feature = "tokio")]
 use futures::Poll;
 #[cfg(feature = "tokio")]
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use bufreader::BufReader;
 use super::bufread;
+use bufreader::BufReader;
 
 /// A ZLIB encoder, or compressor.
 ///
