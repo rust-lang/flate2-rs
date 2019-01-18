@@ -1,10 +1,10 @@
 use std::io;
 use std::io::prelude::*;
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 use futures::Poll;
-#[cfg(feature = "tokio")]
-use tokio_io::{AsyncRead, AsyncWrite};
+#[cfg(feature = "async")]
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use zio;
 use {Compress, Decompress};
@@ -166,10 +166,10 @@ impl<W: Write> Write for DeflateEncoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 impl<W: AsyncWrite> AsyncWrite for DeflateEncoder<W> {
     fn shutdown(&mut self) -> Poll<(), io::Error> {
-        try_nb!(self.inner.finish());
+        self.inner.finish()?;
         self.inner.get_mut().shutdown()
     }
 }
@@ -180,7 +180,7 @@ impl<W: Read + Write> Read for DeflateEncoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 impl<W: AsyncRead + AsyncWrite> AsyncRead for DeflateEncoder<W> {}
 
 /// A DEFLATE decoder, or decompressor.
@@ -331,10 +331,10 @@ impl<W: Write> Write for DeflateDecoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 impl<W: AsyncWrite> AsyncWrite for DeflateDecoder<W> {
     fn shutdown(&mut self) -> Poll<(), io::Error> {
-        try_nb!(self.inner.finish());
+        self.inner.finish()?;
         self.inner.get_mut().shutdown()
     }
 }
@@ -345,5 +345,5 @@ impl<W: Read + Write> Read for DeflateDecoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 impl<W: AsyncRead + AsyncWrite> AsyncRead for DeflateDecoder<W> {}

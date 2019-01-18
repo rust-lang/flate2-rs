@@ -2,10 +2,10 @@ use std::cmp;
 use std::io;
 use std::io::prelude::*;
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 use futures::Poll;
-#[cfg(feature = "tokio")]
-use tokio_io::{AsyncRead, AsyncWrite};
+#[cfg(feature = "async")]
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use super::bufread::{corrupt, read_gz_header};
 use super::{GzBuilder, GzHeader};
@@ -158,10 +158,10 @@ impl<W: Write> Write for GzEncoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 impl<W: AsyncWrite> AsyncWrite for GzEncoder<W> {
     fn shutdown(&mut self) -> Poll<(), io::Error> {
-        try_nb!(self.try_finish());
+        self.try_finish()?;
         self.get_mut().shutdown()
     }
 }
@@ -172,7 +172,7 @@ impl<R: Read + Write> Read for GzEncoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 impl<R: AsyncRead + AsyncWrite> AsyncRead for GzEncoder<R> {}
 
 impl<W: Write> Drop for GzEncoder<W> {
@@ -385,10 +385,10 @@ impl<W: Write> Write for GzDecoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 impl<W: AsyncWrite> AsyncWrite for GzDecoder<W> {
     fn shutdown(&mut self) -> Poll<(), io::Error> {
-        try_nb!(self.try_finish());
+        self.try_finish()?;
         self.inner.get_mut().get_mut().shutdown()
     }
 }
@@ -399,7 +399,7 @@ impl<W: Read + Write> Read for GzDecoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 impl<W: AsyncRead + AsyncWrite> AsyncRead for GzDecoder<W> {}
 
 #[cfg(test)]

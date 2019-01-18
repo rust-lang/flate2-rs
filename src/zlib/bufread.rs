@@ -2,10 +2,10 @@ use std::io;
 use std::io::prelude::*;
 use std::mem;
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 use futures::Poll;
-#[cfg(feature = "tokio")]
-use tokio_io::{AsyncRead, AsyncWrite};
+#[cfg(feature = "async")]
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use zio;
 use {Compress, Decompress};
@@ -112,7 +112,7 @@ impl<R: BufRead> Read for ZlibEncoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 impl<R: AsyncRead + BufRead> AsyncRead for ZlibEncoder<R> {}
 
 impl<R: BufRead + Write> Write for ZlibEncoder<R> {
@@ -125,7 +125,7 @@ impl<R: BufRead + Write> Write for ZlibEncoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 impl<R: AsyncWrite + BufRead> AsyncWrite for ZlibEncoder<R> {
     fn shutdown(&mut self) -> Poll<(), io::Error> {
         self.get_mut().shutdown()
@@ -237,7 +237,7 @@ impl<R: BufRead> Read for ZlibDecoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 impl<R: AsyncRead + BufRead> AsyncRead for ZlibDecoder<R> {}
 
 impl<R: BufRead + Write> Write for ZlibDecoder<R> {
@@ -250,7 +250,7 @@ impl<R: BufRead + Write> Write for ZlibDecoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "async")]
 impl<R: AsyncWrite + BufRead> AsyncWrite for ZlibDecoder<R> {
     fn shutdown(&mut self) -> Poll<(), io::Error> {
         self.get_mut().shutdown()
