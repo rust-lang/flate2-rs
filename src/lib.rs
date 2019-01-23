@@ -53,12 +53,12 @@
 //! # Async I/O
 //!
 //! This crate optionally can support async I/O streams with the [Tokio stack] via
-//! the `async` feature of this crate:
+//! the `tokio` feature of this crate:
 //!
 //! [Tokio stack]: https://tokio.rs/
 //!
 //! ```toml
-//! flate2 = { version = "0.2", features = ["async"] }
+//! flate2 = { version = "0.2", features = ["tokio"] }
 //! ```
 //!
 //! All methods are internally capable of working with streams that may return
@@ -80,7 +80,7 @@
 #![cfg_attr(test, deny(warnings))]
 
 extern crate crc32fast;
-#[cfg(feature = "async")]
+#[cfg(feature = "tokio")]
 extern crate futures;
 #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
 extern crate libc;
@@ -88,8 +88,8 @@ extern crate libc;
 extern crate quickcheck;
 #[cfg(test)]
 extern crate rand;
-#[cfg(feature = "async")]
-extern crate tokio;
+#[cfg(feature = "tokio")]
+extern crate tokio_io;
 
 // These must currently agree with here --
 // https://github.com/Frommi/miniz_oxide/blob/e6c214efd253491ac072c2c9adba87ef5b4cd5cb/src/lib.rs#L14-L19

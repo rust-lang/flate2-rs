@@ -1,9 +1,11 @@
-#![cfg(feature = "async")]
+#![cfg(feature = "tokio")]
 
 extern crate flate2;
 extern crate futures;
 extern crate rand;
-extern crate tokio;
+extern crate tokio_io;
+extern crate tokio_tcp;
+extern crate tokio_threadpool;
 
 use std::io::{Read, Write};
 use std::iter;
@@ -15,9 +17,9 @@ use flate2::write;
 use flate2::Compression;
 use futures::Future;
 use rand::{thread_rng, Rng};
-use tokio::io::AsyncRead;
-use tokio::io::{copy, shutdown};
-use tokio::net::TcpStream;
+use tokio_io::io::{copy, shutdown};
+use tokio_io::AsyncRead;
+use tokio_tcp::TcpStream;
 
 #[test]
 fn tcp_stream_echo_pattern() {
@@ -68,7 +70,9 @@ fn tcp_stream_echo_pattern() {
         })
         .map_err(|err| panic!("{}", err));
 
-    tokio::runtime::run(copy);
+    let threadpool = tokio_threadpool::Builder::new().build();
+    threadpool.spawn(copy);
+    threadpool.shutdown().wait().unwrap();
     t.join().unwrap();
 }
 
@@ -122,6 +126,8 @@ fn echo_random() {
         })
         .map_err(|err| panic!("{}", err));
 
-    tokio::runtime::run(copy);
+    let threadpool = tokio_threadpool::Builder::new().build();
+    threadpool.spawn(copy);
+    threadpool.shutdown().wait().unwrap();
     t.join().unwrap();
 }
