@@ -89,7 +89,6 @@ extern crate quickcheck;
 #[cfg(test)]
 extern crate rand;
 #[cfg(feature = "tokio")]
-#[macro_use]
 extern crate tokio_io;
 
 // These must currently agree with here --
