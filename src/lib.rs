@@ -74,8 +74,8 @@
 //! time to perform I/O. If I/O streams are flushed before drop, however, then
 //! these operations will be a noop.
 #![doc(html_root_url = "https://docs.rs/flate2/0.2")]
-#![deny(missing_docs)]
-#![deny(missing_debug_implementations)]
+// #![deny(missing_docs)]
+// #![deny(missing_debug_implementations)]
 #![allow(trivial_numeric_casts)]
 #![cfg_attr(test, deny(warnings))]
 

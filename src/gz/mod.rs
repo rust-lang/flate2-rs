@@ -18,7 +18,7 @@ pub mod write;
 ///
 /// The header can contain metadata about the file that was compressed, if
 /// present.
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug, Default)]
 pub struct GzHeader {
     extra: Option<Vec<u8>>,
     filename: Option<Vec<u8>>,
@@ -316,11 +316,11 @@ mod tests {
             .extra(vec![0, 1, 2, 3])
             .read(&r[..], Compression::default());
         let mut d = read::GzDecoder::new(e);
-        assert_eq!(d.header().unwrap().filename(), Some(&b"foo.rs"[..]));
-        assert_eq!(d.header().unwrap().comment(), Some(&b"bar"[..]));
-        assert_eq!(d.header().unwrap().extra(), Some(&b"\x00\x01\x02\x03"[..]));
         let mut res = Vec::new();
         d.read_to_end(&mut res).unwrap();
+        assert_eq!(d.header().unwrap().filename(), Some(&b"foo.rs"[..])); // must read first
+        assert_eq!(d.header().unwrap().comment(), Some(&b"bar"[..]));
+        assert_eq!(d.header().unwrap().extra(), Some(&b"\x00\x01\x02\x03"[..]));
         assert_eq!(res, vec![0, 2, 4, 6]);
     }
 
