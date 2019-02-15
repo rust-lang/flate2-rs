@@ -73,5 +73,5 @@ fn empty_error_once() {
     let reader = BufReader::new(cbjson);
     let mut stream = reader.lines();
     assert!(stream.next().unwrap().is_err());
-    // assert!(stream.next().is_none());
+    assert!(stream.next().is_none());
 }

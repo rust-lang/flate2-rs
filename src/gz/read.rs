@@ -137,6 +137,13 @@ impl<R: Read> GzDecoder<R> {
             inner: bufread::GzDecoder::new(BufReader::new(r)),
         }
     }
+
+    /// Creates a new decoder from the given reader.
+    pub fn new2(r: R) -> GzDecoder<R> {
+        GzDecoder {
+            inner: bufread::GzDecoder::new2(BufReader::new(r)),
+        }
+    }
 }
 
 impl<R> GzDecoder<R> {

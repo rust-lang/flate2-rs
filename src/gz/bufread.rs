@@ -2,6 +2,7 @@ use std::cmp;
 use std::io;
 use std::io::prelude::*;
 use std::mem;
+use crc32fast::Hasher;
 
 use super::{GzBuilder, GzHeader};
 use super::{FCOMMENT, FEXTRA, FHCRC, FNAME};
@@ -113,7 +114,7 @@ pub(crate) fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
 }
 
 #[derive(Debug)]
-pub(crate) enum State {
+pub(crate) enum GzHeaderState {
     Header(usize, [u8; 10]),    // pos, buf
     ExtraLen(usize, [u8; 2]),   // pos, buf
     Extra(usize),               // pos
@@ -122,7 +123,13 @@ pub(crate) enum State {
     Crc(u16, usize, [u8; 2])    // crc, pos, buf
 }
 
-pub(crate) fn read_gz_header2<R: Read>(r: &mut CrcReader<R>, state: &mut State, header: &mut GzHeader, flag: &mut u8) -> io::Result<()> {
+pub(crate) fn read_gz_header2<R: BufRead>(
+    r: &mut R,
+    state: &mut GzHeaderState,
+    header: &mut GzHeader,
+    flag: &mut u8,
+    hasher: &mut Hasher
+) -> io::Result<()> {
     enum Next {
         None,
         ExtraLen,
@@ -136,7 +143,7 @@ pub(crate) fn read_gz_header2<R: Read>(r: &mut CrcReader<R>, state: &mut State, 
 
     loop {
         match state {
-            State::Header(pos, buf) => if *pos < buf.len() {
+            GzHeaderState::Header(pos, buf) => if *pos < buf.len() {
                 let len = r.read(&mut buf[*pos..])
                     .and_then(|len| if len != 0 {
                         Ok(len)
@@ -145,6 +152,8 @@ pub(crate) fn read_gz_header2<R: Read>(r: &mut CrcReader<R>, state: &mut State, 
                     })?;
                 *pos += len;
             } else {
+                hasher.update(buf);
+
                 let id1 = buf[0];
                 let id2 = buf[1];
                 if id1 != 0x1f || id2 != 0x8b {
@@ -169,8 +178,8 @@ pub(crate) fn read_gz_header2<R: Read>(r: &mut CrcReader<R>, state: &mut State, 
 
                 next = Next::ExtraLen;
             },
-            State::ExtraLen(..) if *flag & FEXTRA == 0 => next = Next::FileName,
-            State::ExtraLen(pos, buf) => if *pos < buf.len() {
+            GzHeaderState::ExtraLen(..) if *flag & FEXTRA == 0 => next = Next::FileName,
+            GzHeaderState::ExtraLen(pos, buf) => if *pos < buf.len() {
                 let len = r.read(&mut buf[*pos..])
                     .and_then(|len| if len != 0 {
                         Ok(len)
@@ -179,6 +188,8 @@ pub(crate) fn read_gz_header2<R: Read>(r: &mut CrcReader<R>, state: &mut State, 
                     })?;
                 *pos += len;
             } else {
+                hasher.update(buf);
+
                 let xlen = (buf[0] as u16) | ((buf[1] as u16) << 8);
                 header.extra = Some(vec![0; xlen as usize]);
                 if xlen != 0 {
@@ -187,7 +198,7 @@ pub(crate) fn read_gz_header2<R: Read>(r: &mut CrcReader<R>, state: &mut State, 
                     next = Next::FileName;
                 }
             },
-            State::Extra(pos) => if let Some(extra) = &mut header.extra {
+            GzHeaderState::Extra(pos) => if let Some(extra) = &mut header.extra {
                 if *pos < extra.len() {
                     let len = r.read(&mut extra[*pos..])
                         .and_then(|len| if len != 0 {
@@ -199,37 +210,25 @@ pub(crate) fn read_gz_header2<R: Read>(r: &mut CrcReader<R>, state: &mut State, 
                 } else {
                     next = Next::FileName;
                 }
-            } else {
-                next = Next::FileName; // unreachable
             },
-            State::FileName if *flag & FNAME == 0 => next = Next::Comment,
-            State::FileName => {
+            GzHeaderState::FileName if *flag & FNAME == 0 => next = Next::Comment,
+            GzHeaderState::FileName => {
                 let filename = header.filename.get_or_insert_with(Vec::new);
-                // wow this is slow
-                for byte in r.by_ref().bytes() {
-                    let byte = byte?;
-                    if byte == 0 {
-                        break;
-                    }
-                    filename.push(byte);
-                }
+                r.read_until(0, filename)?;
+                hasher.update(filename);
+                filename.pop(); // pop 0
                 next = Next::Comment;
             },
-            State::Comment if *flag & FCOMMENT == 0 => next = Next::Crc,
-            State::Comment => {
+            GzHeaderState::Comment if *flag & FCOMMENT == 0 => next = Next::Crc,
+            GzHeaderState::Comment => {
                 let comment = header.comment.get_or_insert_with(Vec::new);
-                // wow this is slow
-                for byte in r.by_ref().bytes() {
-                    let byte = byte?;
-                    if byte == 0 {
-                        break;
-                    }
-                    comment.push(byte);
-                }
+                r.read_until(0, comment)?;
+                hasher.update(comment);
+                comment.pop(); // pop 0
                 next = Next::Crc
             },
-            State::Crc(..) if *flag & FHCRC == 0 => return Ok(()),
-            State::Crc(calced_crc, pos, buf) => if *pos < buf.len() {
+            GzHeaderState::Crc(..) if *flag & FHCRC == 0 => return Ok(()),
+            GzHeaderState::Crc(calced_crc, pos, buf) => if *pos < buf.len() {
                 let len = r.read(&mut buf[*pos..])
                     .and_then(|len| if len != 0 {
                         Ok(len)
@@ -247,16 +246,14 @@ pub(crate) fn read_gz_header2<R: Read>(r: &mut CrcReader<R>, state: &mut State, 
             }
         };
 
-        match next {
-            Next::ExtraLen => *state = State::ExtraLen(0, [0; 2]),
-            Next::Extra => *state = State::Extra(0),
-            Next::FileName => *state = State::FileName,
-            Next::Comment => *state = State::Comment,
-            Next::Crc => *state = State::Crc(r.crc().sum() as u16, 0, [0; 2]),
+        match mem::replace(&mut next, Next::None) {
+            Next::ExtraLen => *state = GzHeaderState::ExtraLen(0, [0; 2]),
+            Next::Extra => *state = GzHeaderState::Extra(0),
+            Next::FileName => *state = GzHeaderState::FileName,
+            Next::Comment => *state = GzHeaderState::Comment,
+            Next::Crc => *state = GzHeaderState::Crc(hasher.clone().finalize() as u16, 0, [0; 2]),
             Next::None => ()
         }
-
-        next = Next::None;
     }
 }
 
@@ -441,37 +438,55 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
 /// ```
 #[derive(Debug)]
 pub struct GzDecoder<R> {
-    inner: Inner<R>,
-    header: GzHeader
+    inner: GzState,
+    header: GzHeader,
+    reader: CrcReader<deflate::bufread::DeflateDecoder<R>>
 }
 
 #[derive(Debug)]
-enum Inner<R> {
+enum GzState {
     Header {
-        reader: CrcReader<R>,
-        state: State,
-        flag: u8
+        state: GzHeaderState,
+        flag: u8,
+        hasher: Hasher
     },
-    Body(CrcReader<deflate::bufread::DeflateDecoder<R>>),
-    Finished {
-        reader: CrcReader<deflate::bufread::DeflateDecoder<R>>,
-        pos: usize,
-        buf: [u8; 8]
-    },
-    None
+    Body,
+    Finished(usize, [u8; 8]),
+    Err(io::Error),
+    End
 }
 
 impl<R: BufRead> GzDecoder<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// gzip header.
-    pub fn new(r: R) -> GzDecoder<R> {
+    pub fn new(mut r: R) -> GzDecoder<R> {
+        let mut state = GzHeaderState::Header(0, [0; 10]);
+        let mut header = GzHeader::default();
+        let mut flag = 0;
+        let mut hasher = Hasher::new();
+        let result = read_gz_header2(&mut r, &mut state, &mut header, &mut flag, &mut hasher);
+
         GzDecoder {
-            inner: Inner::Header {
-                reader: CrcReader::new(r),
-                state: State::Header(0, [0; 10]),
-                flag: 0
+            inner: if let Err(err) = result {
+                GzState::Err(err)
+            } else {
+                GzState::Body
+            },
+            reader: CrcReader::new(deflate::bufread::DeflateDecoder::new(r)),
+            header
+        }
+    }
+
+    /// Creates a new decoder from the given reader.
+    pub fn new2(r: R) -> GzDecoder<R> {
+        GzDecoder {
+            inner: GzState::Header {
+                state: GzHeaderState::Header(0, [0; 10]),
+                flag: 0,
+                hasher: Hasher::new()
             },
             header: GzHeader::default(),
+            reader: CrcReader::new(deflate::bufread::DeflateDecoder::new(r))
         }
     }
 }
@@ -480,18 +495,14 @@ impl<R> GzDecoder<R> {
     /// Returns the header associated with this stream, if it was valid
     pub fn header(&self) -> Option<&GzHeader> {
         match self.inner {
-            Inner::Body(_) | Inner::Finished { .. } => Some(&self.header),
-            _ => None
+            GzState::Err(_) | GzState::Header { .. } => None,
+            _ => Some(&self.header)
         }
     }
 
     /// Acquires a reference to the underlying reader.
     pub fn get_ref(&self) -> &R {
-        match &self.inner {
-            Inner::Header { reader, .. } => reader.get_ref(),
-            Inner::Body(reader) | Inner::Finished { reader, .. } => reader.get_ref().get_ref(),
-            _ => unreachable!()
-        }
+        self.reader.get_ref().get_ref()
     }
 
     /// Acquires a mutable reference to the underlying stream.
@@ -499,90 +510,79 @@ impl<R> GzDecoder<R> {
     /// Note that mutation of the stream may result in surprising results if
     /// this encoder is continued to be used.
     pub fn get_mut(&mut self) -> &mut R {
-        match &mut self.inner {
-            Inner::Header { reader, .. } => reader.get_mut(),
-            Inner::Body(reader) | Inner::Finished { reader, .. } => reader.get_mut().get_mut(),
-            _ => unreachable!()
-        }
+        self.reader.get_mut().get_mut()
     }
 
     /// Consumes this decoder, returning the underlying reader.
     pub fn into_inner(self) -> R {
-        match self.inner {
-            Inner::Header { reader, .. } => reader.into_inner(),
-            Inner::Body(reader) | Inner::Finished { reader, .. } => reader.into_inner().into_inner(),
-            _ => unreachable!()
-        }
+        self.reader.into_inner().into_inner()
     }
 }
 
 impl<R: BufRead> Read for GzDecoder<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
-        let GzDecoder { inner, header } = self;
+        let GzDecoder { inner, header, reader } = self;
 
         enum Next {
             None,
             Body,
-            Finished
+            Finished,
+            Err(io::Error),
+            End
         }
 
         let mut next = Next::None;
 
         loop {
             match inner {
-                Inner::Header { reader, state, flag } => {
-                    read_gz_header2(reader, state, header, flag)?;
-                    next = Next::Body;
+                GzState::Header { state, flag, hasher } => {
+                    match read_gz_header2(reader.get_mut().get_mut(), state, header, flag, hasher) {
+                        Ok(_) => next = Next::Body,
+                        Err(ref err) if io::ErrorKind::WouldBlock == err.kind() => (),
+                        Err(err) => next = Next::Err(err)
+                    }
                 },
-                Inner::Body(reader) => {
+                GzState::Body => {
                     if into.is_empty() {
                         return Ok(0);
                     }
 
                     match reader.read(into)? {
                         0 => next = Next::Finished,
-                        n => return Ok(n),
+                        n => return Ok(n)
                     }
                 },
-                Inner::Finished { reader, pos, buf } => match buf.len().cmp(pos) {
-                    cmp::Ordering::Greater => {
-                        let len = reader.get_mut().get_mut().read(&mut buf[*pos..])
-                            .and_then(|len| if len != 0 {
-                                Ok(len)
-                            } else {
-                                Err(io::ErrorKind::UnexpectedEof.into())
-                            })?;
-                        *pos += len;
-                    },
-                    cmp::Ordering::Equal => {
-                        *pos += 1;
+                GzState::Finished(pos, buf) => if *pos < buf.len() {
+                    match reader.get_mut().get_mut().read(&mut buf[*pos..]) {
+                        Ok(0) => next = Next::Err(io::ErrorKind::UnexpectedEof.into()),
+                        Ok(n) => *pos += n,
+                        Err(err) => return Err(err)
+                    }
+                } else {
+                    let (crc, amt) = finish(buf);
+                    if crc != reader.crc().sum() {
+                        return Err(corrupt());
+                    }
+                    if amt != reader.crc().amount() {
+                        return Err(corrupt());
+                    }
 
-                        let (crc, amt) = finish(buf);
-                        if crc != reader.crc().sum() {
-                            return Err(corrupt());
-                        }
-                        if amt != reader.crc().amount() {
-                            return Err(corrupt());
-                        }
-                        return Ok(0);
-                    },
-                    cmp::Ordering::Less => return Ok(0)
+                    next = Next::End;
                 },
-                Inner::None => () // unreachable
+                GzState::Err(err) => next = Next::Err(mem::replace(err, io::ErrorKind::Other.into())),
+                GzState::End => return Ok(0)
             }
 
-            match next {
-                Next::Body => if let Inner::Header { reader, .. } = mem::replace(inner, Inner::None) {
-                    let reader = deflate::bufread::DeflateDecoder::new(reader.into_inner());
-                    *inner = Inner::Body(CrcReader::new(reader));
+            match mem::replace(&mut next, Next::None) {
+                Next::None => (),
+                Next::Body => *inner = GzState::Body,
+                Next::Finished => *inner = GzState::Finished(0, [0; 8]),
+                Next::Err(err) => {
+                    *inner = GzState::End;
+                    return Err(err);
                 },
-                Next::Finished => if let Inner::Body(reader) = mem::replace(inner, Inner::None) {
-                    *inner = Inner::Finished { reader, pos: 0, buf: [0; 8] };
-                },
-                Next::None => ()
+                Next::End => *inner = GzState::End
             }
-
-            next = Next::None;
         }
     }
 }

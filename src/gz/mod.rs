@@ -316,11 +316,11 @@ mod tests {
             .extra(vec![0, 1, 2, 3])
             .read(&r[..], Compression::default());
         let mut d = read::GzDecoder::new(e);
-        let mut res = Vec::new();
-        d.read_to_end(&mut res).unwrap();
-        assert_eq!(d.header().unwrap().filename(), Some(&b"foo.rs"[..])); // must read first
+        assert_eq!(d.header().unwrap().filename(), Some(&b"foo.rs"[..]));
         assert_eq!(d.header().unwrap().comment(), Some(&b"bar"[..]));
         assert_eq!(d.header().unwrap().extra(), Some(&b"\x00\x01\x02\x03"[..]));
+        let mut res = Vec::new();
+        d.read_to_end(&mut res).unwrap();
         assert_eq!(res, vec![0, 2, 4, 6]);
     }
 

@@ -65,7 +65,7 @@ impl<T: Future> Future for AlwaysNotify<T> {
 fn test_gz_asyncread() {
     let f = File::open("tests/good-file.gz").unwrap();
 
-    let fut = read_to_end(AssertAsync(GzDecoder::new(BadReader::new(f))), Vec::new());
+    let fut = read_to_end(AssertAsync(GzDecoder::new2(BadReader::new(f))), Vec::new());
     let (_, content) = AlwaysNotify(fut).wait().unwrap();
 
     let mut expected = Vec::new();
@@ -74,5 +74,5 @@ fn test_gz_asyncread() {
         .read_to_end(&mut expected)
         .unwrap();
 
-    assert!(content == expected);
+    assert_eq!(content, expected);
 }
