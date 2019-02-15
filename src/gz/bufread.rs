@@ -538,8 +538,11 @@ impl<R: BufRead> Read for GzDecoder<R> {
                 GzState::Header { state, flag, hasher } => {
                     match read_gz_header2(reader.get_mut().get_mut(), state, header, flag, hasher) {
                         Ok(_) => next = Next::Body,
-                        Err(ref err) if io::ErrorKind::WouldBlock == err.kind() => (),
-                        Err(err) => next = Next::Err(err)
+                        Err(err) => if io::ErrorKind::WouldBlock == err.kind() {
+                            return Err(err);
+                        } else {
+                            next = Next::Err(err);
+                        }
                     }
                 },
                 GzState::Body => {
@@ -560,14 +563,14 @@ impl<R: BufRead> Read for GzDecoder<R> {
                     }
                 } else {
                     let (crc, amt) = finish(buf);
-                    if crc != reader.crc().sum() {
-                        return Err(corrupt());
-                    }
-                    if amt != reader.crc().amount() {
-                        return Err(corrupt());
-                    }
 
-                    next = Next::End;
+                    if crc != reader.crc().sum() {
+                        next = Next::Err(corrupt());
+                    } else if amt != reader.crc().amount() {
+                        next = Next::Err(corrupt());
+                    } else {
+                        next = Next::End;
+                    }
                 },
                 GzState::Err(err) => next = Next::Err(mem::replace(err, io::ErrorKind::Other.into())),
                 GzState::End => return Ok(0)
