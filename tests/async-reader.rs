@@ -76,3 +76,19 @@ fn test_gz_asyncread() {
 
     assert_eq!(content, expected);
 }
+
+#[test]
+fn test_multi_gz_asyncread() {
+    let f = File::open("tests/multi.gz").unwrap();
+
+    let fut = read_to_end(AssertAsync(GzDecoder::new2(BadReader::new(f)).multi(true)), Vec::new());
+    let (_, content) = AlwaysNotify(fut).wait().unwrap();
+
+    let mut expected = Vec::new();
+    File::open("tests/multi.txt")
+        .unwrap()
+        .read_to_end(&mut expected)
+        .unwrap();
+
+    assert_eq!(content, expected);
+}

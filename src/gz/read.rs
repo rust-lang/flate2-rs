@@ -144,6 +144,12 @@ impl<R: Read> GzDecoder<R> {
             inner: bufread::GzDecoder::new2(BufReader::new(r)),
         }
     }
+
+    pub fn multi(self, flag: bool) -> GzDecoder<R> {
+        GzDecoder {
+            inner: self.inner.multi(flag)
+        }
+    }
 }
 
 impl<R> GzDecoder<R> {
@@ -239,6 +245,14 @@ impl<R: Read> MultiGzDecoder<R> {
     pub fn new(r: R) -> MultiGzDecoder<R> {
         MultiGzDecoder {
             inner: bufread::MultiGzDecoder::new(BufReader::new(r)),
+        }
+    }
+
+    /// Creates a new decoder from the given reader.
+    /// If the gzip stream contains multiple members all will be decoded.
+    pub fn new2(r: R) -> MultiGzDecoder<R> {
+        MultiGzDecoder {
+            inner: bufread::MultiGzDecoder::new2(BufReader::new(r)),
         }
     }
 }
