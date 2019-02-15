@@ -139,6 +139,7 @@ fn read_gz_header2<R: Read>(
                         })?;
                     *pos += len;
                 } else {
+                    hasher.update(extra);
                     next = Next::FileName;
                 }
             },
@@ -149,14 +150,13 @@ fn read_gz_header2<R: Read>(
                 // wow this is slow
                 for byte in r.by_ref().bytes() {
                     let byte = byte?;
+                    hasher.update(&[byte]);
                     if byte == 0 {
                         break;
                     }
                     filename.push(byte);
                 }
 
-                hasher.update(filename);
-                hasher.update(&[0]);
                 next = Next::Comment;
             },
             GzHeaderState::Comment if *flag & FCOMMENT == 0 => next = Next::Crc,
@@ -166,14 +166,13 @@ fn read_gz_header2<R: Read>(
                 // wow this is slow
                 for byte in r.by_ref().bytes() {
                     let byte = byte?;
+                    hasher.update(&[byte]);
                     if byte == 0 {
                         break;
                     }
                     comment.push(byte);
                 }
 
-                hasher.update(comment);
-                hasher.update(&[0]);
                 next = Next::Crc
             },
             GzHeaderState::Crc(..) if *flag & FHCRC == 0 => return Ok(()),
