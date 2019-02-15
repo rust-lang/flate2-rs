@@ -442,7 +442,7 @@ impl<R: BufRead> GzDecoder<R> {
         }
     }
 
-    pub fn multi(mut self, flag: bool) -> GzDecoder<R> {
+    fn multi(mut self, flag: bool) -> GzDecoder<R> {
         self.multi = flag;
         self
     }

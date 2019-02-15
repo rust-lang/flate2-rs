@@ -149,12 +149,6 @@ impl<R: Read> GzDecoder<R> {
             inner: bufread::GzDecoder::new2(BufReader::new(r)),
         }
     }
-
-    pub fn multi(self, flag: bool) -> GzDecoder<R> {
-        GzDecoder {
-            inner: self.inner.multi(flag)
-        }
-    }
 }
 
 impl<R> GzDecoder<R> {

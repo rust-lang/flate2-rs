@@ -2,7 +2,7 @@ extern crate flate2;
 extern crate tokio_io;
 extern crate futures;
 
-use flate2::read::GzDecoder;
+use flate2::read::{GzDecoder, MultiGzDecoder};
 use std::cmp;
 use std::fs::File;
 use std::io::{self, Read};
@@ -81,7 +81,7 @@ fn test_gz_asyncread() {
 fn test_multi_gz_asyncread() {
     let f = File::open("tests/multi.gz").unwrap();
 
-    let fut = read_to_end(AssertAsync(GzDecoder::new2(BadReader::new(f)).multi(true)), Vec::new());
+    let fut = read_to_end(AssertAsync(MultiGzDecoder::new2(BadReader::new(f))), Vec::new());
     let (_, content) = AlwaysNotify(fut).wait().unwrap();
 
     let mut expected = Vec::new();
