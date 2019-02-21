@@ -1,0 +1,39 @@
+trigger:
+  - master
+
+jobs:
+- template: ci/azure-job-test-all.yml
+- template: ci/azure-job-test-all.yml
+  parameters:
+    os: macOS
+    vmImage: macOS-10.13
+- template: ci/azure-job-test-all.yml
+  parameters:
+    toolchain: beta
+- template: ci/azure-job-test-all.yml
+  parameters:
+    toolchain: nightly
+- job: systest
+  steps:
+    - template: ci/azure-install-rust.yml
+    - script: cargo run --manifest-path systest/Cargo.toml
+- job: wasm
+  steps:
+    - template: ci/azure-install-rust.yml
+    - script: rustup target add wasm32-unknown-unknown
+    - script: cargo build --target wasm32-unknown-unknown
+- job: rust_backend
+  steps:
+    - template: ci/azure-install-rust.yml
+    - script: cargo test --features rust_backend
+      continueOnError: true
+    - script: cargo test --features rust_backend --no-default-features
+      continueOnError: true
+- job: docs
+  steps:
+    - template: ci/azure-install-rust.yml
+    - script: cargo doc --no-deps --all-features
+    - script: curl -LsSf https://git.io/fhJ8n | rustc - && (cd target/doc && ../../rust_out)
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+      env:
+        GITHUB_DEPLOY_KEY: $(GITHUB_DEPLOY_KEY)
