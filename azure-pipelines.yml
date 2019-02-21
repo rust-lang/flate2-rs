@@ -13,6 +13,16 @@ jobs:
 - template: ci/azure-job-test-all.yml
   parameters:
     toolchain: nightly
+- template: ci/azure-job-test-all.yml
+  parameters:
+    os: Windows
+    vmImage: vs2017-win2016
+- template: ci/azure-job-test-all.yml
+  parameters:
+    os: Windows
+    vmImage: vs2017-win2016
+    toolchain: stable-x86_64-gnu
+    name: Windows_x86_64_MinGW
 - job: systest
   steps:
     - template: ci/azure-install-rust.yml

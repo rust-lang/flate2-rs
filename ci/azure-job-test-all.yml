@@ -2,9 +2,10 @@ parameters:
   os: 'Linux'
   toolchain: 'stable'
   vmImage: 'ubuntu-16.04'
+  name: ''
 
 jobs:
-- job: ${{ format('{0}_{1}', parameters.os, parameters.toolchain) }}
+- job: ${{ coalesce(parameters.name, format('{0}_{1}', parameters.os, parameters.toolchain)) }}
   pool:
     vmImage: ${{ parameters.vmImage }}
   steps:
