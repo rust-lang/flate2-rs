@@ -18,5 +18,5 @@ jobs:
     - script: cargo test
     - script: cargo test --features zlib
     - script: cargo test --features tokio
-    - script: cargo test --features 'tokio zlib'
+    - script: cargo test --features "tokio zlib"
     - script: cargo test --features zlib --no-default-features
