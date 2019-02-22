@@ -1,17 +1,15 @@
 parameters:
-  os: 'Linux'
   toolchain: 'stable'
   vmImage: 'ubuntu-16.04'
   name: ''
 
 jobs:
-- job: ${{ coalesce(parameters.name, format('{0}_{1}', parameters.os, parameters.toolchain)) }}
+- job: ${{ parameters.name }}
   pool:
     vmImage: ${{ parameters.vmImage }}
   steps:
     - template: azure-install-rust.yml
       parameters:
-        os: ${{ parameters.os }}
         toolchain: ${{ parameters.toolchain }}
     - script: cargo build
     - script: rustdoc --test README.md -L target/debug/deps --extern flate2=target/debug/libflate2.rlib

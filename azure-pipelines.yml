@@ -3,26 +3,29 @@ trigger:
 
 jobs:
 - template: ci/azure-job-test-all.yml
+  parameters:
+    name: Linux_stable
 - template: ci/azure-job-test-all.yml
   parameters:
-    os: macOS
     vmImage: macOS-10.13
+    name: Darwin_stable
 - template: ci/azure-job-test-all.yml
   parameters:
     toolchain: beta
+    name: Linux_beta
 - template: ci/azure-job-test-all.yml
   parameters:
     toolchain: nightly
+    name: Linux_nightly
 - template: ci/azure-job-test-all.yml
   parameters:
-    os: Windows
     vmImage: vs2017-win2016
+    name: Windows_stable
 - template: ci/azure-job-test-all.yml
   parameters:
-    os: Windows
     vmImage: vs2017-win2016
     toolchain: stable-x86_64-gnu
-    name: Windows_x86_64_MinGW
+    name: Windows_stable_MinGW
 - job: systest
   steps:
     - template: ci/azure-install-rust.yml
