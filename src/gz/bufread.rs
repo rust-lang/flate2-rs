@@ -2,7 +2,6 @@ use std::cmp;
 use std::io;
 use std::io::prelude::*;
 use std::mem;
-use crc32fast::Hasher;
 
 #[cfg(feature = "tokio")]
 use futures::Poll;
@@ -35,174 +34,87 @@ fn bad_header() -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput, "invalid gzip header")
 }
 
+fn read_le_u16<R: Read>(r: &mut R) -> io::Result<u16> {
+    let mut b = [0; 2];
+    r.read_exact(&mut b)?;
+    Ok((b[0] as u16) | ((b[1] as u16) << 8))
+}
+
 pub(crate) fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
-    let mut state = GzHeaderState::Header(0, [0; 10]);
-    let mut header = GzHeader::default();
-    let mut flag = 0;
-    let mut hasher = Hasher::new();
-    read_gz_header2(r, &mut state, &mut header, &mut flag, &mut hasher)
-        .map(|_| header)
-}
+    let mut crc_reader = CrcReader::new(r);
+    let mut header = [0; 10];
+    crc_reader.read_exact(&mut header)?;
 
-#[derive(Debug)]
-enum GzHeaderState {
-    Header(usize, [u8; 10]),    // pos, buf
-    ExtraLen(usize, [u8; 2]),   // pos, buf
-    Extra(usize),               // pos
-    FileName,
-    Comment,
-    Crc(u16, usize, [u8; 2])    // crc, pos, buf
-}
-
-fn read_gz_header2<R: Read>(
-    r: &mut R,
-    state: &mut GzHeaderState,
-    header: &mut GzHeader,
-    flag: &mut u8,
-    hasher: &mut Hasher
-) -> io::Result<()> {
-    enum Next {
-        None,
-        ExtraLen,
-        Extra,
-        FileName,
-        Comment,
-        Crc
+    let id1 = header[0];
+    let id2 = header[1];
+    if id1 != 0x1f || id2 != 0x8b {
+        return Err(bad_header());
+    }
+    let cm = header[2];
+    if cm != 8 {
+        return Err(bad_header());
     }
 
-    let mut next = Next::None;
+    let flg = header[3];
+    let mtime = ((header[4] as u32) << 0)
+        | ((header[5] as u32) << 8)
+        | ((header[6] as u32) << 16)
+        | ((header[7] as u32) << 24);
+    let _xfl = header[8];
+    let os = header[9];
 
-    loop {
-        match state {
-            GzHeaderState::Header(pos, buf) => if *pos < buf.len() {
-                let len = r.read(&mut buf[*pos..])
-                    .and_then(|len| if len != 0 {
-                        Ok(len)
-                    } else {
-                        Err(io::ErrorKind::UnexpectedEof.into())
-                    })?;
-                *pos += len;
-            } else {
-                hasher.update(buf);
-
-                let id1 = buf[0];
-                let id2 = buf[1];
-                if id1 != 0x1f || id2 != 0x8b {
-                    return Err(bad_header());
-                }
-                let cm = buf[2];
-                if cm != 8 {
-                    return Err(bad_header());
-                }
-
-                let flg = buf[3];
-                let mtime = ((buf[4] as u32) << 0)
-                    | ((buf[5] as u32) << 8)
-                    | ((buf[6] as u32) << 16)
-                    | ((buf[7] as u32) << 24);
-                let _xfl = buf[8];
-                let os = buf[9];
-
-                header.operating_system = os;
-                header.mtime = mtime;
-                *flag = flg;
-
-                next = Next::ExtraLen;
-            },
-            GzHeaderState::ExtraLen(..) if *flag & FEXTRA == 0 => next = Next::FileName,
-            GzHeaderState::ExtraLen(pos, buf) => if *pos < buf.len() {
-                let len = r.read(&mut buf[*pos..])
-                    .and_then(|len| if len != 0 {
-                        Ok(len)
-                    } else {
-                        Err(io::ErrorKind::UnexpectedEof.into())
-                    })?;
-                *pos += len;
-            } else {
-                hasher.update(buf);
-
-                let xlen = (buf[0] as u16) | ((buf[1] as u16) << 8);
-                header.extra = Some(vec![0; xlen as usize]);
-                if xlen != 0 {
-                    next = Next::Extra;
-                } else {
-                    next = Next::FileName;
-                }
-            },
-            GzHeaderState::Extra(pos) => if let Some(extra) = &mut header.extra {
-                if *pos < extra.len() {
-                    let len = r.read(&mut extra[*pos..])
-                        .and_then(|len| if len != 0 {
-                            Ok(len)
-                        } else {
-                            Err(io::ErrorKind::UnexpectedEof.into())
-                        })?;
-                    *pos += len;
-                } else {
-                    hasher.update(extra);
-                    next = Next::FileName;
-                }
-            },
-            GzHeaderState::FileName if *flag & FNAME == 0 => next = Next::Comment,
-            GzHeaderState::FileName => {
-                let filename = header.filename.get_or_insert_with(Vec::new);
-
-                // wow this is slow
-                for byte in r.by_ref().bytes() {
-                    let byte = byte?;
-                    hasher.update(&[byte]);
-                    if byte == 0 {
-                        break;
-                    }
-                    filename.push(byte);
-                }
-
-                next = Next::Comment;
-            },
-            GzHeaderState::Comment if *flag & FCOMMENT == 0 => next = Next::Crc,
-            GzHeaderState::Comment => {
-                let comment = header.comment.get_or_insert_with(Vec::new);
-
-                // wow this is slow
-                for byte in r.by_ref().bytes() {
-                    let byte = byte?;
-                    hasher.update(&[byte]);
-                    if byte == 0 {
-                        break;
-                    }
-                    comment.push(byte);
-                }
-
-                next = Next::Crc
-            },
-            GzHeaderState::Crc(..) if *flag & FHCRC == 0 => return Ok(()),
-            GzHeaderState::Crc(calced_crc, pos, buf) => if *pos < buf.len() {
-                let len = r.read(&mut buf[*pos..])
-                    .and_then(|len| if len != 0 {
-                        Ok(len)
-                    } else {
-                        Err(io::ErrorKind::UnexpectedEof.into())
-                    })?;
-                *pos += len;
-            } else {
-                let stored_crc = (buf[0] as u16) | ((buf[1] as u16) << 8);
-                if *calced_crc != stored_crc {
-                    return Err(corrupt());
-                } else {
-                    return Ok(())
-                }
+    let extra = if flg & FEXTRA != 0 {
+        let xlen = read_le_u16(&mut crc_reader)?;
+        let mut extra = vec![0; xlen as usize];
+        crc_reader.read_exact(&mut extra)?;
+        Some(extra)
+    } else {
+        None
+    };
+    let filename = if flg & FNAME != 0 {
+        // wow this is slow
+        let mut b = Vec::new();
+        for byte in crc_reader.by_ref().bytes() {
+            let byte = byte?;
+            if byte == 0 {
+                break;
             }
-        };
+            b.push(byte);
+        }
+        Some(b)
+    } else {
+        None
+    };
+    let comment = if flg & FCOMMENT != 0 {
+        // wow this is slow
+        let mut b = Vec::new();
+        for byte in crc_reader.by_ref().bytes() {
+            let byte = byte?;
+            if byte == 0 {
+                break;
+            }
+            b.push(byte);
+        }
+        Some(b)
+    } else {
+        None
+    };
 
-        match mem::replace(&mut next, Next::None) {
-            Next::ExtraLen => *state = GzHeaderState::ExtraLen(0, [0; 2]),
-            Next::Extra => *state = GzHeaderState::Extra(0),
-            Next::FileName => *state = GzHeaderState::FileName,
-            Next::Comment => *state = GzHeaderState::Comment,
-            Next::Crc => *state = GzHeaderState::Crc(hasher.clone().finalize() as u16, 0, [0; 2]),
-            Next::None => ()
+    if flg & FHCRC != 0 {
+        let calced_crc = crc_reader.crc().sum() as u16;
+        let stored_crc = read_le_u16(&mut crc_reader)?;
+        if calced_crc != stored_crc {
+            return Err(corrupt());
         }
     }
+
+    Ok(GzHeader {
+        extra: extra,
+        filename: filename,
+        comment: comment,
+        operating_system: os,
+        mtime: mtime,
+    })
 }
 
 /// A gzip streaming encoder
@@ -387,57 +299,77 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
 #[derive(Debug)]
 pub struct GzDecoder<R> {
     inner: GzState,
-    header: GzHeader,
+    header: Option<GzHeader>,
     reader: CrcReader<deflate::bufread::DeflateDecoder<R>>,
     multi: bool
 }
 
 #[derive(Debug)]
 enum GzState {
-    Header {
-        state: GzHeaderState,
-        flag: u8,
-        hasher: Hasher
-    },
+    Header(Vec<u8>),
     Body,
     Finished(usize, [u8; 8]),
     Err(io::Error),
     End
 }
 
+struct Buffer<'a, T> {
+    buf: io::Take<io::Cursor<&'a mut Vec<u8>>>,
+    reader: &'a mut T
+}
+
+impl<'a, T> Buffer<'a, T> {
+    fn new(buf: &'a mut Vec<u8>, reader: &'a mut T) -> Buffer<'a, T> {
+        let len = buf.len();
+        Buffer { buf: io::Cursor::new(buf).take(len as _), reader }
+    }
+}
+
+impl<'a, T: Read> Read for Buffer<'a, T> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let mut len = self.buf.read(buf)?;
+        if buf.len() > len {
+            match self.reader.read(&mut buf[len..])? {
+                // eof
+                0 => return Err(bad_header()),
+                len2 => {
+                    self.buf.get_mut().get_mut().extend_from_slice(&buf[len..][..len2]);
+                    len += len2;
+                }
+            }
+        }
+        Ok(len)
+    }
+}
+
 impl<R: BufRead> GzDecoder<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// gzip header.
     pub fn new(mut r: R) -> GzDecoder<R> {
-        let mut state = GzHeaderState::Header(0, [0; 10]);
-        let mut header = GzHeader::default();
-        let mut flag = 0;
-        let mut hasher = Hasher::new();
-        let result = read_gz_header2(&mut r, &mut state, &mut header, &mut flag, &mut hasher);
+        let mut buf = Vec::new();
+        let mut header = None;
 
-        GzDecoder {
-            inner: if let Err(err) = result {
-                GzState::Err(err)
-            } else {
+        let result = {
+            let mut reader = Buffer::new(&mut buf, &mut r);
+            read_gz_header(&mut reader)
+        };
+
+        let state = match result {
+            Ok(hdr) => {
+                header = Some(hdr);
                 GzState::Body
             },
+            Err(ref err) if io::ErrorKind::WouldBlock == err.kind()
+                || io::ErrorKind::UnexpectedEof == err.kind()
+                => GzState::Header(buf),
+            Err(err) => GzState::Err(err)
+        };
+
+        GzDecoder {
+            inner: state,
             reader: CrcReader::new(deflate::bufread::DeflateDecoder::new(r)),
             multi: false,
             header
-        }
-    }
-
-    /// Creates a new decoder from the given reader.
-    pub fn new2(r: R) -> GzDecoder<R> {
-        GzDecoder {
-            inner: GzState::Header {
-                state: GzHeaderState::Header(0, [0; 10]),
-                flag: 0,
-                hasher: Hasher::new()
-            },
-            header: GzHeader::default(),
-            reader: CrcReader::new(deflate::bufread::DeflateDecoder::new(r)),
-            multi: false
         }
     }
 
@@ -450,10 +382,7 @@ impl<R: BufRead> GzDecoder<R> {
 impl<R> GzDecoder<R> {
     /// Returns the header associated with this stream, if it was valid
     pub fn header(&self) -> Option<&GzHeader> {
-        match self.inner {
-            GzState::Err(_) | GzState::Header { .. } => None,
-            _ => Some(&self.header)
-        }
+        self.header.as_ref()
     }
 
     /// Acquires a reference to the underlying reader.
@@ -492,14 +421,17 @@ impl<R: BufRead> Read for GzDecoder<R> {
 
         loop {
             match inner {
-                GzState::Header { state, flag, hasher } => {
-                    match read_gz_header2(reader.get_mut().get_mut(), state, header, flag, hasher) {
-                        Ok(_) => next = Next::Body,
-                        Err(err) => if io::ErrorKind::WouldBlock == err.kind() {
-                            return Err(err);
-                        } else {
-                            next = Next::Err(err);
-                        }
+                GzState::Header(buf) => {
+                    let mut reader = Buffer::new(buf, reader.get_mut().get_mut());
+                    match read_gz_header(&mut reader) {
+                        Ok(hdr) => {
+                            *header = Some(hdr);
+                            next = Next::Body;
+                        },
+                        Err(ref err) if io::ErrorKind::WouldBlock == err.kind()
+                            || io::ErrorKind::UnexpectedEof == err.kind()
+                            => return Err(io::ErrorKind::WouldBlock.into()),
+                        Err(err) => next = Next::Err(err)
                     }
                 },
                 GzState::Body => {
@@ -555,12 +487,8 @@ impl<R: BufRead> Read for GzDecoder<R> {
                 Next::Header => {
                     reader.reset();
                     reader.get_mut().reset_data();
-                    *header = GzHeader::default();
-                    *inner = GzState::Header {
-                        state: GzHeaderState::Header(0, [0; 10]),
-                        flag: 0,
-                        hasher: Hasher::new()
-                    };
+                    header.take();
+                    *inner = GzState::Header(Vec::new());
                 },
                 Next::Body => *inner = GzState::Body,
                 Next::Finished => *inner = GzState::Finished(0, [0; 8]),
@@ -643,12 +571,6 @@ impl<R: BufRead> MultiGzDecoder<R> {
     /// be decoded.
     pub fn new(r: R) -> MultiGzDecoder<R> {
         MultiGzDecoder(GzDecoder::new(r).multi(true))
-    }
-
-    /// Creates a new decoder from the given reader.
-    /// If the gzip stream contains multiple members all will be decoded.
-    pub fn new2(r: R) -> MultiGzDecoder<R> {
-        MultiGzDecoder(GzDecoder::new2(r).multi(true))
     }
 }
 
