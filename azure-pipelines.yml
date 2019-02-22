@@ -5,7 +5,6 @@ jobs:
 - template: ci/azure-job-test-all.yml
 - template: ci/azure-job-test-all.yml
   parameters:
-    os: macOS
     vmImage: macOS-10.13
 - template: ci/azure-job-test-all.yml
   parameters:
@@ -15,11 +14,9 @@ jobs:
     toolchain: nightly
 - template: ci/azure-job-test-all.yml
   parameters:
-    os: Windows
     vmImage: vs2017-win2016
 - template: ci/azure-job-test-all.yml
   parameters:
-    os: Windows
     vmImage: vs2017-win2016
     toolchain: stable-x86_64-gnu
     name: Windows_x86_64_MinGW
