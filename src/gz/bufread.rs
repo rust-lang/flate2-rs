@@ -346,7 +346,7 @@ impl<R: BufRead> GzDecoder<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// gzip header.
     pub fn new(mut r: R) -> GzDecoder<R> {
-        let mut buf = Vec::new();
+        let mut buf = Vec::with_capacity(10); // minimum header length
         let mut header = None;
 
         let result = {
