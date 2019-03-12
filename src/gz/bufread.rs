@@ -329,14 +329,9 @@ impl<'a, T: Read> Read for Buffer<'a, T> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut len = self.buf.read(buf)?;
         if buf.len() > len {
-            match self.reader.read(&mut buf[len..])? {
-                // eof
-                0 => return Err(bad_header()),
-                len2 => {
-                    self.buf.get_mut().get_mut().extend_from_slice(&buf[len..][..len2]);
-                    len += len2;
-                }
-            }
+            let len2 = self.reader.read(&mut buf[len..])?;
+            self.buf.get_mut().get_mut().extend_from_slice(&buf[len..][..len2]);
+            len += len2;
         }
         Ok(len)
     }
@@ -360,7 +355,6 @@ impl<R: BufRead> GzDecoder<R> {
                 GzState::Body
             },
             Err(ref err) if io::ErrorKind::WouldBlock == err.kind()
-                || io::ErrorKind::UnexpectedEof == err.kind()
                 => GzState::Header(buf),
             Err(err) => GzState::Err(err)
         };
@@ -408,96 +402,96 @@ impl<R: BufRead> Read for GzDecoder<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         let GzDecoder { inner, header, reader, multi } = self;
 
-        enum Next {
-            None,
-            Header,
-            Body,
-            Finished,
-            Err(io::Error),
-            End
-        }
-
-        let mut next = Next::None;
-
         loop {
-            match inner {
-                GzState::Header(buf) => {
-                    let mut reader = Buffer::new(buf, reader.get_mut().get_mut());
-                    match read_gz_header(&mut reader) {
-                        Ok(hdr) => {
-                            *header = Some(hdr);
-                            next = Next::Body;
-                        },
-                        Err(ref err) if io::ErrorKind::WouldBlock == err.kind()
-                            || io::ErrorKind::UnexpectedEof == err.kind()
-                            => return Err(io::ErrorKind::WouldBlock.into()),
-                        Err(err) => next = Next::Err(err)
-                    }
+            *inner = match mem::replace(inner, GzState::End) {
+                GzState::Header(mut buf) => {
+                    let result = {
+                        let mut reader = Buffer::new(&mut buf, reader.get_mut().get_mut());
+                        read_gz_header(&mut reader)
+                    };
+                    let hdr = result
+                        .map_err(|err| {
+                            if io::ErrorKind::WouldBlock == err.kind() {
+                                *inner = GzState::Header(buf);
+                            }
+
+                            err
+                        })?;
+                    *header = Some(hdr);
+                    GzState::Body
                 },
                 GzState::Body => {
                     if into.is_empty() {
+                        *inner = GzState::Body;
                         return Ok(0);
                     }
 
-                    match reader.read(into)? {
-                        0 => next = Next::Finished,
-                        n => return Ok(n)
-                    }
-                },
-                GzState::Finished(pos, buf) => if *pos < buf.len() {
-                    match reader.get_mut().get_mut().read(&mut buf[*pos..]) {
-                        Ok(0) => next = Next::Err(io::ErrorKind::UnexpectedEof.into()),
-                        Ok(n) => *pos += n,
-                        Err(err) => if io::ErrorKind::WouldBlock == err.kind() {
-                            return Err(err);
-                        } else {
-                            next = Next::Err(err);
-                        }
-                    }
-                } else {
-                    let (crc, amt) = finish(buf);
-
-                    if crc != reader.crc().sum() {
-                        next = Next::Err(corrupt());
-                    } else if amt != reader.crc().amount() {
-                        next = Next::Err(corrupt());
-                    } else if !*multi {
-                        next = Next::End;
-                    } else {
-                        match reader.get_mut().get_mut().fill_buf() {
-                            Ok(buf) => if buf.is_empty() {
-                                next = Next::End;
-                            } else {
-                                next = Next::Header;
-                            },
-                            Err(err) => if io::ErrorKind::WouldBlock == err.kind() {
-                                return Err(err);
-                            } else {
-                                next = Next::Err(err);
+                    let n = reader.read(into)
+                        .map_err(|err| {
+                            if io::ErrorKind::WouldBlock == err.kind() {
+                                *inner = GzState::Body;
                             }
+
+                            err
+                        })?;
+
+                    match n {
+                        0 => GzState::Finished(0, [0; 8]),
+                        n => {
+                            *inner = GzState::Body;
+                            return Ok(n);
                         }
                     }
                 },
-                GzState::Err(err) => next = Next::Err(mem::replace(err, io::ErrorKind::Other.into())),
-                GzState::End => return Ok(0)
-            }
+                GzState::Finished(pos, mut buf) => if pos < buf.len() {
+                    let n = reader.get_mut().get_mut()
+                        .read(&mut buf[pos..])
+                        .and_then(|n| if n == 0 {
+                            Err(io::ErrorKind::UnexpectedEof.into())
+                        } else {
+                            Ok(n)
+                        })
+                        .map_err(|err| {
+                            if io::ErrorKind::WouldBlock == err.kind() {
+                                *inner = GzState::Finished(pos, buf);
+                            }
 
-            match mem::replace(&mut next, Next::None) {
-                Next::None => (),
-                Next::Header => {
-                    reader.reset();
-                    reader.get_mut().reset_data();
-                    header.take();
-                    *inner = GzState::Header(Vec::new());
+                            err
+                        })?;
+
+                    GzState::Finished(pos + n, buf)
+                } else {
+                    let (crc, amt) = finish(&buf);
+
+                    if crc != reader.crc().sum() || amt != reader.crc().amount() {
+                        return Err(corrupt());
+                    } else if *multi {
+                        let is_eof = reader.get_mut().get_mut()
+                            .fill_buf()
+                            .map(|buf| buf.is_empty())
+                            .map_err(|err| {
+                                if io::ErrorKind::WouldBlock == err.kind() {
+                                    *inner = GzState::Finished(pos, buf);
+                                }
+
+                                err
+                            })?;
+
+                        if is_eof {
+                            GzState::End
+                        } else {
+                            reader.reset();
+                            reader.get_mut().reset_data();
+                            header.take();
+                            GzState::Header(Vec::with_capacity(10))
+                        }
+                    } else {
+                        GzState::End
+                    }
                 },
-                Next::Body => *inner = GzState::Body,
-                Next::Finished => *inner = GzState::Finished(0, [0; 8]),
-                Next::Err(err) => {
-                    *inner = GzState::End;
-                    return Err(err);
-                },
-                Next::End => *inner = GzState::End
-            }
+                GzState::Err(err) => return Err(err),
+                GzState::End => return Ok(0)
+            };
         }
     }
 }
