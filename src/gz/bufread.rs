@@ -313,27 +313,38 @@ enum GzState {
     End
 }
 
+/// A small adapter which reads data originally from `buf` and then reads all
+/// further data from `reader`. This will also buffer all data read from
+/// `reader` into `buf` for reuse on a further call.
 struct Buffer<'a, T> {
-    buf: io::Take<io::Cursor<&'a mut Vec<u8>>>,
+    buf: &'a mut Vec<u8>,
+    buf_cur: usize,
+    buf_max: usize,
     reader: &'a mut T
 }
 
 impl<'a, T> Buffer<'a, T> {
     fn new(buf: &'a mut Vec<u8>, reader: &'a mut T) -> Buffer<'a, T> {
-        let len = buf.len();
-        Buffer { buf: io::Cursor::new(buf).take(len as _), reader }
+        Buffer {
+            reader,
+            buf_cur: 0,
+            buf_max: buf.len(),
+            buf,
+        }
     }
 }
 
 impl<'a, T: Read> Read for Buffer<'a, T> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let mut len = self.buf.read(buf)?;
-        if buf.len() > len {
-            let len2 = self.reader.read(&mut buf[len..])?;
-            self.buf.get_mut().get_mut().extend_from_slice(&buf[len..][..len2]);
-            len += len2;
+        if self.buf_cur == self.buf_max {
+            let len = self.reader.read(buf)?;
+            self.buf.extend_from_slice(&buf[..len]);
+            Ok(len)
+        } else {
+            let len = (&self.buf[self.buf_cur..self.buf_max]).read(buf)?;
+            self.buf_cur += len;
+            Ok(len)
         }
-        Ok(len)
     }
 }
 
