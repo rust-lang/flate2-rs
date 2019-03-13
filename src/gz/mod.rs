@@ -18,7 +18,7 @@ pub mod write;
 ///
 /// The header can contain metadata about the file that was compressed, if
 /// present.
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug, Default)]
 pub struct GzHeader {
     extra: Option<Vec<u8>>,
     filename: Option<Vec<u8>>,
