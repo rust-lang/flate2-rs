@@ -316,7 +316,7 @@ enum GzState {
 /// A small adapter which reads data originally from `buf` and then reads all
 /// further data from `reader`. This will also buffer all data read from
 /// `reader` into `buf` for reuse on a further call.
-struct Buffer<'a, T> {
+struct Buffer<'a, T: 'a> {
     buf: &'a mut Vec<u8>,
     buf_cur: usize,
     buf_max: usize,
