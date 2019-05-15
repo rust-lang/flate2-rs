@@ -4,7 +4,7 @@ use std::env;
 
 fn main() {
     let target = env::var("TARGET").unwrap();
-    if target == "wasm32-unknown-unknown" {
+    if target.starts_with("wasm32-") && !target.ends_with("-emscripten") {
         return;
     }
     let mut build = cc::Build::new();
