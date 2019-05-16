@@ -35,6 +35,13 @@ jobs:
     - template: ci/azure-install-rust.yml
     - script: rustup target add wasm32-unknown-unknown
     - script: cargo build --target wasm32-unknown-unknown
+- job: wasi
+  steps:
+    - template: ci/azure-install-rust.yml
+      parameters:
+        toolchain: nightly
+    - script: rustup target add wasm32-wasi
+    - script: cargo build --target wasm32-wasi
 - job: rust_backend
   steps:
     - template: ci/azure-install-rust.yml
