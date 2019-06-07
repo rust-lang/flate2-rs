@@ -215,6 +215,7 @@ impl<T> Builder<T> {
     /// # Panics
     ///
     /// If `bits` does not fall into the range 9 ..= 15.
+    #[cfg(feature = "zlib")]
     pub fn window_bits(&mut self, bits: u8) -> &mut Self {
         assert!(bits > 8 && bits < 16, "window bits must be within 9 ..= 15");
         self.window_bits = bits as c_int;
@@ -251,7 +252,7 @@ impl Builder<Compress> {
                 9,
                 ffi::MZ_DEFAULT_STRATEGY,
             );
-            debug_assert_eq!(ret, 0);
+            assert_eq!(ret, 0);
             Compress {
                 inner: Stream {
                     stream_wrapper: state,
@@ -277,7 +278,7 @@ impl Builder<Decompress> {
                     -self.window_bits
                 },
             );
-            debug_assert_eq!(ret, 0);
+            assert_eq!(ret, 0);
             Decompress {
                 inner: Stream {
                     stream_wrapper: state,
