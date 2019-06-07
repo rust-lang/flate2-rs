@@ -110,7 +110,7 @@ mod libc {
 pub use crc::{Crc, CrcReader, CrcWriter};
 pub use gz::GzBuilder;
 pub use gz::GzHeader;
-pub use mem::{Compress, CompressError, Decompress, DecompressError, Status};
+pub use mem::{Builder, Compress, CompressError, Decompress, DecompressError, Status};
 pub use mem::{FlushCompress, FlushDecompress};
 
 mod bufreader;
