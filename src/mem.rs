@@ -213,6 +213,11 @@ impl Compress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
+    ///
+    /// # Note
+    ///
+    /// This constructor is only available when the `zlib` feature is used.
+    /// Other backends currently do not support custom window bits.
     #[cfg(feature = "zlib")]
     pub fn new_with_window_bits(level: Compression, zlib_header: bool, window_bits: u8) -> Compress {
         Compress::make(level, zlib_header, window_bits)
@@ -393,6 +398,11 @@ impl Decompress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
+    ///
+    /// # Note
+    ///
+    /// This constructor is only available when the `zlib` feature is used.
+    /// Other backends currently do not support custom window bits.
     #[cfg(feature = "zlib")]
     pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
         Decompress::make(zlib_header, window_bits)
