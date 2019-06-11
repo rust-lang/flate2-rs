@@ -198,6 +198,33 @@ impl Compress {
     /// to be performed, and the `zlib_header` argument indicates whether the
     /// output data should have a zlib header or not.
     pub fn new(level: Compression, zlib_header: bool) -> Compress {
+        Compress::make(level, zlib_header, ffi::MZ_DEFAULT_WINDOW_BITS as u8)
+    }
+
+    /// Creates a new object ready for compressing data that it's given.
+    ///
+    /// The `level` argument here indicates what level of compression is going
+    /// to be performed, and the `zlib_header` argument indicates whether the
+    /// output data should have a zlib header or not. The `window_bits` parameter
+    /// indicates the base-2 logarithm of the sliding window size and must be
+    /// between 9 and 15.
+    ///
+    /// # Panics
+    ///
+    /// If `window_bits` does not fall into the range 9 ..= 15,
+    /// `new_with_window_bits` will panic.
+    ///
+    /// # Note
+    ///
+    /// This constructor is only available when the `zlib` feature is used.
+    /// Other backends currently do not support custom window bits.
+    #[cfg(feature = "zlib")]
+    pub fn new_with_window_bits(level: Compression, zlib_header: bool, window_bits: u8) -> Compress {
+        Compress::make(level, zlib_header, window_bits)
+    }
+
+    fn make(level: Compression, zlib_header: bool, window_bits: u8) -> Compress {
+        assert!(window_bits > 8 && window_bits < 16, "window_bits must be within 9 ..= 15");
         unsafe {
             let mut state = ffi::StreamWrapper::default();
             let ret = ffi::mz_deflateInit2(
@@ -205,14 +232,14 @@ impl Compress {
                 level.0 as c_int,
                 ffi::MZ_DEFLATED,
                 if zlib_header {
-                    ffi::MZ_DEFAULT_WINDOW_BITS
+                    window_bits as c_int
                 } else {
-                    -ffi::MZ_DEFAULT_WINDOW_BITS
+                    -(window_bits as c_int)
                 },
                 9,
                 ffi::MZ_DEFAULT_STRATEGY,
             );
-            debug_assert_eq!(ret, 0);
+            assert_eq!(ret, 0);
             Compress {
                 inner: Stream {
                     stream_wrapper: state,
@@ -358,17 +385,42 @@ impl Decompress {
     /// The `zlib_header` argument indicates whether the input data is expected
     /// to have a zlib header or not.
     pub fn new(zlib_header: bool) -> Decompress {
+        Decompress::make(zlib_header, ffi::MZ_DEFAULT_WINDOW_BITS as u8)
+    }
+
+    /// Creates a new object ready for decompressing data that it's given.
+    ///
+    /// The `zlib_header` argument indicates whether the input data is expected
+    /// to have a zlib header or not. The `window_bits` parameter indicates the
+    /// base-2 logarithm of the sliding window size and must be between 9 and 15.
+    ///
+    /// # Panics
+    ///
+    /// If `window_bits` does not fall into the range 9 ..= 15,
+    /// `new_with_window_bits` will panic.
+    ///
+    /// # Note
+    ///
+    /// This constructor is only available when the `zlib` feature is used.
+    /// Other backends currently do not support custom window bits.
+    #[cfg(feature = "zlib")]
+    pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
+        Decompress::make(zlib_header, window_bits)
+    }
+
+    fn make(zlib_header: bool, window_bits: u8) -> Decompress {
+        assert!(window_bits > 8 && window_bits < 16, "window_bits must be within 9 ..= 15");
         unsafe {
             let mut state = ffi::StreamWrapper::default();
             let ret = ffi::mz_inflateInit2(
                 &mut *state,
                 if zlib_header {
-                    ffi::MZ_DEFAULT_WINDOW_BITS
+                    window_bits as c_int
                 } else {
-                    -ffi::MZ_DEFAULT_WINDOW_BITS
+                    -(window_bits as c_int)
                 },
             );
-            debug_assert_eq!(ret, 0);
+            assert_eq!(ret, 0);
             Decompress {
                 inner: Stream {
                     stream_wrapper: state,
