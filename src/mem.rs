@@ -191,63 +191,45 @@ pub enum Status {
     StreamEnd,
 }
 
-/// Configuration builder for [`Compress`] and [`Decompress`].
-#[derive(Debug)]
-pub struct Builder<T> {
-    window_bits: c_int,
-    zlib_header: bool,
-    level: Compression,
-    _marker: std::marker::PhantomData<T>
-}
-
-impl<T> Builder<T> {
-    fn new() -> Self {
-        Builder {
-            window_bits: ffi::MZ_DEFAULT_WINDOW_BITS,
-            zlib_header: false,
-            level: Compression::fast(),
-            _marker: std::marker::PhantomData
-        }
+impl Compress {
+    /// Creates a new object ready for compressing data that it's given.
+    ///
+    /// The `level` argument here indicates what level of compression is going
+    /// to be performed, and the `zlib_header` argument indicates whether the
+    /// output data should have a zlib header or not.
+    pub fn new(level: Compression, zlib_header: bool) -> Compress {
+        Compress::make(level, zlib_header, ffi::MZ_DEFAULT_WINDOW_BITS as u8)
     }
 
-    /// Set the maximum window bits to use.
+    /// Creates a new object ready for compressing data that it's given.
+    ///
+    /// The `level` argument here indicates what level of compression is going
+    /// to be performed, and the `zlib_header` argument indicates whether the
+    /// output data should have a zlib header or not. The `window_bits` parameter
+    /// indicates the base-2 logarithm of the sliding window size and must be
+    /// between 9 and 15.
     ///
     /// # Panics
     ///
-    /// If `bits` does not fall into the range 9 ..= 15.
+    /// If `window_bits` does not fall into the range 9 ..= 15,
+    /// `new_with_window_bits` will panic.
     #[cfg(feature = "zlib")]
-    pub fn window_bits(&mut self, bits: u8) -> &mut Self {
-        assert!(bits > 8 && bits < 16, "window bits must be within 9 ..= 15");
-        self.window_bits = bits as c_int;
-        self
+    pub fn new_with_window_bits(level: Compression, zlib_header: bool, window_bits: u8) -> Compress {
+        Compress::make(level, zlib_header, window_bits)
     }
 
-    /// Should a zlib header be used or not?
-    pub fn zlib_header(&mut self, flag: bool) -> &mut Self {
-        self.zlib_header = flag;
-        self
-    }
-}
-
-impl Builder<Compress> {
-    /// Set the compression level to use.
-    pub fn level(&mut self, value: Compression) -> &mut Self {
-        self.level = value;
-        self
-    }
-
-    /// Create a `Compress` object based on the configured values.
-    pub fn finish(&mut self) -> Compress {
+    fn make(level: Compression, zlib_header: bool, window_bits: u8) -> Compress {
+        assert!(window_bits > 8 && window_bits < 16, "window_bits must be within 9 ..= 15");
         unsafe {
             let mut state = ffi::StreamWrapper::default();
             let ret = ffi::mz_deflateInit2(
                 &mut *state,
-                self.level.0 as c_int,
+                level.0 as c_int,
                 ffi::MZ_DEFLATED,
-                if self.zlib_header {
-                    self.window_bits
+                if zlib_header {
+                    window_bits as c_int
                 } else {
-                    -self.window_bits
+                    -(window_bits as c_int)
                 },
                 9,
                 ffi::MZ_DEFAULT_STRATEGY,
@@ -262,49 +244,6 @@ impl Builder<Compress> {
                 },
             }
         }
-    }
-}
-
-impl Builder<Decompress> {
-    /// Create a `Decompress` object based on the configured values.
-    pub fn finish(&mut self) -> Decompress {
-        unsafe {
-            let mut state = ffi::StreamWrapper::default();
-            let ret = ffi::mz_inflateInit2(
-                &mut *state,
-                if self.zlib_header {
-                    self.window_bits
-                } else {
-                    -self.window_bits
-                },
-            );
-            assert_eq!(ret, 0);
-            Decompress {
-                inner: Stream {
-                    stream_wrapper: state,
-                    total_in: 0,
-                    total_out: 0,
-                    _marker: marker::PhantomData,
-                },
-            }
-        }
-    }
-}
-
-impl Compress {
-    /// Creates a new object ready for compressing data that it's given.
-    ///
-    /// The `level` argument here indicates what level of compression is going
-    /// to be performed, and the `zlib_header` argument indicates whether the
-    /// output data should have a zlib header or not.
-    pub fn new(level: Compression, zlib_header: bool) -> Compress {
-        let mut b = Self::builder();
-        b.level(level).zlib_header(zlib_header).finish()
-    }
-
-    /// Create a configuration builder for this compression object.
-    pub fn builder() -> Builder<Compress> {
-        Builder::new()
     }
 
     /// Returns the total number of input bytes which have been processed by
@@ -441,13 +380,46 @@ impl Decompress {
     /// The `zlib_header` argument indicates whether the input data is expected
     /// to have a zlib header or not.
     pub fn new(zlib_header: bool) -> Decompress {
-        let mut b = Self::builder();
-        b.zlib_header(zlib_header).finish()
+        Decompress::make(zlib_header, ffi::MZ_DEFAULT_WINDOW_BITS as u8)
     }
 
-    /// Create a configuration builder for this decompression object.
-    pub fn builder() -> Builder<Decompress> {
-        Builder::new()
+    /// Creates a new object ready for decompressing data that it's given.
+    ///
+    /// The `zlib_header` argument indicates whether the input data is expected
+    /// to have a zlib header or not. The `window_bits` parameter indicates the
+    /// base-2 logarithm of the sliding window size and must be between 9 and 15.
+    ///
+    /// # Panics
+    ///
+    /// If `window_bits` does not fall into the range 9 ..= 15,
+    /// `new_with_window_bits` will panic.
+    #[cfg(feature = "zlib")]
+    pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
+        Decompress::make(zlib_header, window_bits)
+    }
+
+    fn make(zlib_header: bool, window_bits: u8) -> Decompress {
+        assert!(window_bits > 8 && window_bits < 16, "window_bits must be within 9 ..= 15");
+        unsafe {
+            let mut state = ffi::StreamWrapper::default();
+            let ret = ffi::mz_inflateInit2(
+                &mut *state,
+                if zlib_header {
+                    window_bits as c_int
+                } else {
+                    -(window_bits as c_int)
+                },
+            );
+            assert_eq!(ret, 0);
+            Decompress {
+                inner: Stream {
+                    stream_wrapper: state,
+                    total_in: 0,
+                    total_out: 0,
+                    _marker: marker::PhantomData,
+                },
+            }
+        }
     }
 
     /// Returns the total number of input bytes which have been processed by
