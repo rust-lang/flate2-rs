@@ -97,17 +97,7 @@ impl<W: Write> GzEncoder<W> {
         self.inner.finish()?;
 
         while self.crc_bytes_written < 8 {
-            let (sum, amt) = (self.crc.sum() as u32, self.crc.amount());
-            let buf = [
-                (sum >> 0) as u8,
-                (sum >> 8) as u8,
-                (sum >> 16) as u8,
-                (sum >> 24) as u8,
-                (amt >> 0) as u8,
-                (amt >> 8) as u8,
-                (amt >> 16) as u8,
-                (amt >> 24) as u8,
-            ];
+            let buf = self.crc.to_bytes();
             let inner = self.inner.get_mut();
             let n = inner.write(&buf[self.crc_bytes_written..])?;
             self.crc_bytes_written += n;

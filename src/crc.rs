@@ -60,6 +60,21 @@ impl Crc {
         self.amt += additional_crc.amt;
         self.hasher.combine(&additional_crc.hasher);
     }
+
+    /// Computes the 8 bytes CRC
+    pub fn to_bytes(&self) -> [u8; 8] {
+        let (sum, amt) = (self.sum() as u32, self.amount());
+        [
+            (sum >> 0) as u8,
+            (sum >> 8) as u8,
+            (sum >> 16) as u8,
+            (sum >> 24) as u8,
+            (amt >> 0) as u8,
+            (amt >> 8) as u8,
+            (amt >> 16) as u8,
+            (amt >> 24) as u8,
+        ]
+    }
 }
 
 impl<R: Read> CrcReader<R> {

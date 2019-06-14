@@ -194,7 +194,8 @@ impl GzBuilder {
         bufread::gz_encoder(self.into_header(lvl), r, lvl)
     }
 
-    fn into_header(self, lvl: Compression) -> Vec<u8> {
+    /// Consume this builder, returning its equivalent in bytes
+    pub fn into_header(self, lvl: Compression) -> Vec<u8> {
         let GzBuilder {
             extra,
             filename,

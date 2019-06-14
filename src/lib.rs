@@ -163,6 +163,11 @@ pub mod bufread {
     pub use zlib::bufread::ZlibEncoder;
 }
 
+/// Various functions useful when dealing with `Compression`/`Decompression` directly
+pub mod utils {
+    pub use gz::bufread::read_gz_header;
+}
+
 fn _assert_send_sync() {
     fn _assert_send_sync<T: Send + Sync>() {}
 

@@ -40,7 +40,8 @@ fn read_le_u16<R: Read>(r: &mut R) -> io::Result<u16> {
     Ok((b[0] as u16) | ((b[1] as u16) << 8))
 }
 
-pub(crate) fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
+/// Read the Gzip header from a `Read` instance, erroring if the header is missing or invalid.
+pub fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
     let mut crc_reader = CrcReader::new(r);
     let mut header = [0; 10];
     crc_reader.read_exact(&mut header)?;
