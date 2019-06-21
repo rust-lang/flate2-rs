@@ -1,5 +1,5 @@
-use std::error::Error;
 use std::cmp;
+use std::error::Error;
 use std::fmt;
 use std::io;
 use std::marker;
@@ -220,12 +220,19 @@ impl Compress {
     /// This constructor is only available when the `zlib` feature is used.
     /// Other backends currently do not support custom window bits.
     #[cfg(feature = "zlib")]
-    pub fn new_with_window_bits(level: Compression, zlib_header: bool, window_bits: u8) -> Compress {
+    pub fn new_with_window_bits(
+        level: Compression,
+        zlib_header: bool,
+        window_bits: u8,
+    ) -> Compress {
         Compress::make(level, zlib_header, window_bits)
     }
 
     fn make(level: Compression, zlib_header: bool, window_bits: u8) -> Compress {
-        assert!(window_bits > 8 && window_bits < 16, "window_bits must be within 9 ..= 15");
+        assert!(
+            window_bits > 8 && window_bits < 16,
+            "window_bits must be within 9 ..= 15"
+        );
         unsafe {
             let mut state = ffi::StreamWrapper::default();
             let ret = ffi::mz_deflateInit2(
@@ -411,7 +418,10 @@ impl Decompress {
     }
 
     fn make(zlib_header: bool, window_bits: u8) -> Decompress {
-        assert!(window_bits > 8 && window_bits < 16, "window_bits must be within 9 ..= 15");
+        assert!(
+            window_bits > 8 && window_bits < 16,
+            "window_bits must be within 9 ..= 15"
+        );
         unsafe {
             let mut state = ffi::StreamWrapper::default();
             let ret = ffi::mz_inflateInit2(
