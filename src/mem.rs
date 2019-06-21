@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::cmp;
 use std::fmt;
 use std::io;
 use std::marker;
@@ -270,6 +271,7 @@ impl Compress {
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, CompressError> {
         let stream = &mut *self.inner.stream_wrapper;
         let rc = unsafe {
+            assert!(dictionary.len() < ffi::uInt::max_value() as usize);
             ffi::deflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
         };
 
@@ -329,9 +331,9 @@ impl Compress {
     ) -> Result<Status, CompressError> {
         let raw = &mut *self.inner.stream_wrapper;
         raw.next_in = input.as_ptr() as *mut _;
-        raw.avail_in = input.len() as c_uint;
+        raw.avail_in = cmp::min(input.len(), c_uint::max_value() as usize) as c_uint;
         raw.next_out = output.as_mut_ptr();
-        raw.avail_out = output.len() as c_uint;
+        raw.avail_out = cmp::min(output.len(), c_uint::max_value() as usize) as c_uint;
 
         let rc = unsafe { ffi::mz_deflate(raw, flush as c_int) };
 
@@ -474,9 +476,9 @@ impl Decompress {
     ) -> Result<Status, DecompressError> {
         let raw = &mut *self.inner.stream_wrapper;
         raw.next_in = input.as_ptr() as *mut u8;
-        raw.avail_in = input.len() as c_uint;
+        raw.avail_in = cmp::min(input.len(), c_uint::max_value() as usize) as c_uint;
         raw.next_out = output.as_mut_ptr();
-        raw.avail_out = output.len() as c_uint;
+        raw.avail_out = cmp::min(output.len(), c_uint::max_value() as usize) as c_uint;
 
         let rc = unsafe { ffi::mz_inflate(raw, flush as c_int) };
 
@@ -537,6 +539,7 @@ impl Decompress {
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, DecompressError> {
         let stream = &mut *self.inner.stream_wrapper;
         let rc = unsafe {
+            assert!(dictionary.len() < ffi::uInt::max_value() as usize);
             ffi::inflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
         };
 
