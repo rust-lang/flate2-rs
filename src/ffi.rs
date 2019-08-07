@@ -101,30 +101,54 @@ mod imp {
     all(target_arch = "wasm32", not(target_os = "emscripten"))
 ))]
 mod imp {
-    extern crate miniz_oxide_c_api;
-    use std::ops::{Deref, DerefMut};
+    extern crate miniz_oxide;
 
-    pub use self::miniz_oxide_c_api::lib_oxide::*;
-    pub use self::miniz_oxide_c_api::*;
+    pub use self::miniz_oxide::inflate::stream::InflateState;
+    pub use self::miniz_oxide::*;
 
-    #[derive(Debug, Default)]
-    pub struct StreamWrapper {
-        inner: mz_stream,
+    pub const MZ_NO_FLUSH: isize = MZFlush::None as isize;
+    pub const MZ_PARTIAL_FLUSH: isize = MZFlush::Partial as isize;
+    pub const MZ_SYNC_FLUSH: isize = MZFlush::Sync as isize;
+    pub const MZ_FULL_FLUSH: isize = MZFlush::Full as isize;
+    pub const MZ_FINISH: isize = MZFlush::Finish as isize;
+
+    pub enum StreamWrapper {
+        Deflate(Box<deflate::core::CompressorOxide>),
+        Inflate(Box<InflateState>),
+        None,
     }
 
-    impl Deref for StreamWrapper {
-        type Target = mz_stream;
+    impl StreamWrapper {
+        pub fn compressor(&mut self) -> &mut deflate::core::CompressorOxide {
+            match self {
+                StreamWrapper::Deflate(state) => state.as_mut(),
+                _ => panic!("Tried to compress with a decompressor!"),
+            }
+        }
 
-        fn deref(&self) -> &Self::Target {
-            &self.inner
+        pub fn decompressor(&mut self) -> &mut InflateState {
+            match self {
+                StreamWrapper::Inflate(state) => state.as_mut(),
+                _ => panic!("Tried to decompress with a compressor!"),
+            }
         }
     }
 
-    impl DerefMut for StreamWrapper {
-        fn deref_mut(&mut self) -> &mut Self::Target {
-            &mut self.inner
+    impl ::std::fmt::Debug for StreamWrapper {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+            write!(f, "StreamWrapper")
         }
     }
+
+    impl Default for StreamWrapper {
+        fn default() -> Self {
+            StreamWrapper::None
+        }
+    }
+
+    /// Dummy
+    #[allow(non_camel_case_types)]
+    pub struct mz_stream {}
 }
 
 #[cfg(all(
