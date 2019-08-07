@@ -20,7 +20,7 @@ streams.
 members = ['systest']
 
 [dependencies]
-libc = "0.2"
+libc = { version = "0.2", optional = true }
 miniz-sys = { path = "miniz-sys", version = "0.1.11", optional = true }
 libz-sys = { version = "1.0", optional = true }
 tokio-io = { version = "0.1.11", optional = true }
@@ -37,8 +37,8 @@ tokio-threadpool = "0.1.10"
 futures = "0.1"
 
 [features]
-default = ["miniz-sys"]
-zlib = ["libz-sys"]
+default = ["miniz-sys", "libc"]
+zlib = ["libz-sys", "libc"]
 rust_backend = ["miniz_oxide"]
 tokio = ["tokio-io", "futures"]
 

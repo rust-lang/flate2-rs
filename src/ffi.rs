@@ -145,10 +145,6 @@ mod imp {
             StreamWrapper::None
         }
     }
-
-    /// Dummy
-    #[allow(non_camel_case_types)]
-    pub struct mz_stream {}
 }
 
 #[cfg(all(
