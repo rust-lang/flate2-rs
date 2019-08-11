@@ -9,13 +9,7 @@ use std::io;
 use std::marker;
 use std::slice;
 
-#[cfg(not(any(
-    all(not(feature = "zlib"), feature = "rust_backend"),
-    all(target_arch = "wasm32", not(target_os = "emscripten"))
-)))]
-use libc::c_int;
-
-use ffi;
+use ffi::{self, Stream, DirCompress, DirDecompress, Direction};
 use Compression;
 
 /// Raw in-memory compression stream for blocks of data.
@@ -51,30 +45,6 @@ pub struct Compress {
 pub struct Decompress {
     inner: Stream<DirDecompress>,
 }
-
-#[derive(Debug)]
-struct Stream<D: Direction> {
-    stream_wrapper: ffi::StreamWrapper,
-    total_in: u64,
-    total_out: u64,
-    _marker: marker::PhantomData<D>,
-}
-
-unsafe impl<D: Direction> Send for Stream<D> {}
-unsafe impl<D: Direction> Sync for Stream<D> {}
-
-trait Direction {
-    #[cfg(not(any(
-        all(not(feature = "zlib"), feature = "rust_backend"),
-        all(target_arch = "wasm32", not(target_os = "emscripten"))
-    )))]
-    unsafe fn destroy(stream: *mut ffi::mz_stream) -> c_int;
-}
-
-#[derive(Debug)]
-enum DirCompress {}
-#[derive(Debug)]
-enum DirDecompress {}
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 /// Values which indicate the form of flushing to be used when compressing
@@ -151,14 +121,14 @@ pub enum FlushDecompress {
 
 /// The inner state for an error when decompressing
 #[derive(Debug, Default)]
-struct DecompressErrorInner {
-    needs_dictionary: Option<u32>,
+pub(crate) struct DecompressErrorInner {
+    pub(crate) needs_dictionary: Option<u32>,
 }
 
 /// Error returned when a decompression object finds that the input stream of
 /// bytes was not a valid input stream of bytes.
 #[derive(Debug)]
-pub struct DecompressError(DecompressErrorInner);
+pub struct DecompressError(pub(crate) DecompressErrorInner);
 
 impl DecompressError {
     /// Indicates whether decompression failed due to requiring a dictionary.
@@ -170,10 +140,24 @@ impl DecompressError {
     }
 }
 
+#[inline]
+pub(crate) fn decompress_failed() -> Result<Status,DecompressError> {
+    Err(DecompressError(Default::default()))
+}
+
+#[inline]
+pub(crate) fn decompress_need_dict(adler: u32) -> Result<Status,DecompressError> {
+    Err(DecompressError(
+        DecompressErrorInner{
+            needs_dictionary: Some(adler)
+        }
+    ))
+}
+
 /// Error returned when a compression object is used incorrectly or otherwise
 /// generates an error.
 #[derive(Debug)]
-pub struct CompressError(());
+pub struct CompressError(pub(crate) ());
 
 /// Possible status results of compressing some data or successfully
 /// decompressing a block of data.
@@ -274,7 +258,7 @@ impl Compress {
     ///
     /// This is equivalent to dropping this object and then creating a new one.
     pub fn reset(&mut self) {
-        self.reset_inner();
+        self.inner.reset();
         self.inner.total_in = 0;
         self.inner.total_out = 0;
     }
@@ -552,9 +536,9 @@ mod rust_backend {
     impl Direction for DirDecompress {}
 
     impl Compress {
-        pub(super) fn reset_inner(&mut self) {
+/*        pub(super) fn reset_inner(&mut self) {
             self.inner.stream_wrapper.compressor().reset();
-        }
+        }*/
 
         pub(super) fn make(level: Compression, zlib_header: bool, window_bits: u8) -> Compress {
             use ffi::deflate::core::CompressorOxide;
@@ -718,11 +702,11 @@ mod c_backend {
                 }
             }
         }
-
+/*
         pub(super) fn reset_inner(&mut self) {
             let rc = unsafe { ffi::mz_deflateReset(&mut *self.inner.stream_wrapper) };
             assert_eq!(rc, ffi::MZ_OK);
-        }
+        }*/
 
         pub(super) fn compress_inner(
             &mut self,
