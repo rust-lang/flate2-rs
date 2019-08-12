@@ -1,15 +1,9 @@
-#[cfg(not(any(
-    all(not(feature = "zlib"), feature = "rust_backend"),
-    all(target_arch = "wasm32", not(target_os = "emscripten"))
-)))]
-use std::cmp;
 use std::error::Error;
 use std::fmt;
 use std::io;
-use std::marker;
 use std::slice;
 
-use ffi::{self, Stream, DirCompress, DirDecompress, Direction};
+use ffi::{self, Backend, Deflate, DeflateBackend, Inflate, InflateBackend};
 use Compression;
 
 /// Raw in-memory compression stream for blocks of data.
@@ -26,7 +20,7 @@ use Compression;
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 #[derive(Debug)]
 pub struct Compress {
-    inner: Stream<DirCompress>,
+    inner: Deflate,
 }
 
 /// Raw in-memory decompression stream for blocks of data.
@@ -43,7 +37,7 @@ pub struct Compress {
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 #[derive(Debug)]
 pub struct Decompress {
-    inner: Stream<DirDecompress>,
+    inner: Inflate,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -141,17 +135,15 @@ impl DecompressError {
 }
 
 #[inline]
-pub(crate) fn decompress_failed() -> Result<Status,DecompressError> {
+pub(crate) fn decompress_failed() -> Result<Status, DecompressError> {
     Err(DecompressError(Default::default()))
 }
 
 #[inline]
-pub(crate) fn decompress_need_dict(adler: u32) -> Result<Status,DecompressError> {
-    Err(DecompressError(
-        DecompressErrorInner{
-            needs_dictionary: Some(adler)
-        }
-    ))
+pub(crate) fn decompress_need_dict(adler: u32) -> Result<Status, DecompressError> {
+    Err(DecompressError(DecompressErrorInner {
+        needs_dictionary: Some(adler),
+    }))
 }
 
 /// Error returned when a compression object is used incorrectly or otherwise
@@ -195,7 +187,9 @@ impl Compress {
     /// to be performed, and the `zlib_header` argument indicates whether the
     /// output data should have a zlib header or not.
     pub fn new(level: Compression, zlib_header: bool) -> Compress {
-        Compress::make(level, zlib_header, ffi::MZ_DEFAULT_WINDOW_BITS as u8)
+        Compress {
+            inner: Deflate::make(level, zlib_header, ffi::MZ_DEFAULT_WINDOW_BITS as u8),
+        }
     }
 
     /// Creates a new object ready for compressing data that it's given.
@@ -221,19 +215,21 @@ impl Compress {
         zlib_header: bool,
         window_bits: u8,
     ) -> Compress {
-        Compress::make(level, zlib_header, window_bits)
+        Compress {
+            inner: Deflate::make(level, zlib_header, window_bits),
+        }
     }
 
     /// Returns the total number of input bytes which have been processed by
     /// this compression object.
     pub fn total_in(&self) -> u64 {
-        self.inner.total_in
+        self.inner.total_in()
     }
 
     /// Returns the total number of output bytes which have been produced by
     /// this compression object.
     pub fn total_out(&self) -> u64 {
-        self.inner.total_out
+        self.inner.total_out()
     }
 
     /// Specifies the compression dictionary to use.
@@ -241,7 +237,7 @@ impl Compress {
     /// Returns the Adler-32 checksum of the dictionary.
     #[cfg(feature = "zlib")]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, CompressError> {
-        let stream = &mut *self.inner.stream_wrapper;
+        let stream = &mut *self.inner.inner.stream_wrapper;
         let rc = unsafe {
             assert!(dictionary.len() < ffi::uInt::max_value() as usize);
             ffi::deflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
@@ -259,8 +255,6 @@ impl Compress {
     /// This is equivalent to dropping this object and then creating a new one.
     pub fn reset(&mut self) {
         self.inner.reset();
-        self.inner.total_in = 0;
-        self.inner.total_out = 0;
     }
 
     /// Dynamically updates the compression level.
@@ -275,7 +269,8 @@ impl Compress {
     /// ensures that the function will succeed on the first call.
     #[cfg(feature = "zlib")]
     pub fn set_level(&mut self, level: Compression) -> Result<(), CompressError> {
-        let stream = &mut *self.inner.stream_wrapper;
+        use libc::c_int;
+        let stream = &mut *self.inner.inner.stream_wrapper;
 
         let rc = unsafe { ffi::deflateParams(stream, level.0 as c_int, ffi::MZ_DEFAULT_STRATEGY) };
 
@@ -299,7 +294,7 @@ impl Compress {
         output: &mut [u8],
         flush: FlushCompress,
     ) -> Result<Status, CompressError> {
-        self.compress_inner(input, output, flush)
+        self.inner.compress(input, output, flush)
     }
 
     /// Compresses the input data into the extra space of the output, consuming
@@ -338,7 +333,9 @@ impl Decompress {
     /// The `zlib_header` argument indicates whether the input data is expected
     /// to have a zlib header or not.
     pub fn new(zlib_header: bool) -> Decompress {
-        Decompress::make(zlib_header, ffi::MZ_DEFAULT_WINDOW_BITS as u8)
+        Decompress {
+            inner: Inflate::make(zlib_header, ffi::MZ_DEFAULT_WINDOW_BITS as u8),
+        }
     }
 
     /// Creates a new object ready for decompressing data that it's given.
@@ -358,19 +355,21 @@ impl Decompress {
     /// Other backends currently do not support custom window bits.
     #[cfg(feature = "zlib")]
     pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
-        Decompress::make(zlib_header, window_bits)
+        Decompress {
+            inner: Inflate::make(zlib_header, window_bits),
+        }
     }
 
     /// Returns the total number of input bytes which have been processed by
     /// this decompression object.
     pub fn total_in(&self) -> u64 {
-        self.inner.total_in
+        self.inner.total_in()
     }
 
     /// Returns the total number of output bytes which have been produced by
     /// this decompression object.
     pub fn total_out(&self) -> u64 {
-        self.inner.total_out
+        self.inner.total_out()
     }
 
     /// Decompresses the input data into the output, consuming only as much
@@ -401,7 +400,7 @@ impl Decompress {
         output: &mut [u8],
         flush: FlushDecompress,
     ) -> Result<Status, DecompressError> {
-        self.decompress_inner(input, output, flush)
+        self.inner.decompress(input, output, flush)
     }
 
     /// Decompresses the input data into the extra space in the output vector
@@ -442,7 +441,7 @@ impl Decompress {
     /// Specifies the decompression dictionary to use.
     #[cfg(feature = "zlib")]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, DecompressError> {
-        let stream = &mut *self.inner.stream_wrapper;
+        let stream = &mut *self.inner.inner.stream_wrapper;
         let rc = unsafe {
             assert!(dictionary.len() < ffi::uInt::max_value() as usize);
             ffi::inflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
@@ -467,26 +466,7 @@ impl Decompress {
     /// The argument provided here indicates whether the reset state will
     /// attempt to decode a zlib header first or not.
     pub fn reset(&mut self, zlib_header: bool) {
-        self._reset(zlib_header);
-    }
-
-    #[cfg(feature = "zlib")]
-    fn _reset(&mut self, zlib_header: bool) {
-        let bits = if zlib_header {
-            ffi::MZ_DEFAULT_WINDOW_BITS
-        } else {
-            -ffi::MZ_DEFAULT_WINDOW_BITS
-        };
-        unsafe {
-            ffi::inflateReset2(&mut *self.inner.stream_wrapper, bits);
-        }
-        self.inner.total_out = 0;
-        self.inner.total_in = 0;
-    }
-
-    #[cfg(not(feature = "zlib"))]
-    fn _reset(&mut self, zlib_header: bool) {
-        *self = Decompress::new(zlib_header);
+        self.inner.reset(zlib_header);
     }
 }
 
@@ -526,299 +506,6 @@ impl fmt::Display for CompressError {
     }
 }
 
-#[cfg(any(
-    all(not(feature = "zlib"), feature = "rust_backend"),
-    all(target_arch = "wasm32", not(target_os = "emscripten"))
-))]
-mod rust_backend {
-    use super::*;
-    impl Direction for DirCompress {}
-    impl Direction for DirDecompress {}
-
-    impl Compress {
-/*        pub(super) fn reset_inner(&mut self) {
-            self.inner.stream_wrapper.compressor().reset();
-        }*/
-
-        pub(super) fn make(level: Compression, zlib_header: bool, window_bits: u8) -> Compress {
-            use ffi::deflate::core::CompressorOxide;
-            use ffi::DataFormat;
-            use std::convert::TryInto;
-            assert!(
-                window_bits > 8 && window_bits < 16,
-                "window_bits must be within 9 ..= 15"
-            );
-
-            // Check in case the integer value changes at some point.
-            debug_assert!(level.level() <= 10);
-
-            let state = {
-                let format = if zlib_header {
-                    DataFormat::Zlib
-                } else {
-                    DataFormat::Raw
-                };
-
-                let mut inner: Box<CompressorOxide> = Box::default();
-                inner.set_format_and_level(format, level.level().try_into().unwrap_or(1));
-
-                ffi::StreamWrapper::Deflate(inner)
-            };
-
-            Compress {
-                inner: Stream {
-                    stream_wrapper: state,
-                    total_in: 0,
-                    total_out: 0,
-                    _marker: marker::PhantomData,
-                },
-            }
-        }
-
-        pub(super) fn compress_inner(
-            &mut self,
-            input: &[u8],
-            output: &mut [u8],
-            flush: FlushCompress,
-        ) -> Result<Status, CompressError> {
-            use ffi::{MZError, MZFlush, MZStatus};
-
-            let state = self.inner.stream_wrapper.compressor();
-            let flush = MZFlush::new(flush as i32).unwrap();
-
-            let res = ffi::deflate::stream::deflate(state, input, output, flush);
-            self.inner.total_in += res.bytes_consumed as u64;
-            self.inner.total_out += res.bytes_written as u64;
-
-            match res.status {
-                Ok(status) => match status {
-                    MZStatus::Ok => Ok(Status::Ok),
-                    MZStatus::StreamEnd => Ok(Status::StreamEnd),
-                    MZStatus::NeedDict => Err(CompressError(())),
-                },
-                Err(status) => match status {
-                    MZError::Buf => Ok(Status::BufError),
-                    _ => Err(CompressError(())),
-                },
-            }
-        }
-    }
-
-    impl Decompress {
-        pub(super) fn make(zlib_header: bool, window_bits: u8) -> Decompress {
-            use ffi::{DataFormat, InflateState, StreamWrapper};
-            assert!(
-                window_bits > 8 && window_bits < 16,
-                "window_bits must be within 9 ..= 15"
-            );
-
-            let format = if zlib_header {
-                DataFormat::Zlib
-            } else {
-                DataFormat::Raw
-            };
-
-            let state = StreamWrapper::Inflate(InflateState::new_boxed(format));
-
-            Decompress {
-                inner: Stream {
-                    stream_wrapper: state,
-                    total_in: 0,
-                    total_out: 0,
-                    _marker: marker::PhantomData,
-                },
-            }
-        }
-
-        pub(super) fn decompress_inner(
-            &mut self,
-            input: &[u8],
-            output: &mut [u8],
-            flush: FlushDecompress,
-        ) -> Result<Status, DecompressError> {
-            use ffi::{MZError, MZFlush, MZStatus};
-
-            let state = self.inner.stream_wrapper.decompressor();
-            let flush = MZFlush::new(flush as i32).unwrap();
-
-            let res = ffi::inflate::stream::inflate(state, input, output, flush);
-            self.inner.total_in += res.bytes_consumed as u64;
-            self.inner.total_out += res.bytes_written as u64;
-
-            match res.status {
-                Ok(status) => match status {
-                    MZStatus::Ok => Ok(Status::Ok),
-                    MZStatus::StreamEnd => Ok(Status::StreamEnd),
-                    MZStatus::NeedDict => Err(DecompressError(DecompressErrorInner {
-                        needs_dictionary: Some(state.decompressor().adler32().unwrap_or(0)),
-                    })),
-                },
-                Err(status) => match status {
-                    MZError::Buf => Ok(Status::BufError),
-                    _ => Err(DecompressError(Default::default())),
-                },
-            }
-        }
-    }
-}
-
-#[cfg(not(any(
-    all(not(feature = "zlib"), feature = "rust_backend"),
-    all(target_arch = "wasm32", not(target_os = "emscripten"))
-)))]
-mod c_backend {
-    use super::*;
-    use libc::c_int;
-    use libc::c_uint;
-
-    impl Compress {
-        pub(super) fn make(level: Compression, zlib_header: bool, window_bits: u8) -> Compress {
-            assert!(
-                window_bits > 8 && window_bits < 16,
-                "window_bits must be within 9 ..= 15"
-            );
-            unsafe {
-                let mut state = ffi::StreamWrapper::default();
-                let ret = ffi::mz_deflateInit2(
-                    &mut *state,
-                    level.0 as c_int,
-                    ffi::MZ_DEFLATED,
-                    if zlib_header {
-                        window_bits as c_int
-                    } else {
-                        -(window_bits as c_int)
-                    },
-                    9,
-                    ffi::MZ_DEFAULT_STRATEGY,
-                );
-                assert_eq!(ret, 0);
-                Compress {
-                    inner: Stream {
-                        stream_wrapper: state,
-                        total_in: 0,
-                        total_out: 0,
-                        _marker: marker::PhantomData,
-                    },
-                }
-            }
-        }
-/*
-        pub(super) fn reset_inner(&mut self) {
-            let rc = unsafe { ffi::mz_deflateReset(&mut *self.inner.stream_wrapper) };
-            assert_eq!(rc, ffi::MZ_OK);
-        }*/
-
-        pub(super) fn compress_inner(
-            &mut self,
-            input: &[u8],
-            output: &mut [u8],
-            flush: FlushCompress,
-        ) -> Result<Status, CompressError> {
-            let raw = &mut *self.inner.stream_wrapper;
-            raw.next_in = input.as_ptr() as *mut _;
-            raw.avail_in = cmp::min(input.len(), c_uint::max_value() as usize) as c_uint;
-            raw.next_out = output.as_mut_ptr();
-            raw.avail_out = cmp::min(output.len(), c_uint::max_value() as usize) as c_uint;
-
-            let rc = unsafe { ffi::mz_deflate(raw, flush as c_int) };
-
-            // Unfortunately the total counters provided by zlib might be only
-            // 32 bits wide and overflow while processing large amounts of data.
-            self.inner.total_in += (raw.next_in as usize - input.as_ptr() as usize) as u64;
-            self.inner.total_out += (raw.next_out as usize - output.as_ptr() as usize) as u64;
-
-            match rc {
-                ffi::MZ_OK => Ok(Status::Ok),
-                ffi::MZ_BUF_ERROR => Ok(Status::BufError),
-                ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
-                ffi::MZ_STREAM_ERROR => Err(CompressError(())),
-                c => panic!("unknown return code: {}", c),
-            }
-        }
-    }
-
-    impl Decompress {
-        pub(super) fn make(zlib_header: bool, window_bits: u8) -> Decompress {
-            assert!(
-                window_bits > 8 && window_bits < 16,
-                "window_bits must be within 9 ..= 15"
-            );
-            unsafe {
-                let mut state = ffi::StreamWrapper::default();
-                let ret = ffi::mz_inflateInit2(
-                    &mut *state,
-                    if zlib_header {
-                        window_bits as c_int
-                    } else {
-                        -(window_bits as c_int)
-                    },
-                );
-                assert_eq!(ret, 0);
-                Decompress {
-                    inner: Stream {
-                        stream_wrapper: state,
-                        total_in: 0,
-                        total_out: 0,
-                        _marker: marker::PhantomData,
-                    },
-                }
-            }
-        }
-
-        pub(super) fn decompress_inner(
-            &mut self,
-            input: &[u8],
-            output: &mut [u8],
-            flush: FlushDecompress,
-        ) -> Result<Status, DecompressError> {
-            let raw = &mut *self.inner.stream_wrapper;
-            raw.next_in = input.as_ptr() as *mut u8;
-            raw.avail_in = cmp::min(input.len(), c_uint::max_value() as usize) as c_uint;
-            raw.next_out = output.as_mut_ptr();
-            raw.avail_out = cmp::min(output.len(), c_uint::max_value() as usize) as c_uint;
-
-            let rc = unsafe { ffi::mz_inflate(raw, flush as c_int) };
-
-            // Unfortunately the total counters provided by zlib might be only
-            // 32 bits wide and overflow while processing large amounts of data.
-            self.inner.total_in += (raw.next_in as usize - input.as_ptr() as usize) as u64;
-            self.inner.total_out += (raw.next_out as usize - output.as_ptr() as usize) as u64;
-
-            match rc {
-                ffi::MZ_DATA_ERROR | ffi::MZ_STREAM_ERROR => {
-                    Err(DecompressError(Default::default()))
-                }
-                ffi::MZ_OK => Ok(Status::Ok),
-                ffi::MZ_BUF_ERROR => Ok(Status::BufError),
-                ffi::MZ_STREAM_END => Ok(Status::StreamEnd),
-                ffi::MZ_NEED_DICT => Err(DecompressError(DecompressErrorInner {
-                    needs_dictionary: Some(raw.adler as u32),
-                })),
-                c => panic!("unknown return code: {}", c),
-            }
-        }
-    }
-
-    impl Direction for DirDecompress {
-        unsafe fn destroy(stream: *mut ffi::mz_stream) -> c_int {
-            ffi::mz_inflateEnd(stream)
-        }
-    }
-
-    impl Direction for DirCompress {
-        unsafe fn destroy(stream: *mut ffi::mz_stream) -> c_int {
-            ffi::mz_deflateEnd(stream)
-        }
-    }
-
-    impl<D: Direction> Drop for Stream<D> {
-        fn drop(&mut self) {
-            unsafe {
-                let _ = D::destroy(&mut *self.stream_wrapper);
-            }
-        }
-    }
-}
 #[cfg(test)]
 mod tests {
     use std::io::Write;
@@ -966,5 +653,4 @@ mod tests {
 
         assert_eq!(&decoded[..decoder.total_out() as usize], string);
     }
-
 }
