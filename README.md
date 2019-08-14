@@ -1,6 +1,5 @@
 # flate2
 
-[![Build Status](https://dev.azure.com/alexcrichton/flate2-rs/_apis/build/status/alexcrichton.flate2-rs?branchName=master)](https://dev.azure.com/alexcrichton/flate2-rs/_build/latest?definitionId=1&branchName=master)
 [![Crates.io](https://img.shields.io/crates/v/flate2.svg?maxAge=2592000)](https://crates.io/crates/flate2)
 [![Documentation](https://docs.rs/flate2/badge.svg)](https://docs.rs/flate2)
 
