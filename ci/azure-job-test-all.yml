@@ -18,3 +18,4 @@ jobs:
     - script: cargo test --features tokio
     - script: cargo test --features "tokio zlib"
     - script: cargo test --features zlib --no-default-features
+    - script: cargo test --features miniz-sys --no-default-features
