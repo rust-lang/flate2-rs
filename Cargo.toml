@@ -32,7 +32,7 @@ crc32fast = "1.1"
 miniz_oxide = "0.3.2"
 
 [dev-dependencies]
-rand = "0.6"
+rand = "0.7"
 quickcheck = { version = "0.8", default-features = false }
 tokio-io = "0.1.11"
 tokio-tcp = "0.1.3"
