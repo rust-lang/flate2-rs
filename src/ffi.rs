@@ -42,10 +42,14 @@ pub(crate) trait DeflateBackend: Backend {
     all(target_arch = "wasm32", not(target_os = "emscripten"))
 )))]
 pub(crate) mod imp {
-    use std::{cmp, marker};
+    use std::alloc::{self, Layout};
+    use std::cmp;
+    use std::convert::TryFrom;
+    use std::marker;
     use std::ops::{Deref, DerefMut};
+    use std::ptr;
 
-    pub use libc::{c_int, c_uint};
+    pub use libc::{c_int, c_uint, c_void, size_t};
 
     use super::*;
     use mem::{self, FlushDecompress, Status};
@@ -62,14 +66,81 @@ pub(crate) mod imp {
 
     impl Default for StreamWrapper {
         fn default() -> StreamWrapper {
-            // Temporary workaround due to bug in libz-sys.
-            // Error non-boxed function pointers in data structure),
-            // these are not actually used.
-            #[allow(unknown_lints)]
-            #[allow(invalid_value)]
             StreamWrapper {
-                inner: Box::new(unsafe { std::mem::zeroed() }),
+                inner: Box::new(mz_stream {
+                    next_in: ptr::null_mut(),
+                    avail_in: 0,
+                    total_in: 0,
+                    next_out: ptr::null_mut(),
+                    avail_out: 0,
+                    total_out: 0,
+                    msg: ptr::null_mut(),
+                    adler: 0,
+                    data_type: 0,
+                    reserved: 0,
+                    opaque: ptr::null_mut(),
+                    state: ptr::null_mut(),
+                    #[cfg(feature = "zlib")]
+                    zalloc,
+                    #[cfg(feature = "zlib")]
+                    zfree,
+                    #[cfg(not(feature = "zlib"))]
+                    zalloc: Some(zalloc),
+                    #[cfg(not(feature = "zlib"))]
+                    zfree: Some(zfree),
+                }),
             }
+        }
+    }
+
+    const ALIGN: usize = std::mem::align_of::<usize>();
+
+    fn align_up(size: usize, align: usize) -> usize {
+        (size + align - 1) & !(align - 1)
+    }
+
+    extern "C" fn zalloc(_ptr: *mut c_void, items: AllocSize, item_size: AllocSize) -> *mut c_void {
+        // We need to multiply `items` and `item_size` to get the actual desired
+        // allocation size. Since `zfree` doesn't receive a size argument we
+        // also need to allocate space for a `usize` as a header so we can store
+        // how large the allocation is to deallocate later.
+        let size = match items
+            .checked_mul(item_size)
+            .and_then(|i| usize::try_from(i).ok())
+            .map(|size| align_up(size, ALIGN))
+            .and_then(|i| i.checked_add(std::mem::size_of::<usize>()))
+        {
+            Some(i) => i,
+            None => return ptr::null_mut(),
+        };
+
+        // Make sure the `size` isn't too big to fail `Layout`'s restrictions
+        let layout = match Layout::from_size_align(size, ALIGN) {
+            Ok(layout) => layout,
+            Err(_) => return ptr::null_mut(),
+        };
+
+        unsafe {
+            // Allocate the data, and if successful store the size we allocated
+            // at the beginning and then return an offset pointer.
+            let ptr = alloc::alloc(layout) as *mut usize;
+            if ptr.is_null() {
+                return ptr as *mut c_void;
+            }
+            *ptr = size;
+            ptr.add(1) as *mut c_void
+        }
+    }
+
+    extern "C" fn zfree(_ptr: *mut c_void, address: *mut c_void) {
+        unsafe {
+            // Move our address being free'd back one pointer, read the size we
+            // stored in `zalloc`, and then free it using the standard Rust
+            // allocator.
+            let ptr = (address as *mut usize).offset(-1);
+            let size = *ptr;
+            let layout = Layout::from_size_align_unchecked(size, ALIGN);
+            alloc::dealloc(ptr as *mut u8, layout)
         }
     }
 
@@ -314,6 +385,7 @@ pub(crate) mod imp {
         extern crate miniz_sys;
 
         pub use self::miniz_sys::*;
+        pub type AllocSize = libc::size_t;
     }
 
     /// Zlib specific
@@ -346,6 +418,7 @@ pub(crate) mod imp {
         pub use self::z::Z_STREAM_END as MZ_STREAM_END;
         pub use self::z::Z_STREAM_ERROR as MZ_STREAM_ERROR;
         pub use self::z::Z_SYNC_FLUSH as MZ_SYNC_FLUSH;
+        pub type AllocSize = self::z::uInt;
 
         pub const MZ_DEFAULT_WINDOW_BITS: c_int = 15;
 
@@ -370,7 +443,10 @@ pub(crate) mod imp {
                 mem::size_of::<mz_stream>() as c_int,
             )
         }
-        pub unsafe extern "C" fn mz_inflateInit2(stream: *mut mz_stream, window_bits: c_int) -> c_int {
+        pub unsafe extern "C" fn mz_inflateInit2(
+            stream: *mut mz_stream,
+            window_bits: c_int,
+        ) -> c_int {
             z::inflateInit2_(
                 stream,
                 window_bits,
@@ -383,7 +459,6 @@ pub(crate) mod imp {
     pub(crate) use self::CDeflate as Deflate;
     pub(crate) use self::CInflate as Inflate;
 }
-
 
 /// Implementation for miniz_oxide rust backend.
 #[cfg(any(
