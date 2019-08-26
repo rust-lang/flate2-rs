@@ -241,7 +241,7 @@ impl<W: Write, D: Ops> Writer<W, D> {
         // TODO: should manage this buffer not with `drain` but probably more of
         // a deque-like strategy.
         while self.buf.len() > 0 {
-            let n = try!(self.obj.as_mut().unwrap().write(&self.buf));
+            let n = self.obj.as_mut().unwrap().write(&self.buf)?;
             if n == 0 {
                 return Err(io::ErrorKind::WriteZero.into());
             }
