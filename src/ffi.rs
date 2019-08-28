@@ -1,7 +1,7 @@
 //! This module contains backend-specific code.
 
-use mem::{CompressError, DecompressError, FlushCompress, FlushDecompress, Status};
-use Compression;
+use crate::mem::{CompressError, DecompressError, FlushCompress, FlushDecompress, Status};
+use crate::Compression;
 
 pub use self::imp::*;
 
@@ -52,7 +52,7 @@ pub(crate) mod imp {
     pub use libc::{c_int, c_uint, c_void, size_t};
 
     use super::*;
-    use mem::{self, FlushDecompress, Status};
+    use crate::mem::{self, FlushDecompress, Status};
 
     pub struct StreamWrapper {
         pub(crate) inner: Box<mz_stream>,
@@ -481,7 +481,7 @@ mod imp {
     pub const MZ_FINISH: isize = MZFlush::Finish as isize;
 
     use super::*;
-    use mem;
+    use crate::mem;
 
     fn format_from_bool(zlib_header: bool) -> DataFormat {
         if zlib_header {

@@ -94,11 +94,11 @@ extern crate rand;
 #[cfg(feature = "tokio")]
 extern crate tokio_io;
 
-pub use crc::{Crc, CrcReader, CrcWriter};
-pub use gz::GzBuilder;
-pub use gz::GzHeader;
-pub use mem::{Compress, CompressError, Decompress, DecompressError, Status};
-pub use mem::{FlushCompress, FlushDecompress};
+pub use crate::crc::{Crc, CrcReader, CrcWriter};
+pub use crate::gz::GzBuilder;
+pub use crate::gz::GzHeader;
+pub use crate::mem::{Compress, CompressError, Decompress, DecompressError, Status};
+pub use crate::mem::{FlushCompress, FlushDecompress};
 
 mod bufreader;
 mod crc;
@@ -114,13 +114,13 @@ mod zlib;
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 pub mod read {
-    pub use deflate::read::DeflateDecoder;
-    pub use deflate::read::DeflateEncoder;
-    pub use gz::read::GzDecoder;
-    pub use gz::read::GzEncoder;
-    pub use gz::read::MultiGzDecoder;
-    pub use zlib::read::ZlibDecoder;
-    pub use zlib::read::ZlibEncoder;
+    pub use crate::deflate::read::DeflateDecoder;
+    pub use crate::deflate::read::DeflateEncoder;
+    pub use crate::gz::read::GzDecoder;
+    pub use crate::gz::read::GzEncoder;
+    pub use crate::gz::read::MultiGzDecoder;
+    pub use crate::zlib::read::ZlibDecoder;
+    pub use crate::zlib::read::ZlibEncoder;
 }
 
 /// Types which operate over [`Write`] streams, both encoders and decoders for
@@ -128,12 +128,12 @@ pub mod read {
 ///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 pub mod write {
-    pub use deflate::write::DeflateDecoder;
-    pub use deflate::write::DeflateEncoder;
-    pub use gz::write::GzDecoder;
-    pub use gz::write::GzEncoder;
-    pub use zlib::write::ZlibDecoder;
-    pub use zlib::write::ZlibEncoder;
+    pub use crate::deflate::write::DeflateDecoder;
+    pub use crate::deflate::write::DeflateEncoder;
+    pub use crate::gz::write::GzDecoder;
+    pub use crate::gz::write::GzEncoder;
+    pub use crate::zlib::write::ZlibDecoder;
+    pub use crate::zlib::write::ZlibEncoder;
 }
 
 /// Types which operate over [`BufRead`] streams, both encoders and decoders for
@@ -141,13 +141,13 @@ pub mod write {
 ///
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 pub mod bufread {
-    pub use deflate::bufread::DeflateDecoder;
-    pub use deflate::bufread::DeflateEncoder;
-    pub use gz::bufread::GzDecoder;
-    pub use gz::bufread::GzEncoder;
-    pub use gz::bufread::MultiGzDecoder;
-    pub use zlib::bufread::ZlibDecoder;
-    pub use zlib::bufread::ZlibEncoder;
+    pub use crate::deflate::bufread::DeflateDecoder;
+    pub use crate::deflate::bufread::DeflateEncoder;
+    pub use crate::gz::bufread::GzDecoder;
+    pub use crate::gz::bufread::GzEncoder;
+    pub use crate::gz::bufread::MultiGzDecoder;
+    pub use crate::zlib::bufread::ZlibDecoder;
+    pub use crate::zlib::bufread::ZlibEncoder;
 }
 
 fn _assert_send_sync() {

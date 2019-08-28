@@ -2,7 +2,7 @@ use std::io;
 use std::io::prelude::*;
 use std::mem;
 
-use {Compress, Decompress, DecompressError, FlushCompress, FlushDecompress, Status};
+use crate::{Compress, Decompress, DecompressError, FlushCompress, FlushDecompress, Status};
 
 #[derive(Debug)]
 pub struct Writer<W: Write, D: Ops> {
