@@ -79,21 +79,6 @@
 #![allow(trivial_numeric_casts)]
 #![cfg_attr(test, deny(warnings))]
 
-extern crate crc32fast;
-#[cfg(feature = "tokio")]
-extern crate futures;
-#[cfg(not(any(
-    all(not(feature = "zlib"), feature = "rust_backend"),
-    all(target_arch = "wasm32", not(target_os = "emscripten"))
-)))]
-extern crate libc;
-#[cfg(test)]
-extern crate quickcheck;
-#[cfg(test)]
-extern crate rand;
-#[cfg(feature = "tokio")]
-extern crate tokio_io;
-
 pub use crate::crc::{Crc, CrcReader, CrcWriter};
 pub use crate::gz::GzBuilder;
 pub use crate::gz::GzHeader;

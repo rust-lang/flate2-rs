@@ -48,6 +48,7 @@ pub(crate) mod imp {
     use std::marker;
     use std::ops::{Deref, DerefMut};
     use std::ptr;
+    use std::fmt;
 
     pub use libc::{c_int, c_uint, c_void, size_t};
 
@@ -58,8 +59,8 @@ pub(crate) mod imp {
         pub(crate) inner: Box<mz_stream>,
     }
 
-    impl ::std::fmt::Debug for StreamWrapper {
-        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+    impl fmt::Debug for StreamWrapper {
+        fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
             write!(f, "StreamWrapper")
         }
     }
@@ -382,9 +383,7 @@ pub(crate) mod imp {
     /// Miniz specific
     #[cfg(not(feature = "zlib"))]
     mod c_backend {
-        extern crate miniz_sys;
-
-        pub use self::miniz_sys::*;
+        pub use miniz_sys::*;
         pub type AllocSize = libc::size_t;
     }
 
@@ -392,33 +391,32 @@ pub(crate) mod imp {
     #[cfg(feature = "zlib")]
     #[allow(bad_style)]
     mod c_backend {
-        extern crate libz_sys as z;
         use libc::{c_char, c_int};
         use std::mem;
 
-        pub use self::z::deflate as mz_deflate;
-        pub use self::z::deflateEnd as mz_deflateEnd;
-        pub use self::z::deflateReset as mz_deflateReset;
-        pub use self::z::inflate as mz_inflate;
-        pub use self::z::inflateEnd as mz_inflateEnd;
-        pub use self::z::z_stream as mz_stream;
-        pub use self::z::*;
+        pub use libz_sys::deflate as mz_deflate;
+        pub use libz_sys::deflateEnd as mz_deflateEnd;
+        pub use libz_sys::deflateReset as mz_deflateReset;
+        pub use libz_sys::inflate as mz_inflate;
+        pub use libz_sys::inflateEnd as mz_inflateEnd;
+        pub use libz_sys::z_stream as mz_stream;
+        pub use libz_sys::*;
 
-        pub use self::z::Z_BLOCK as MZ_BLOCK;
-        pub use self::z::Z_BUF_ERROR as MZ_BUF_ERROR;
-        pub use self::z::Z_DATA_ERROR as MZ_DATA_ERROR;
-        pub use self::z::Z_DEFAULT_STRATEGY as MZ_DEFAULT_STRATEGY;
-        pub use self::z::Z_DEFLATED as MZ_DEFLATED;
-        pub use self::z::Z_FINISH as MZ_FINISH;
-        pub use self::z::Z_FULL_FLUSH as MZ_FULL_FLUSH;
-        pub use self::z::Z_NEED_DICT as MZ_NEED_DICT;
-        pub use self::z::Z_NO_FLUSH as MZ_NO_FLUSH;
-        pub use self::z::Z_OK as MZ_OK;
-        pub use self::z::Z_PARTIAL_FLUSH as MZ_PARTIAL_FLUSH;
-        pub use self::z::Z_STREAM_END as MZ_STREAM_END;
-        pub use self::z::Z_STREAM_ERROR as MZ_STREAM_ERROR;
-        pub use self::z::Z_SYNC_FLUSH as MZ_SYNC_FLUSH;
-        pub type AllocSize = self::z::uInt;
+        pub use libz_sys::Z_BLOCK as MZ_BLOCK;
+        pub use libz_sys::Z_BUF_ERROR as MZ_BUF_ERROR;
+        pub use libz_sys::Z_DATA_ERROR as MZ_DATA_ERROR;
+        pub use libz_sys::Z_DEFAULT_STRATEGY as MZ_DEFAULT_STRATEGY;
+        pub use libz_sys::Z_DEFLATED as MZ_DEFLATED;
+        pub use libz_sys::Z_FINISH as MZ_FINISH;
+        pub use libz_sys::Z_FULL_FLUSH as MZ_FULL_FLUSH;
+        pub use libz_sys::Z_NEED_DICT as MZ_NEED_DICT;
+        pub use libz_sys::Z_NO_FLUSH as MZ_NO_FLUSH;
+        pub use libz_sys::Z_OK as MZ_OK;
+        pub use libz_sys::Z_PARTIAL_FLUSH as MZ_PARTIAL_FLUSH;
+        pub use libz_sys::Z_STREAM_END as MZ_STREAM_END;
+        pub use libz_sys::Z_STREAM_ERROR as MZ_STREAM_ERROR;
+        pub use libz_sys::Z_SYNC_FLUSH as MZ_SYNC_FLUSH;
+        pub type AllocSize = libz_sys::uInt;
 
         pub const MZ_DEFAULT_WINDOW_BITS: c_int = 15;
 
@@ -432,7 +430,7 @@ pub(crate) mod imp {
             mem_level: c_int,
             strategy: c_int,
         ) -> c_int {
-            z::deflateInit2_(
+            libz_sys::deflateInit2_(
                 stream,
                 level,
                 method,
@@ -447,7 +445,7 @@ pub(crate) mod imp {
             stream: *mut mz_stream,
             window_bits: c_int,
         ) -> c_int {
-            z::inflateInit2_(
+            libz_sys::inflateInit2_(
                 stream,
                 window_bits,
                 ZLIB_VERSION.as_ptr() as *const c_char,
@@ -466,13 +464,12 @@ pub(crate) mod imp {
     all(target_arch = "wasm32", not(target_os = "emscripten"))
 ))]
 mod imp {
-    extern crate miniz_oxide;
-
     use std::convert::TryInto;
+    use std::fmt;
 
-    use self::miniz_oxide::deflate::core::CompressorOxide;
-    use self::miniz_oxide::inflate::stream::InflateState;
-    pub use self::miniz_oxide::*;
+    use miniz_oxide::deflate::core::CompressorOxide;
+    use miniz_oxide::inflate::stream::InflateState;
+    pub use miniz_oxide::*;
 
     pub const MZ_NO_FLUSH: isize = MZFlush::None as isize;
     pub const MZ_PARTIAL_FLUSH: isize = MZFlush::Partial as isize;
@@ -497,8 +494,8 @@ mod imp {
         total_out: u64,
     }
 
-    impl ::std::fmt::Debug for MZOInflate {
-        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+    impl fmt::Debug for MZOInflate {
+        fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
             write!(
                 f,
                 "miniz_oxide inflate internal state. total_in: {}, total_out: {}",
@@ -575,8 +572,8 @@ mod imp {
         total_out: u64,
     }
 
-    impl ::std::fmt::Debug for MZODeflate {
-        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+    impl fmt::Debug for MZODeflate {
+        fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
             write!(
                 f,
                 "miniz_oxide deflate internal state. total_in: {}, total_out: {}",
