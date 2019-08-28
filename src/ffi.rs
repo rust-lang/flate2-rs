@@ -45,10 +45,10 @@ pub(crate) mod imp {
     use std::alloc::{self, Layout};
     use std::cmp;
     use std::convert::TryFrom;
+    use std::fmt;
     use std::marker;
     use std::ops::{Deref, DerefMut};
     use std::ptr;
-    use std::fmt;
 
     pub use libc::{c_int, c_uint, c_void, size_t};
 
