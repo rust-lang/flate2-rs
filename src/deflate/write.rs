@@ -1,5 +1,8 @@
 use std::io;
 use std::io::prelude::*;
+use std::marker::Unpin;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 #[cfg(feature = "tokio")]
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -164,13 +167,13 @@ impl<W: Write> Write for DeflateEncoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<W: AsyncWrite> AsyncWrite for DeflateEncoder<W> {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        self.inner.finish()?;
-        self.inner.get_mut().shutdown()
-    }
-}
+// #[cfg(feature = "tokio")]
+// impl<W: AsyncWrite> AsyncWrite for DeflateEncoder<W> {
+//     fn shutdown(&mut self) -> Poll<(), io::Error> {
+//         self.inner.finish()?;
+//         self.inner.get_mut().shutdown()
+//     }
+// }
 
 impl<W: Read + Write> Read for DeflateEncoder<W> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -179,7 +182,15 @@ impl<W: Read + Write> Read for DeflateEncoder<W> {
 }
 
 #[cfg(feature = "tokio")]
-impl<W: AsyncRead + AsyncWrite> AsyncRead for DeflateEncoder<W> {}
+impl<W: AsyncRead + AsyncWrite + Write + Unpin> AsyncRead for DeflateEncoder<W> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        ctx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), ctx, buf)
+    }
+}
 
 /// A DEFLATE decoder, or decompressor.
 ///
@@ -329,13 +340,13 @@ impl<W: Write> Write for DeflateDecoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<W: AsyncWrite> AsyncWrite for DeflateDecoder<W> {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        self.inner.finish()?;
-        self.inner.get_mut().shutdown()
-    }
-}
+// #[cfg(feature = "tokio")]
+// impl<W: AsyncWrite> AsyncWrite for DeflateDecoder<W> {
+//     fn shutdown(&mut self) -> Poll<(), io::Error> {
+//         self.inner.finish()?;
+//         self.inner.get_mut().shutdown()
+//     }
+// }
 
 impl<W: Read + Write> Read for DeflateDecoder<W> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -344,4 +355,12 @@ impl<W: Read + Write> Read for DeflateDecoder<W> {
 }
 
 #[cfg(feature = "tokio")]
-impl<W: AsyncRead + AsyncWrite> AsyncRead for DeflateDecoder<W> {}
+impl<W: AsyncRead + AsyncWrite + Write + Unpin> AsyncRead for DeflateDecoder<W> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        ctx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), ctx, buf)
+    }
+}

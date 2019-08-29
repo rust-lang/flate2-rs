@@ -1,5 +1,8 @@
 use std::io;
 use std::io::prelude::*;
+use std::marker::Unpin;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 #[cfg(feature = "tokio")]
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -112,7 +115,15 @@ impl<R: Read> Read for DeflateEncoder<R> {
 }
 
 #[cfg(feature = "tokio")]
-impl<R: AsyncRead> AsyncRead for DeflateEncoder<R> {}
+impl<R: AsyncRead + Unpin> AsyncRead for DeflateEncoder<R> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        ctx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), ctx, buf)
+    }
+}
 
 impl<W: Read + Write> Write for DeflateEncoder<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -124,12 +135,12 @@ impl<W: Read + Write> Write for DeflateEncoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<R: AsyncRead + AsyncWrite> AsyncWrite for DeflateEncoder<R> {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        self.get_mut().shutdown()
-    }
-}
+// #[cfg(feature = "tokio")]
+// impl<R: AsyncRead + AsyncWrite> AsyncWrite for DeflateEncoder<R> {
+//     fn shutdown(&mut self) -> Poll<(), io::Error> {
+//         self.get_mut().shutdown()
+//     }
+// }
 
 /// A DEFLATE decoder, or decompressor.
 ///
@@ -244,7 +255,15 @@ impl<R: Read> Read for DeflateDecoder<R> {
 }
 
 #[cfg(feature = "tokio")]
-impl<R: AsyncRead> AsyncRead for DeflateDecoder<R> {}
+impl<R: AsyncRead + Unpin> AsyncRead for DeflateDecoder<R> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        ctx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), ctx, buf)
+    }
+}
 
 impl<W: Read + Write> Write for DeflateDecoder<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -256,9 +275,9 @@ impl<W: Read + Write> Write for DeflateDecoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<R: AsyncWrite + AsyncRead> AsyncWrite for DeflateDecoder<R> {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        self.get_mut().shutdown()
-    }
-}
+// #[cfg(feature = "tokio")]
+// impl<R: AsyncWrite + AsyncRead> AsyncWrite for DeflateDecoder<R> {
+//     fn shutdown(&mut self) -> Poll<(), io::Error> {
+//         self.get_mut().shutdown()
+//     }
+// }
