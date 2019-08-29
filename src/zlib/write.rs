@@ -167,13 +167,20 @@ impl<W: Write> Write for ZlibEncoder<W> {
     }
 }
 
-// #[cfg(feature = "tokio")]
-// impl<W: AsyncWrite> AsyncWrite for ZlibEncoder<W> {
-//     fn shutdown(&mut self) -> Poll<(), io::Error> {
-//         self.try_finish()?;
-//         self.get_mut().shutdown()
-//     }
-// }
+#[cfg(feature = "tokio")]
+impl<W: AsyncWrite + Write + Unpin> AsyncWrite for ZlibEncoder<W> {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
+        AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_flush(Pin::new(self.get_mut().get_mut()), cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_shutdown(Pin::new(self.get_mut().get_mut()), cx)
+    }
+}
 
 impl<W: Read + Write> Read for ZlibEncoder<W> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -339,13 +346,20 @@ impl<W: Write> Write for ZlibDecoder<W> {
     }
 }
 
-// #[cfg(feature = "tokio")]
-// impl<W: AsyncWrite> AsyncWrite for ZlibDecoder<W> {
-//     fn shutdown(&mut self) -> Poll<(), io::Error> {
-//         self.inner.finish()?;
-//         self.inner.get_mut().shutdown()
-//     }
-// }
+#[cfg(feature = "tokio")]
+impl<W: AsyncWrite + Write + Unpin> AsyncWrite for ZlibDecoder<W> {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
+        AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_flush(Pin::new(self.get_mut().get_mut()), cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_shutdown(Pin::new(self.get_mut().get_mut()), cx)
+    }
+}
 
 impl<W: Read + Write> Read for ZlibDecoder<W> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
