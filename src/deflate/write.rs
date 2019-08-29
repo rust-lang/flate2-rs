@@ -167,13 +167,20 @@ impl<W: Write> Write for DeflateEncoder<W> {
     }
 }
 
-// #[cfg(feature = "tokio")]
-// impl<W: AsyncWrite> AsyncWrite for DeflateEncoder<W> {
-//     fn shutdown(&mut self) -> Poll<(), io::Error> {
-//         self.inner.finish()?;
-//         self.inner.get_mut().shutdown()
-//     }
-// }
+#[cfg(feature = "tokio")]
+impl<W: AsyncWrite + AsyncRead + Write + Unpin> AsyncWrite for DeflateEncoder<W> {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
+        AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_flush(Pin::new(self.get_mut().get_mut()), cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_shutdown(Pin::new(self.get_mut().get_mut()), cx)
+    }
+}
 
 impl<W: Read + Write> Read for DeflateEncoder<W> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -340,13 +347,20 @@ impl<W: Write> Write for DeflateDecoder<W> {
     }
 }
 
-// #[cfg(feature = "tokio")]
-// impl<W: AsyncWrite> AsyncWrite for DeflateDecoder<W> {
-//     fn shutdown(&mut self) -> Poll<(), io::Error> {
-//         self.inner.finish()?;
-//         self.inner.get_mut().shutdown()
-//     }
-// }
+#[cfg(feature = "tokio")]
+impl<W: AsyncWrite + AsyncRead + Write + Unpin> AsyncWrite for DeflateDecoder<W> {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
+        AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_flush(Pin::new(self.get_mut().get_mut()), cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_shutdown(Pin::new(self.get_mut().get_mut()), cx)
+    }
+}
 
 impl<W: Read + Write> Read for DeflateDecoder<W> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {

@@ -135,14 +135,7 @@ impl<W: Read + Write> Write for DeflateEncoder<W> {
     }
 }
 
-// #[cfg(feature = "tokio")]
-// impl<R: AsyncRead + AsyncWrite> AsyncWrite for DeflateEncoder<R> {
-//     fn shutdown(&mut self) -> Poll<(), io::Error> {
-//         self.get_mut().shutdown()
-//     }
-// }
-//
-// #[cfg(feature = "tokio")]
+#[cfg(feature = "tokio")]
 impl<R: AsyncWrite + AsyncRead + Unpin> AsyncWrite for DeflateEncoder<R> {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
         AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
