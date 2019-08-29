@@ -3,9 +3,7 @@ use std::io::prelude::*;
 use std::mem;
 
 #[cfg(feature = "tokio")]
-use futures::Poll;
-#[cfg(feature = "tokio")]
-use tokio_io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::zio;
 use crate::{Compress, Decompress};

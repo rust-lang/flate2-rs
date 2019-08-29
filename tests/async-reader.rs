@@ -8,8 +8,8 @@ use futures::task;
 use std::cmp;
 use std::fs::File;
 use std::io::{self, Read};
-use tokio_io::io::read_to_end;
-use tokio_io::AsyncRead;
+use tokio::ioAsyncRead;
+use tokio::ioio::read_to_end;
 
 struct BadReader<T> {
     reader: T,

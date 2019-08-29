@@ -17,8 +17,8 @@ use flate2::write;
 use flate2::Compression;
 use futures::Future;
 use rand::{thread_rng, Rng};
-use tokio_io::io::{copy, shutdown};
-use tokio_io::AsyncRead;
+use tokio::ioAsyncRead;
+use tokio::ioio::{copy, shutdown};
 use tokio_tcp::TcpStream;
 
 #[test]
