@@ -1,5 +1,8 @@
 use std::io;
 use std::io::prelude::*;
+use std::marker::Unpin;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 #[cfg(feature = "tokio")]
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -109,7 +112,15 @@ impl<R: Read> Read for ZlibEncoder<R> {
 }
 
 #[cfg(feature = "tokio")]
-impl<R: AsyncRead> AsyncRead for ZlibEncoder<R> {}
+impl<R: AsyncRead + Unpin> AsyncRead for ZlibEncoder<R> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+}
 
 impl<W: Read + Write> Write for ZlibEncoder<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -121,12 +132,12 @@ impl<W: Read + Write> Write for ZlibEncoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<R: AsyncRead + AsyncWrite> AsyncWrite for ZlibEncoder<R> {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        self.get_mut().shutdown()
-    }
-}
+// #[cfg(feature = "tokio")]
+// impl<R: AsyncRead + AsyncWrite> AsyncWrite for ZlibEncoder<R> {
+//     fn shutdown(&mut self) -> Poll<(), io::Error> {
+//         self.get_mut().shutdown()
+//     }
+// }
 
 /// A ZLIB decoder, or decompressor.
 ///
@@ -243,7 +254,15 @@ impl<R: Read> Read for ZlibDecoder<R> {
 }
 
 #[cfg(feature = "tokio")]
-impl<R: AsyncRead> AsyncRead for ZlibDecoder<R> {}
+impl<R: AsyncRead + Unpin> AsyncRead for ZlibDecoder<R> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+}
 
 impl<R: Read + Write> Write for ZlibDecoder<R> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -255,9 +274,9 @@ impl<R: Read + Write> Write for ZlibDecoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<R: AsyncWrite + AsyncRead> AsyncWrite for ZlibDecoder<R> {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        self.get_mut().shutdown()
-    }
-}
+// #[cfg(feature = "tokio")]
+// impl<R: AsyncWrite + AsyncRead> AsyncWrite for ZlibDecoder<R> {
+//     fn shutdown(&mut self) -> Poll<(), io::Error> {
+//         self.get_mut().shutdown()
+//     }
+// }
