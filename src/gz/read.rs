@@ -1,5 +1,8 @@
 use std::io;
 use std::io::prelude::*;
+use std::marker::Unpin;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 #[cfg(feature = "tokio")]
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -174,7 +177,15 @@ impl<R: Read> Read for GzDecoder<R> {
 }
 
 #[cfg(feature = "tokio")]
-impl<R: AsyncRead> AsyncRead for GzDecoder<R> {}
+impl<R: AsyncRead + Unpin> AsyncRead for GzDecoder<R> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+}
 
 impl<R: Read + Write> Write for GzDecoder<R> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -186,12 +197,12 @@ impl<R: Read + Write> Write for GzDecoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<R: AsyncWrite + AsyncRead> AsyncWrite for GzDecoder<R> {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        self.get_mut().shutdown()
-    }
-}
+// #[cfg(feature = "tokio")]
+// impl<R: AsyncWrite + AsyncRead> AsyncWrite for GzDecoder<R> {
+//     fn shutdown(&mut self) -> Poll<(), io::Error> {
+//         self.get_mut().shutdown()
+//     }
+// }
 
 /// A gzip streaming decoder that decodes all members of a multistream
 ///
@@ -281,7 +292,15 @@ impl<R: Read> Read for MultiGzDecoder<R> {
 }
 
 #[cfg(feature = "tokio")]
-impl<R: AsyncRead> AsyncRead for MultiGzDecoder<R> {}
+impl<R: AsyncRead + Unpin> AsyncRead for MultiGzDecoder<R> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+}
 
 impl<R: Read + Write> Write for MultiGzDecoder<R> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -293,9 +312,9 @@ impl<R: Read + Write> Write for MultiGzDecoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<R: AsyncWrite + AsyncRead> AsyncWrite for MultiGzDecoder<R> {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        self.get_mut().shutdown()
-    }
-}
+// #[cfg(feature = "tokio")]
+// impl<R: AsyncWrite + AsyncRead> AsyncWrite for MultiGzDecoder<R> {
+//     fn shutdown(&mut self) -> Poll<(), io::Error> {
+//         self.get_mut().shutdown()
+//     }
+// }

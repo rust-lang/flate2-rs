@@ -1,6 +1,9 @@
 use std::cmp;
 use std::io;
 use std::io::prelude::*;
+use std::marker::Unpin;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 #[cfg(feature = "tokio")]
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -156,13 +159,13 @@ impl<W: Write> Write for GzEncoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<W: AsyncWrite> AsyncWrite for GzEncoder<W> {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        self.try_finish()?;
-        self.get_mut().shutdown()
-    }
-}
+// #[cfg(feature = "tokio")]
+// impl<W: AsyncWrite> AsyncWrite for GzEncoder<W> {
+//     fn shutdown(&mut self) -> Poll<(), io::Error> {
+//         self.try_finish()?;
+//         self.get_mut().shutdown()
+//     }
+// }
 
 impl<R: Read + Write> Read for GzEncoder<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -171,7 +174,15 @@ impl<R: Read + Write> Read for GzEncoder<R> {
 }
 
 #[cfg(feature = "tokio")]
-impl<R: AsyncRead + AsyncWrite> AsyncRead for GzEncoder<R> {}
+impl<R: AsyncRead + AsyncWrite + Write + Unpin> AsyncRead for GzEncoder<R> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+}
 
 impl<W: Write> Drop for GzEncoder<W> {
     fn drop(&mut self) {
@@ -383,13 +394,13 @@ impl<W: Write> Write for GzDecoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<W: AsyncWrite> AsyncWrite for GzDecoder<W> {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        self.try_finish()?;
-        self.inner.get_mut().get_mut().shutdown()
-    }
-}
+// #[cfg(feature = "tokio")]
+// impl<W: AsyncWrite> AsyncWrite for GzDecoder<W> {
+//     fn shutdown(&mut self) -> Poll<(), io::Error> {
+//         self.try_finish()?;
+//         self.inner.get_mut().get_mut().shutdown()
+//     }
+// }
 
 impl<W: Read + Write> Read for GzDecoder<W> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -398,7 +409,15 @@ impl<W: Read + Write> Read for GzDecoder<W> {
 }
 
 #[cfg(feature = "tokio")]
-impl<W: AsyncRead + AsyncWrite> AsyncRead for GzDecoder<W> {}
+impl<R: AsyncRead + AsyncWrite + Write + Unpin> AsyncRead for GzDecoder<R> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+}
 
 #[cfg(test)]
 mod tests {
