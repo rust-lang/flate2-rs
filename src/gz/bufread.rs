@@ -539,12 +539,20 @@ impl<R: BufRead + Write> Write for GzDecoder<R> {
     }
 }
 
-// #[cfg(feature = "tokio")]
-// impl<R: AsyncWrite + BufRead> AsyncWrite for GzDecoder<R> {
-//     fn shutdown(&mut self) -> Poll<(), io::Error> {
-//         self.get_mut().shutdown()
-//     }
-// }
+#[cfg(feature = "tokio")]
+impl<R: AsyncWrite + BufRead + Unpin> AsyncWrite for GzDecoder<R> {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
+        AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_flush(Pin::new(self.get_mut().get_mut()), cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_shutdown(Pin::new(self.get_mut().get_mut()), cx)
+    }
+}
 
 /// A gzip streaming decoder that decodes all members of a multistream
 ///
@@ -650,9 +658,17 @@ impl<R: BufRead + Write> Write for MultiGzDecoder<R> {
     }
 }
 
-// #[cfg(feature = "tokio")]
-// impl<R: AsyncWrite + BufRead> AsyncWrite for MultiGzDecoder<R> {
-//     fn shutdown(&mut self) -> Poll<(), io::Error> {
-//         self.get_mut().shutdown()
-//     }
-// }
+#[cfg(feature = "tokio")]
+impl<R: AsyncWrite + BufRead + Unpin> AsyncWrite for MultiGzDecoder<R> {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
+        AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_flush(Pin::new(self.get_mut().get_mut()), cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_shutdown(Pin::new(self.get_mut().get_mut()), cx)
+    }
+}
