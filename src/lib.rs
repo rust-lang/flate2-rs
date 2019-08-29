@@ -74,10 +74,10 @@
 //! time to perform I/O. If I/O streams are flushed before drop, however, then
 //! these operations will be a noop.
 #![doc(html_root_url = "https://docs.rs/flate2/0.2")]
-#![deny(missing_docs)]
-#![deny(missing_debug_implementations)]
-#![allow(trivial_numeric_casts)]
-#![cfg_attr(test, deny(warnings))]
+// #![deny(missing_docs)]
+// #![deny(missing_debug_implementations)]
+// #![allow(trivial_numeric_casts)]
+// #![cfg_attr(test, deny(warnings))]
 
 extern crate crc32fast;
 #[cfg(not(any(
@@ -94,8 +94,8 @@ extern crate rand;
 extern crate tokio;
 
 pub use crate::crc::{Crc, CrcReader, CrcWriter};
-pub use crate::gz::GzBuilder;
-pub use crate::gz::GzHeader;
+// pub use crate::gz::GzBuilder;
+// pub use crate::gz::GzHeader;
 pub use crate::mem::{Compress, CompressError, Decompress, DecompressError, Status};
 pub use crate::mem::{FlushCompress, FlushDecompress};
 

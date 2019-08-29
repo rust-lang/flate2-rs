@@ -1,11 +1,11 @@
 #![cfg(feature = "tokio")]
 
 extern crate flate2;
-extern crate futures;
 extern crate rand;
-extern crate tokio_io;
-extern crate tokio_tcp;
-extern crate tokio_threadpool;
+extern crate tokio;
+// extern crate tokio_io;
+// extern crate tokio_tcp;
+// extern crate tokio_threadpool;
 
 use std::io::{Read, Write};
 use std::iter;
@@ -15,11 +15,13 @@ use std::thread;
 use flate2::read;
 use flate2::write;
 use flate2::Compression;
-use futures::Future;
+// use futures::Future;
 use rand::{thread_rng, Rng};
-use tokio::ioAsyncRead;
-use tokio::ioio::{copy, shutdown};
-use tokio_tcp::TcpStream;
+// use tokio::ioio::{copy, shutdown};
+// use tokio_tcp::TcpStream;
+
+use tokio::io::AsyncRead;
+use tokio::net::TcpStream;
 
 #[test]
 fn tcp_stream_echo_pattern() {
@@ -55,20 +57,23 @@ fn tcp_stream_echo_pattern() {
         t.join().unwrap();
     });
 
-    let stream = TcpStream::connect(&addr);
-    let copy = stream
-        .and_then(|s| {
-            let (a, b) = s.split();
-            let a = read::ZlibDecoder::new(a);
-            let b = write::DeflateEncoder::new(b, Compression::default());
-            copy(a, b)
-        })
-        .then(|result| {
-            let (amt, _a, b) = result.unwrap();
-            assert_eq!(amt, (N as u64) * (M as u64));
-            shutdown(b).map(|_| ())
-        })
-        .map_err(|err| panic!("{}", err));
+    
+    let copy = async {
+        let stream = TcpStream::connect(&addr).await.unwrap();
+        let (a, b) = stream.split();
+        let a = read::ZlibDecoder::new(a);
+        let b = write::DeflateEncoder::new(b, Compression::default());
+        let result = copy(a, b);
+
+        let (amt, _a, b) = result.unwrap();
+        assert_eq!(amt, (N as u64) * (M as u64));
+        b.shutdown().await
+        // shutdown(b).map(|_| ())
+    };
+        
+        
+        
+
 
     let threadpool = tokio_threadpool::Builder::new().build();
     threadpool.spawn(copy);

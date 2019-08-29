@@ -42,7 +42,7 @@ quickcheck = { version = "0.9", default-features = false }
 # futures = "0.1"
 
 [features]
-default = ["miniz-sys"]
+default = ["miniz-sys", "zlib", "tokio-io"]
 zlib = ["libz-sys"]
 rust_backend = ["miniz_oxide"]
 tokio-io = []
