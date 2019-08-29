@@ -121,10 +121,10 @@ impl<R: BufRead> Read for DeflateEncoder<R> {
 impl<R: AsyncRead + BufRead + Unpin> AsyncRead for DeflateEncoder<R> {
     fn poll_read(
         self: Pin<&mut Self>,
-        ctx: &mut Context,
+        cx: &mut Context,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
-        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), ctx, buf)
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
     }
 }
 
@@ -138,12 +138,20 @@ impl<W: BufRead + Write> Write for DeflateEncoder<W> {
     }
 }
 
-// #[cfg(feature = "tokio")]
-// impl<R: AsyncWrite + BufRead> AsyncWrite for DeflateEncoder<R> {
-//     fn shutdown(&mut self) -> Poll<(), io::Error> {
-//         self.get_mut().shutdown()
-//     }
-// }
+#[cfg(feature = "tokio")]
+impl<R: AsyncWrite + BufRead + Unpin> AsyncWrite for DeflateEncoder<R> {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
+        AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_flush(Pin::new(self.get_mut().get_mut()), cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_shutdown(Pin::new(self.get_mut().get_mut()), cx)
+    }
+}
 
 /// A DEFLATE decoder, or decompressor.
 ///
@@ -260,10 +268,10 @@ impl<R: BufRead> Read for DeflateDecoder<R> {
 impl<R: AsyncRead + BufRead + Unpin> AsyncRead for DeflateDecoder<R> {
     fn poll_read(
         self: Pin<&mut Self>,
-        ctx: &mut Context,
+        cx: &mut Context,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
-        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), ctx, buf)
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
     }
 }
 
@@ -277,9 +285,17 @@ impl<W: BufRead + Write> Write for DeflateDecoder<W> {
     }
 }
 
-// #[cfg(feature = "tokio")]
-// impl<R: AsyncWrite + BufRead> AsyncWrite for DeflateDecoder<R> {
-//     fn shutdown(&mut self) -> Poll<(), io::Error> {
-//         self.get_mut().shutdown()
-//     }
-// }
+#[cfg(feature = "tokio")]
+impl<R: AsyncWrite + BufRead + Unpin> AsyncWrite for DeflateDecoder<R> {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
+        AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_flush(Pin::new(self.get_mut().get_mut()), cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        AsyncWrite::poll_shutdown(Pin::new(self.get_mut().get_mut()), cx)
+    }
+}

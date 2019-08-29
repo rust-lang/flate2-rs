@@ -185,10 +185,10 @@ impl<W: Read + Write> Read for DeflateEncoder<W> {
 impl<W: AsyncRead + AsyncWrite + Write + Unpin> AsyncRead for DeflateEncoder<W> {
     fn poll_read(
         self: Pin<&mut Self>,
-        ctx: &mut Context,
+        cx: &mut Context,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
-        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), ctx, buf)
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
     }
 }
 
@@ -358,9 +358,9 @@ impl<W: Read + Write> Read for DeflateDecoder<W> {
 impl<W: AsyncRead + AsyncWrite + Write + Unpin> AsyncRead for DeflateDecoder<W> {
     fn poll_read(
         self: Pin<&mut Self>,
-        ctx: &mut Context,
+        cx: &mut Context,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
-        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), ctx, buf)
+        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
     }
 }
