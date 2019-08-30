@@ -76,58 +76,55 @@ fn tcp_stream_echo_pattern() {
     t.join().unwrap();
 }
 
-// #[test]
-// fn echo_random() {
-//     let v = iter::repeat(())
-//         .take(1024 * 1024)
-//         .map(|()| thread_rng().gen::<u8>())
-//         .collect::<Vec<_>>();
-//     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-//     let addr = listener.local_addr().unwrap();
-//     let v2 = v.clone();
-//     let t = thread::spawn(move || {
-//         let a = listener.accept().unwrap().0;
-//         let b = a.try_clone().unwrap();
+#[test]
+fn echo_random() {
+    let v = iter::repeat(())
+        .take(1024 * 1024)
+        .map(|()| thread_rng().gen::<u8>())
+        .collect::<Vec<_>>();
 
-//         let mut v3 = v2.clone();
-//         let t = thread::spawn(move || {
-//             let mut b = read::DeflateDecoder::new(b);
-//             let mut buf = [0; 1024];
-//             while v3.len() > 0 {
-//                 let n = b.read(&mut buf).unwrap();
-//                 for (actual, expected) in buf[..n].iter().zip(&v3) {
-//                     assert_eq!(*actual, *expected);
-//                 }
-//                 v3.drain(..n);
-//             }
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let v2 = v.clone();
+    let t = thread::spawn(move || {
+        let mut a = listener.accept().unwrap().0;
+        let mut b = a.try_clone().unwrap();
 
-//             assert_eq!(b.read(&mut buf).unwrap(), 0);
-//         });
+        let mut v3 = v2.clone();
+        let t = thread::spawn(move || {
+            // let mut b = read::DeflateDecoder::new(b);
+            let mut buf = [0; 1024];
+            while v3.len() > 0 {
+                let n = b.read(&mut buf).unwrap();
+                for (actual, expected) in buf[..n].iter().zip(&v3) {
+                    assert_eq!(*actual, *expected);
+                }
+                v3.drain(..n);
+            }
 
-//         let mut a = write::ZlibEncoder::new(a, Compression::default());
-//         a.write_all(&v2).unwrap();
-//         a.finish().unwrap().shutdown(Shutdown::Write).unwrap();
+            assert_eq!(b.read(&mut buf).unwrap(), 0);
+        });
 
-//         t.join().unwrap();
-//     });
+        // let mut a = write::ZlibEncoder::new(a, Compression::default());
+        a.write_all(&v2).unwrap();
+        a.shutdown(Shutdown::Write).unwrap();
 
-//     let stream = TcpStream::connect(&addr);
-//     let copy = stream
-//         .and_then(|s| {
-//             let (a, b) = s.split();
-//             let a = read::ZlibDecoder::new(a);
-//             let b = write::DeflateEncoder::new(b, Compression::default());
-//             copy(a, b)
-//         })
-//         .then(move |result| {
-//             let (amt, _a, b) = result.unwrap();
-//             assert_eq!(amt, v.len() as u64);
-//             shutdown(b).map(|_| ())
-//         })
-//         .map_err(|err| panic!("{}", err));
+        t.join().unwrap();
+    });
 
-//     let threadpool = tokio_threadpool::Builder::new().build();
-//     threadpool.spawn(copy);
-//     threadpool.shutdown().wait().unwrap();
-//     t.join().unwrap();
-// }
+    let copy = async move {
+            let stream = TcpStream::connect(&addr).await.unwrap();
+            let (mut a, mut b) = stream.split();
+            // let a = read::ZlibDecoder::new(a);
+            // let b = write::DeflateEncoder::new(b, Compression::default());
+            let amt = a.copy(&mut b).await.unwrap();
+    
+            assert_eq!(amt, v.len() as u64);
+            b.shutdown().await.unwrap();
+    };
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.spawn(copy);
+    rt.shutdown_on_idle();
+    t.join().unwrap();
+}
