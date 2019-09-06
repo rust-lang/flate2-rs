@@ -108,6 +108,11 @@ mod mem;
 mod zio;
 mod zlib;
 
+#[cfg(feature = "tokio2")]
+mod tokio2;
+
+static DEFAULT_CAPACITY: usize = 32 * 1024;
+
 /// Types which operate over [`Read`] streams, both encoders and decoders for
 /// various formats.
 ///
@@ -120,6 +125,17 @@ pub mod read {
     pub use crate::gz::read::MultiGzDecoder;
     pub use crate::zlib::read::ZlibDecoder;
     pub use crate::zlib::read::ZlibEncoder;
+
+    #[cfg(feature = "tokio2")]
+    pub mod tokio2 {
+        pub use crate::tokio2::deflate::read::DeflateDecoder;
+        pub use crate::tokio2::deflate::read::DeflateEncoder;
+        // pub use crate::tokio2::gz::read::GzDecoder;
+        // pub use crate::tokio2::gz::read::GzEncoder;
+        // pub use crate::tokio2::gz::read::MultiGzDecoder;
+        // pub use crate::tokio2::zlib::read::ZlibDecoder;
+        // pub use crate::tokio2::zlib::read::ZlibEncoder;
+    }
 }
 
 /// Types which operate over [`Write`] streams, both encoders and decoders for
@@ -133,6 +149,17 @@ pub mod write {
     pub use crate::gz::write::GzEncoder;
     pub use crate::zlib::write::ZlibDecoder;
     pub use crate::zlib::write::ZlibEncoder;
+
+    #[cfg(feature = "tokio2")]
+    pub mod tokio2 {
+        pub use crate::tokio2::deflate::write::DeflateDecoder;
+        pub use crate::tokio2::deflate::write::DeflateEncoder;
+        // pub use crate::tokio2::gz::read::GzDecoder;
+        // pub use crate::tokio2::gz::read::GzEncoder;
+        // pub use crate::tokio2::gz::read::MultiGzDecoder;
+        // pub use crate::tokio2::zlib::read::ZlibDecoder;
+        // pub use crate::tokio2::zlib::read::ZlibEncoder;
+    }
 }
 
 /// Types which operate over [`BufRead`] streams, both encoders and decoders for
