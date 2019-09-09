@@ -5,7 +5,7 @@ use std::marker::Unpin;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio2")]
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use super::bufread::{corrupt, read_gz_header};
@@ -159,7 +159,7 @@ impl<W: Write> Write for GzEncoder<W> {
     }
 }
 
-// #[cfg(feature = "tokio")]
+// #[cfg(feature = "tokio2")]
 // impl<W: AsyncWrite> AsyncWrite for GzEncoder<W> {
 //     fn shutdown(&mut self) -> Poll<(), io::Error> {
 //         self.try_finish()?;
@@ -167,7 +167,7 @@ impl<W: Write> Write for GzEncoder<W> {
 //     }
 // }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio2")]
 impl<W: AsyncWrite + Write + Unpin> AsyncWrite for GzEncoder<W> {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
         AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
@@ -188,7 +188,7 @@ impl<R: Read + Write> Read for GzEncoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio2")]
 impl<R: AsyncRead + AsyncWrite + Write + Unpin> AsyncRead for GzEncoder<R> {
     fn poll_read(
         self: Pin<&mut Self>,
@@ -409,7 +409,7 @@ impl<W: Write> Write for GzDecoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio2")]
 impl<W: AsyncWrite + Write + Unpin> AsyncWrite for GzDecoder<W> {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
         AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
@@ -430,7 +430,7 @@ impl<W: Read + Write> Read for GzDecoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio2")]
 impl<R: AsyncRead + AsyncWrite + Write + Unpin> AsyncRead for GzDecoder<R> {
     fn poll_read(
         self: Pin<&mut Self>,

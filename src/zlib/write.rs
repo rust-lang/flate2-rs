@@ -1,11 +1,10 @@
 use std::io;
 use std::io::prelude::*;
-use std::marker::Unpin;
-use std::pin::Pin;
-use std::task::{Context, Poll};
 
-#[cfg(feature = "tokio")]
-use tokio::io::{AsyncRead, AsyncWrite};
+#[cfg(feature = "tokio1")]
+use futures1::Poll;
+#[cfg(feature = "tokio1")]
+use tokio_io::{AsyncRead, AsyncWrite};
 
 use crate::zio;
 use crate::{Compress, Decompress};
@@ -167,18 +166,11 @@ impl<W: Write> Write for ZlibEncoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<W: AsyncWrite + Write + Unpin> AsyncWrite for ZlibEncoder<W> {
-    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
-        AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
-        AsyncWrite::poll_flush(Pin::new(self.get_mut().get_mut()), cx)
-    }
-
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
-        AsyncWrite::poll_shutdown(Pin::new(self.get_mut().get_mut()), cx)
+#[cfg(feature = "tokio1")]
+impl<W: AsyncWrite> AsyncWrite for ZlibEncoder<W> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        self.try_finish()?;
+        self.get_mut().shutdown()
     }
 }
 
@@ -188,16 +180,8 @@ impl<W: Read + Write> Read for ZlibEncoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<R: AsyncRead + AsyncWrite + Write + Unpin> AsyncRead for ZlibEncoder<R> {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
-        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
-    }
-}
+#[cfg(feature = "tokio1")]
+impl<W: AsyncRead + AsyncWrite> AsyncRead for ZlibEncoder<W> {}
 
 /// A ZLIB decoder, or decompressor.
 ///
@@ -346,18 +330,11 @@ impl<W: Write> Write for ZlibDecoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<W: AsyncWrite + Write + Unpin> AsyncWrite for ZlibDecoder<W> {
-    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
-        AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
-        AsyncWrite::poll_flush(Pin::new(self.get_mut().get_mut()), cx)
-    }
-
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
-        AsyncWrite::poll_shutdown(Pin::new(self.get_mut().get_mut()), cx)
+#[cfg(feature = "tokio1")]
+impl<W: AsyncWrite> AsyncWrite for ZlibDecoder<W> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        self.inner.finish()?;
+        self.inner.get_mut().shutdown()
     }
 }
 
@@ -367,13 +344,5 @@ impl<W: Read + Write> Read for ZlibDecoder<W> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<R: AsyncRead + AsyncWrite + Write + Unpin> AsyncRead for ZlibDecoder<R> {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
-        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
-    }
-}
+#[cfg(feature = "tokio1")]
+impl<W: AsyncRead + AsyncWrite> AsyncRead for ZlibDecoder<W> {}

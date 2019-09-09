@@ -58,7 +58,7 @@
 //! [Tokio stack]: https://tokio.rs/
 //!
 //! ```toml
-//! flate2 = { version = "0.2", features = ["tokio"] }
+//! flate2 = { version = "0.2", features = ["tokio1"] }
 //! ```
 //!
 //! All methods are internally capable of working with streams that may return
@@ -90,8 +90,8 @@ extern crate quickcheck;
 #[cfg(test)]
 extern crate rand;
 
-#[cfg(feature = "tokio")]
-extern crate tokio;
+#[cfg(feature = "tokio1")]
+extern crate tokio_io;
 
 pub use crate::crc::{Crc, CrcReader, CrcWriter};
 // pub use crate::gz::GzBuilder;

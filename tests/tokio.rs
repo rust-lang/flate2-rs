@@ -1,4 +1,4 @@
-#![cfg(feature = "tokio")]
+#![cfg(feature = "tokio2")]
 
 extern crate flate2;
 extern crate rand;

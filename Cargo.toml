@@ -26,9 +26,9 @@ miniz-sys = { path = "miniz-sys", version = "0.1.11", optional = true }
 libz-sys = { version = "1.0", optional = true }
 tokio = { version = "0.2.0-alpha.4", optional = true }
 pin-project = { version = "0.4.0-alpha.9", features = ["project_attr"] }
-# tokio-io = { version = "0.1.11", optional = true }
-futures-preview = { version = "=0.3.0-alpha.18", optional = false }
-# futures = { version = "0.1.25", optional = true }
+tokio-io = { version = "0.1.11", optional = true }
+futures-preview = { version = "=0.3.0-alpha.18", optional = true }
+futures1 = { version = "0.1.25", optional = true, package= "futures" }
 miniz_oxide = { version = "0.3.2", optional = true}
 crc32fast = "1.1"
 
@@ -44,10 +44,11 @@ quickcheck = { version = "0.9", default-features = false }
 # futures = "0.1"
 
 [features]
-default = ["miniz-sys", "zlib", "tokio2"]
+default = ["miniz-sys", "zlib"]
 zlib = ["libz-sys"]
 rust_backend = ["miniz_oxide"]
-tokio2 = ["tokio"]
+tokio2 = ["tokio", "futures-preview"]
+tokio1 = ["tokio-io", "futures1"]
 
 [badges]
 travis-ci = { repository = "alexcrichton/flate2-rs" }

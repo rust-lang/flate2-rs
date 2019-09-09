@@ -5,7 +5,7 @@ use std::mem;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio2")]
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::zio;
@@ -113,7 +113,7 @@ impl<R: BufRead> Read for ZlibEncoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio2")]
 impl<R: AsyncRead + BufRead + Unpin> AsyncRead for ZlibEncoder<R> {
     fn poll_read(
         self: Pin<&mut Self>,
@@ -134,7 +134,7 @@ impl<R: BufRead + Write> Write for ZlibEncoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio2")]
 impl<R: AsyncWrite + BufRead + Unpin> AsyncWrite for ZlibEncoder<R> {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
         AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
@@ -254,7 +254,7 @@ impl<R: BufRead> Read for ZlibDecoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio2")]
 impl<R: AsyncRead + BufRead + Unpin> AsyncRead for ZlibDecoder<R> {
     fn poll_read(
         self: Pin<&mut Self>,
@@ -275,7 +275,7 @@ impl<R: BufRead + Write> Write for ZlibDecoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio2")]
 impl<R: AsyncWrite + BufRead + Unpin> AsyncWrite for ZlibDecoder<R> {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
         AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)

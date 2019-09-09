@@ -1,6 +1,6 @@
 use std::io;
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio2")]
 use std::{
     pin::Pin,
     task::{Context, Poll},
@@ -9,7 +9,7 @@ use std::{
 use futures::ready;
 use pin_project::{pin_project, project};
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio2")]
 use tokio::io::{AsyncWrite, BufWriter};
 
 use crate::zio::{Flush, Ops};

@@ -1,11 +1,10 @@
 use std::io;
 use std::io::prelude::*;
-use std::marker::Unpin;
-use std::pin::Pin;
-use std::task::{Context, Poll};
 
-#[cfg(feature = "tokio")]
-use tokio::io::{AsyncRead, AsyncWrite};
+#[cfg(feature = "tokio1")]
+use futures1::Poll;
+#[cfg(feature = "tokio1")]
+use tokio_io::{AsyncRead, AsyncWrite};
 
 use super::bufread;
 use super::{GzBuilder, GzHeader};
@@ -176,16 +175,8 @@ impl<R: Read> Read for GzDecoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<R: AsyncRead + Unpin> AsyncRead for GzDecoder<R> {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
-        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
-    }
-}
+#[cfg(feature = "tokio1")]
+impl<R: AsyncRead> AsyncRead for GzDecoder<R> {}
 
 impl<R: Read + Write> Write for GzDecoder<R> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -197,18 +188,10 @@ impl<R: Read + Write> Write for GzDecoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<R: AsyncWrite + AsyncRead + Unpin> AsyncWrite for GzDecoder<R> {
-    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
-        AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
-        AsyncWrite::poll_flush(Pin::new(self.get_mut().get_mut()), cx)
-    }
-
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
-        AsyncWrite::poll_shutdown(Pin::new(self.get_mut().get_mut()), cx)
+#[cfg(feature = "tokio1")]
+impl<R: AsyncWrite + AsyncRead> AsyncWrite for GzDecoder<R> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        self.get_mut().shutdown()
     }
 }
 
@@ -299,16 +282,8 @@ impl<R: Read> Read for MultiGzDecoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<R: AsyncRead + Unpin> AsyncRead for MultiGzDecoder<R> {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
-        AsyncRead::poll_read(Pin::new(self.get_mut().get_mut()), cx, buf)
-    }
-}
+#[cfg(feature = "tokio1")]
+impl<R: AsyncRead> AsyncRead for MultiGzDecoder<R> {}
 
 impl<R: Read + Write> Write for MultiGzDecoder<R> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -320,17 +295,9 @@ impl<R: Read + Write> Write for MultiGzDecoder<R> {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<R: AsyncWrite + AsyncRead + Unpin> AsyncWrite for MultiGzDecoder<R> {
-    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
-        AsyncWrite::poll_write(Pin::new(self.get_mut().get_mut()), cx, buf)
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
-        AsyncWrite::poll_flush(Pin::new(self.get_mut().get_mut()), cx)
-    }
-
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
-        AsyncWrite::poll_shutdown(Pin::new(self.get_mut().get_mut()), cx)
+#[cfg(feature = "tokio1")]
+impl<R: AsyncWrite + AsyncRead> AsyncWrite for MultiGzDecoder<R> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        self.get_mut().shutdown()
     }
 }
