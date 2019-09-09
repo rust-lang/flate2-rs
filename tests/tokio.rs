@@ -17,7 +17,7 @@ use flate2::write;
 use flate2::Compression;
 // use futures::Future;
 use rand::{thread_rng, Rng};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt, BufWriter, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt, BufWriter, AsyncWrite, BufReader};
 // use tokio::ioio::{copy, shutdown};
 // use tokio_tcp::TcpStream;
 use tokio::net::{TcpStream, TcpListener};
@@ -32,35 +32,53 @@ async fn connect_and_send(addr: std::net::SocketAddr, data: Vec<u8>) {
 }
 
 #[test]
-fn async_compress() {
-    // let random_data = iter::repeat(())
-    //     .take(10)
-    //     .map(|()| thread_rng().gen::<u8>())
-    //     .collect::<Vec<_>>();
+fn deflate_async_compress_decompress() {
+    let test_data = iter::repeat(())
+        .take(1024 * 1024)
+        .map(|()| thread_rng().gen::<u8>())
+        .collect::<Vec<_>>();
+
+    let test_data = test_data.as_slice();
     
-    let random_data = b"Hello, World!";
-
-
-    println!("Size before: {}, {:X?}", random_data.len(), random_data);
-
+    // let test_data = b"Hello, World!";
+    
     let write = async move {
         let mut data: Vec<u8> = Vec::new();
         let mut writer = write::tokio2::DeflateEncoder::new(&mut data, Compression::default());
-        writer.write_all(random_data).await.unwrap();
+        writer.write_all(test_data).await.unwrap();
         writer.shutdown().await.unwrap();
 
         data
     };
 
-
-
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let compressed_data = rt.block_on(write);
+    let async_compressed_data = rt.block_on(write);
 
-    println!("Size after:  {}, {:02X?}", compressed_data.len(), compressed_data);
+    let mut sync_writer = write::DeflateEncoder::new(Vec::new(), Compression::default());
+    sync_writer.write_all(test_data).unwrap();
+    let sync_compressed_data = sync_writer.finish().unwrap();
+
+    assert_eq!(async_compressed_data, sync_compressed_data);
+
+    let read_async = async {
+        let mut data = Vec::new();
+        let mut reader = read::tokio2::DeflateDecoder::new(async_compressed_data.as_slice());
+        reader.read_to_end(&mut data).await.unwrap();
+        
+        data
+    };
+
+    let mut sync_decompressed_data: Vec<u8> = Vec::new();
+    let mut sync_reader = read::DeflateDecoder::new(sync_compressed_data.as_slice());
+    std::io::Read::read_to_end(&mut sync_reader, &mut sync_decompressed_data).unwrap();
+
+    let async_decompressed_data = rt.block_on(read_async);
+
+    assert_eq!(async_decompressed_data, sync_decompressed_data);
+    assert_eq!(async_decompressed_data, test_data);
 }
 
-#[test]
+// #[test]
 fn test_async_read_write() {
     let random_data = iter::repeat(())
         .take(1024 * 1024)
