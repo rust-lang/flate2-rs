@@ -42,10 +42,10 @@ jobs:
     - run: rustdoc --test README.md -L target/debug/deps --extern flate2=target/debug/libflate2.rlib
     - run: cargo test
     - run: cargo test --features zlib
-    - run: cargo test --features tokio
-    - run: cargo test --features "tokio zlib"
+    - run: cargo test --features miniz-sys
     - run: cargo test --features zlib --no-default-features
     - run: cargo test --features miniz-sys --no-default-features
+    - run: cargo test --features tokio
 
   rustfmt:
     name: Rustfmt
@@ -76,18 +76,6 @@ jobs:
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup target add ${{ matrix.target }}
     - run: cargo build --target ${{ matrix.target }}
-
-  rust_backend:
-    name: Rust Backend
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@master
-    - name: Install Rust
-      run: rustup update stable && rustup default stable
-    - run: cargo test --features rust_backend
-      continue-on-error: true
-    - run: cargo test --features rust_backend --no-default-features
-      continue-on-error: true
 
   publish_docs:
     name: Publish Documentation

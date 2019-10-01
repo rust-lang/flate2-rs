@@ -41,7 +41,7 @@ tokio-threadpool = "0.1.10"
 futures = "0.1"
 
 [features]
-default = ["miniz-sys"]
+default = ["rust_backend"]
 zlib = ["libz-sys"]
 rust_backend = ["miniz_oxide"]
 tokio = ["tokio-io", "futures"]
