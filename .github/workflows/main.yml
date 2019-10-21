@@ -31,7 +31,7 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Install Rust (rustup)
-      run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+      run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
       if: matrix.os != 'macos-latest'
     - name: Install Rust (macos)
       run: |
