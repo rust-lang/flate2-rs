@@ -22,13 +22,13 @@ members = ['systest']
 
 [dependencies]
 libc = "0.2"
-cfg-if = "0.1"
+cfg-if = "0.1.6"
 miniz-sys = { path = "miniz-sys", version = "0.1.11", optional = true }
 libz-sys = { version = "1.0", optional = true }
 tokio-io = { version = "0.1.11", optional = true }
 futures = { version = "0.1.25", optional = true }
 miniz_oxide = { version = "0.3.2", optional = true}
-crc32fast = "1.1"
+crc32fast = "1.2"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))'.dependencies]
 miniz_oxide = "0.3.2"
