@@ -1,4 +1,3 @@
-
 //! Implementation for C backends.
 use std::alloc::{self, Layout};
 use std::cmp;
@@ -399,10 +398,7 @@ mod c_backend {
             mem::size_of::<mz_stream>() as c_int,
         )
     }
-    pub unsafe extern "C" fn mz_inflateInit2(
-        stream: *mut mz_stream,
-        window_bits: c_int,
-    ) -> c_int {
+    pub unsafe extern "C" fn mz_inflateInit2(stream: *mut mz_stream, window_bits: c_int) -> c_int {
         libz_sys::inflateInit2_(
             stream,
             window_bits,
