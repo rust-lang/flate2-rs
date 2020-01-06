@@ -470,11 +470,7 @@ impl Decompress {
     }
 }
 
-impl Error for DecompressError {
-    fn description(&self) -> &str {
-        "deflate decompression error"
-    }
-}
+impl Error for DecompressError {}
 
 impl From<DecompressError> for io::Error {
     fn from(data: DecompressError) -> io::Error {
@@ -484,15 +480,11 @@ impl From<DecompressError> for io::Error {
 
 impl fmt::Display for DecompressError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.description().fmt(f)
+        write!(f, "deflate decompression error")
     }
 }
 
-impl Error for CompressError {
-    fn description(&self) -> &str {
-        "deflate compression error"
-    }
-}
+impl Error for CompressError {}
 
 impl From<CompressError> for io::Error {
     fn from(data: CompressError) -> io::Error {
@@ -502,7 +494,7 @@ impl From<CompressError> for io::Error {
 
 impl fmt::Display for CompressError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.description().fmt(f)
+        write!(f, "deflate decompression error")
     }
 }
 
