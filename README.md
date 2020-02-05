@@ -6,7 +6,7 @@
 A streaming compression/decompression library DEFLATE-based streams in Rust.
 
 This crate by default implemented as a wrapper around the `miniz_oxide` crate, a
-port of `miniz.c` to Rust. This crate can also optionally use the zlib library
+port of `miniz.c` to Rust. This crate can also optionally use other [backends](#Backends) like the zlib library
 or `miniz.c` itself.
 
 Supported formats:
@@ -19,20 +19,6 @@ Supported formats:
 # Cargo.toml
 [dependencies]
 flate2 = "1.0"
-```
-
-Using zlib instead of the Rust backend:
-
-```toml
-[dependencies]
-flate2 = { version = "1.0", features = ["zlib"], default-features = false }
-```
-
-Using `miniz.c`:
-
-```toml
-[dependencies]
-flate2 = { version = "1.0", features = ["miniz-sys"], default-features = false }
 ```
 
 ## Compression
@@ -62,6 +48,31 @@ fn main() {
     d.read_to_string(&mut s).unwrap();
     println!("{}", s);
 }
+```
+
+## Backends
+
+Using zlib instead of the (default) Rust backend:
+
+```toml
+[dependencies]
+flate2 = { version = "1.0", features = ["zlib"], default-features = false }
+```
+
+The cloudflare optimized version of zlib is also available.
+While it's significantly faster it requires a x86-64 CPU with SSE 4.2 or ARM64 with NEON & CRC.
+It does not support 32-bit CPUs at all. For more information check the [crate documentation](https://crates.io/crates/cloudflare-zlib-sys).
+
+```toml
+[dependencies]
+flate2 = { version = "1.0", features = ["cloudflare_zlib"], default-features = false }
+```
+
+Using `miniz.c`:
+
+```toml
+[dependencies]
+flate2 = { version = "1.0", features = ["miniz-sys"], default-features = false }
 ```
 
 # License
