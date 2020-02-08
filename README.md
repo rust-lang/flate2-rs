@@ -61,7 +61,8 @@ flate2 = { version = "1.0", features = ["zlib"], default-features = false }
 
 The cloudflare optimized version of zlib is also available.
 While it's significantly faster it requires a x86-64 CPU with SSE 4.2 or ARM64 with NEON & CRC.
-It does not support 32-bit CPUs at all. For more information check the [crate documentation](https://crates.io/crates/cloudflare-zlib-sys).
+It does not support 32-bit CPUs at all and is incompatible with mingw.
+For more information check the [crate documentation](https://crates.io/crates/cloudflare-zlib-sys).
 
 ```toml
 [dependencies]
