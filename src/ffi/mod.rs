@@ -41,7 +41,7 @@ cfg_if::cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
         mod rust;
         pub use self::rust::*;
-    } else if #[cfg(any(feature = "miniz-sys", feature = "zlib"))] {
+    } else if #[cfg(any(feature = "miniz-sys", feature = "zlib", feature = "cloudflare_zlib"))] {
         mod c;
         pub use self::c::*;
     } else {
