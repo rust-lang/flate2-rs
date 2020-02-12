@@ -38,10 +38,7 @@ pub trait DeflateBackend: Backend {
 // with there, otherwise if miniz-sys/zlib are enabled we use that and fall
 // back to the default of Rust
 cfg_if::cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
-        mod rust;
-        pub use self::rust::*;
-    } else if #[cfg(any(feature = "miniz-sys", feature = "zlib", feature = "cloudflare_zlib"))] {
+    if #[cfg(any(feature = "miniz-sys", feature = "zlib", feature = "cloudflare_zlib"))] {
         mod c;
         pub use self::c::*;
     } else {
