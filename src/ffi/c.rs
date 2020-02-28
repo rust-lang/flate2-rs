@@ -38,13 +38,13 @@ impl Default for StreamWrapper {
                 reserved: 0,
                 opaque: ptr::null_mut(),
                 state: ptr::null_mut(),
-                #[cfg(any(feature = "zlib", feature = "cloudflare_zlib"))]
+                #[cfg(feature = "any_zlib")]
                 zalloc,
-                #[cfg(any(feature = "zlib", feature = "cloudflare_zlib"))]
+                #[cfg(feature = "any_zlib")]
                 zfree,
-                #[cfg(not(any(feature = "zlib", feature = "cloudflare_zlib")))]
+                #[cfg(not(feature = "any_zlib"))]
                 zalloc: Some(zalloc),
-                #[cfg(not(any(feature = "zlib", feature = "cloudflare_zlib")))]
+                #[cfg(not(feature = "any_zlib"))]
                 zfree: Some(zfree),
             }),
         }
@@ -219,7 +219,7 @@ impl InflateBackend for Inflate {
         }
     }
 
-    #[cfg(any(feature = "zlib", feature = "cloudflare_zlib"))]
+    #[cfg(feature = "any_zlib")]
     fn reset(&mut self, zlib_header: bool) {
         let bits = if zlib_header {
             MZ_DEFAULT_WINDOW_BITS
@@ -233,7 +233,7 @@ impl InflateBackend for Inflate {
         self.inner.total_in = 0;
     }
 
-    #[cfg(not(any(feature = "zlib", feature = "cloudflare_zlib")))]
+    #[cfg(not(feature = "any_zlib"))]
     fn reset(&mut self, zlib_header: bool) {
         *self = Self::make(zlib_header, MZ_DEFAULT_WINDOW_BITS as u8);
     }
@@ -338,7 +338,7 @@ impl Backend for Deflate {
 pub use self::c_backend::*;
 
 /// Miniz specific
-#[cfg(not(any(feature = "zlib", feature = "cloudflare_zlib")))]
+#[cfg(not(feature = "any_zlib"))]
 mod c_backend {
     pub use miniz_sys::*;
     pub type AllocSize = libc::size_t;
