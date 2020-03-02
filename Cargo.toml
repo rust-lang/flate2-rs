@@ -44,8 +44,9 @@ futures = "0.1"
 
 [features]
 default = ["rust_backend"]
-zlib = ["libz-sys"]
-cloudflare_zlib = ["cloudflare-zlib-sys"]
+any_zlib = [] # note: this is not a real user-facing feature
+zlib = ["any_zlib", "libz-sys"]
+cloudflare_zlib = ["any_zlib", "cloudflare-zlib-sys"]
 rust_backend = ["miniz_oxide"]
 tokio = ["tokio-io", "futures"]
 
