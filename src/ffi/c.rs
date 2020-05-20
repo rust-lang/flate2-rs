@@ -172,7 +172,7 @@ impl InflateBackend for Inflate {
             let mut state = StreamWrapper::default();
             let ret = mz_inflateInit2(
                 &mut *state,
-                if zlib_header {
+                if zlib_header || window_bits > 15 {
                     window_bits as c_int
                 } else {
                     -(window_bits as c_int)
