@@ -235,7 +235,7 @@ impl InflateBackend for Inflate {
 
     #[cfg(not(feature = "any_zlib"))]
     fn reset(&mut self, zlib_header: bool) {
-        *self = Self::make(zlib_header, MZ_DEFAULT_WINDOW_BITS as u8);
+        *self = Self::make(zlib_header, MZ_DEFAULT_WINDOW_BITS);
     }
 }
 
