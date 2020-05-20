@@ -163,10 +163,10 @@ pub struct Inflate {
 }
 
 impl InflateBackend for Inflate {
-    fn make(zlib_header: bool, window_bits: u8) -> Self {
+    fn make(zlib_header: bool, window_bits: i32) -> Self {
         assert!(
-            window_bits > 8 && window_bits < 16,
-            "window_bits must be within 9 ..= 15"
+            window_bits > -16 && window_bits < 48,
+            "window_bits must be within -15 ..= 47"
         );
         unsafe {
             let mut state = StreamWrapper::default();
@@ -257,7 +257,7 @@ pub struct Deflate {
 }
 
 impl DeflateBackend for Deflate {
-    fn make(level: Compression, zlib_header: bool, window_bits: u8) -> Self {
+    fn make(level: Compression, zlib_header: bool, window_bits: i32) -> Self {
         assert!(
             window_bits > 8 && window_bits < 16,
             "window_bits must be within 9 ..= 15"

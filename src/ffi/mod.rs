@@ -13,7 +13,7 @@ pub trait Backend: Sync + Send {
 }
 
 pub trait InflateBackend: Backend {
-    fn make(zlib_header: bool, window_bits: u8) -> Self;
+    fn make(zlib_header: bool, window_bits: i32) -> Self;
     fn decompress(
         &mut self,
         input: &[u8],
@@ -24,7 +24,7 @@ pub trait InflateBackend: Backend {
 }
 
 pub trait DeflateBackend: Backend {
-    fn make(level: Compression, zlib_header: bool, window_bits: u8) -> Self;
+    fn make(level: Compression, zlib_header: bool, window_bits: i32) -> Self;
     fn compress(
         &mut self,
         input: &[u8],

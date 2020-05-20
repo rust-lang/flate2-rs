@@ -188,7 +188,7 @@ impl Compress {
     /// output data should have a zlib header or not.
     pub fn new(level: Compression, zlib_header: bool) -> Compress {
         Compress {
-            inner: Deflate::make(level, zlib_header, ffi::MZ_DEFAULT_WINDOW_BITS as u8),
+            inner: Deflate::make(level, zlib_header, ffi::MZ_DEFAULT_WINDOW_BITS),
         }
     }
 
@@ -213,7 +213,7 @@ impl Compress {
     pub fn new_with_window_bits(
         level: Compression,
         zlib_header: bool,
-        window_bits: u8,
+        window_bits: i32,
     ) -> Compress {
         Compress {
             inner: Deflate::make(level, zlib_header, window_bits),
@@ -334,7 +334,7 @@ impl Decompress {
     /// to have a zlib header or not.
     pub fn new(zlib_header: bool) -> Decompress {
         Decompress {
-            inner: Inflate::make(zlib_header, ffi::MZ_DEFAULT_WINDOW_BITS as u8),
+            inner: Inflate::make(zlib_header, ffi::MZ_DEFAULT_WINDOW_BITS),
         }
     }
 
@@ -354,7 +354,7 @@ impl Decompress {
     /// This constructor is only available when the `zlib` feature is used.
     /// Other backends currently do not support custom window bits.
     #[cfg(feature = "any_zlib")]
-    pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
+    pub fn new_with_window_bits(zlib_header: bool, window_bits: i32) -> Decompress {
         Decompress {
             inner: Inflate::make(zlib_header, window_bits),
         }
