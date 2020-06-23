@@ -8,4 +8,4 @@ miniz-sys = { path = '../miniz-sys' }
 libc = "0.2"
 
 [build-dependencies]
-ctest = "0.2.0"
+ctest = { git = 'https://github.com/alexcrichton/ctest', branch = 'use-maybe-unini' }
