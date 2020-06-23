@@ -273,7 +273,7 @@ impl DeflateBackend for Deflate {
                 } else {
                     -(window_bits as c_int)
                 },
-                9,
+                8,
                 MZ_DEFAULT_STRATEGY,
             );
             assert_eq!(ret, 0);
