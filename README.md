@@ -5,9 +5,9 @@
 
 A streaming compression/decompression library DEFLATE-based streams in Rust.
 
-This crate by default implemented as a wrapper around the `miniz_oxide` crate, a
-port of `miniz.c` to Rust. This crate can also optionally use other [backends](#Backends) like the zlib library
-or `miniz.c` itself.
+This crate by default uses the `miniz_oxide` crate, a port of `miniz.c` to pure
+Rust. This crate also supports other [backends](#Backends), such as the widely
+available zlib library or the high-performance zlib-ng library.
 
 Supported formats:
 
@@ -52,29 +52,40 @@ fn main() {
 
 ## Backends
 
-Using zlib instead of the (default) Rust backend:
+The default `miniz_oxide` backend has the advantage of being pure Rust, but it
+has relatively low performance. For higher performance, you can use zlib
+instead:
 
 ```toml
 [dependencies]
 flate2 = { version = "1.0", features = ["zlib"], default-features = false }
 ```
 
-The cloudflare optimized version of zlib is also available.
-While it's significantly faster it requires a x86-64 CPU with SSE 4.2 or ARM64 with NEON & CRC.
-It does not support 32-bit CPUs at all and is incompatible with mingw.
-For more information check the [crate documentation](https://crates.io/crates/cloudflare-zlib-sys).
+This supports either the high-performance zlib-ng backend (in zlib-compat mode)
+or the use of a shared system zlib library. To explicitly opt into the fast
+zlib-ng backend, use:
 
 ```toml
 [dependencies]
-flate2 = { version = "1.0", features = ["cloudflare_zlib"], default-features = false }
+flate2 = { version = "1.0", features = ["zlib-ng-compat"], default-features = false }
 ```
 
-Using `miniz.c`:
+Note that if any crate in your dependency graph explicitly requests stock zlib,
+or uses libz-sys directly without `default-features = false`, you'll get stock
+zlib rather than zlib-ng. See [the libz-sys
+README](https://github.com/rust-lang/libz-sys/blob/main/README.md) for details.
 
-```toml
-[dependencies]
-flate2 = { version = "1.0", features = ["miniz-sys"], default-features = false }
-```
+For compatibility with previous versions of `flate2`, the cloudflare optimized
+version of zlib is available, via the `cloudflare_zlib` feature. It's not as
+fast as zlib-ng, but it's faster than stock zlib. It requires a x86-64 CPU with
+SSE 4.2 or ARM64 with NEON & CRC. It does not support 32-bit CPUs at all and is
+incompatible with mingw. For more information check the [crate
+documentation](https://crates.io/crates/cloudflare-zlib-sys). Note that
+`cloudflare_zlib` will cause breakage if any other crate in your crate graph
+uses another version of zlib/libz.
+
+For compatibility with previous versions of `flate2`, the C version of `miniz.c`
+is still available, using the feature `miniz-sys`.
 
 # License
 

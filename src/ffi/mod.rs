@@ -36,7 +36,7 @@ pub trait DeflateBackend: Backend {
 
 // Default to Rust implementation unless explicitly opted in to a different backend.
 cfg_if::cfg_if! {
-    if #[cfg(any(feature = "miniz-sys", feature = "zlib", feature = "cloudflare_zlib"))] {
+    if #[cfg(any(feature = "miniz-sys", feature = "any_zlib"))] {
         mod c;
         pub use self::c::*;
     } else {

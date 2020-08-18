@@ -345,7 +345,10 @@ mod c_backend {
 }
 
 /// Zlib specific
-#[cfg(all(feature = "zlib", not(feature = "cloudflare_zlib")))]
+#[cfg(any(
+    feature = "zlib-ng-compat",
+    all(feature = "zlib", not(feature = "cloudflare_zlib"))
+))]
 #[allow(bad_style)]
 mod c_backend {
     use libc::{c_char, c_int};
@@ -409,7 +412,7 @@ mod c_backend {
 }
 
 /// Cloudflare optimized Zlib specific
-#[cfg(feature = "cloudflare_zlib")]
+#[cfg(all(feature = "cloudflare_zlib", not(feature = "zlib-ng-compat")))]
 #[allow(bad_style)]
 mod c_backend {
     use libc::{c_char, c_int};
