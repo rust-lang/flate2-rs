@@ -58,7 +58,7 @@ instead:
 
 ```toml
 [dependencies]
-flate2 = { version = "1.0", features = ["zlib"], default-features = false }
+flate2 = { version = "1.0.17", features = ["zlib"], default-features = false }
 ```
 
 This supports either the high-performance zlib-ng backend (in zlib-compat mode)
@@ -67,7 +67,7 @@ zlib-ng backend, use:
 
 ```toml
 [dependencies]
-flate2 = { version = "1.0", features = ["zlib-ng-compat"], default-features = false }
+flate2 = { version = "1.0.17", features = ["zlib-ng-compat"], default-features = false }
 ```
 
 Note that if any crate in your dependency graph explicitly requests stock zlib,
