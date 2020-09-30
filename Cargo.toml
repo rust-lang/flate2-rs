@@ -50,7 +50,3 @@ zlib-ng-compat = ["zlib", "libz-sys/zlib-ng"]
 cloudflare_zlib = ["any_zlib", "cloudflare-zlib-sys"]
 rust_backend = ["miniz_oxide"]
 tokio = ["tokio-io", "futures"]
-
-[badges]
-travis-ci = { repository = "alexcrichton/flate2-rs" }
-appveyor = { repository = "alexcrichton/flate2-rs" }
