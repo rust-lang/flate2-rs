@@ -192,7 +192,7 @@ impl Compression {
     ///
     /// The integer here is typically on a scale of 0-9 where 0 means "no
     /// compression" and 9 means "take as long as you'd like".
-    pub fn new(level: u32) -> Compression {
+    pub const fn new(level: u32) -> Compression {
         Compression(level)
     }
 
