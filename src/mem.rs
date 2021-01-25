@@ -215,8 +215,40 @@ impl Compress {
         zlib_header: bool,
         window_bits: u8,
     ) -> Compress {
+        assert!(
+            window_bits > 8 && window_bits < 16,
+            "window_bits must be within 9 ..= 15"
+        );
         Compress {
             inner: Deflate::make(level, zlib_header, window_bits),
+        }
+    }
+
+    /// Creates a new object ready for compressing data that it's given.
+    ///
+    /// The `level` argument here indicates what level of compression is going
+    /// to be performed.
+    ///
+    /// The Compress object produced by this constructor outputs gzip headers
+    /// for the compressed data.
+    ///
+    /// # Panics
+    ///
+    /// If `window_bits` does not fall into the range 9 ..= 15,
+    /// `new_with_window_bits` will panic.
+    ///
+    /// # Note
+    ///
+    /// This constructor is only available when the `zlib` feature is used.
+    /// Other backends currently do not support gzip headers for Compress.
+    #[cfg(feature = "zlib")]
+    pub fn new_gzip(level: Compression, window_bits: u8) -> Compress {
+        assert!(
+            window_bits > 8 && window_bits < 16,
+            "window_bits must be within 9 ..= 15"
+        );
+        Compress {
+            inner: Deflate::make(level, true, window_bits + 16),
         }
     }
 
@@ -355,8 +387,37 @@ impl Decompress {
     /// Other backends currently do not support custom window bits.
     #[cfg(feature = "any_zlib")]
     pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
+        assert!(
+            window_bits > 8 && window_bits < 16,
+            "window_bits must be within 9 ..= 15"
+        );
         Decompress {
             inner: Inflate::make(zlib_header, window_bits),
+        }
+    }
+
+    /// Creates a new object ready for decompressing data that it's given.
+    ///
+    /// The Deompress object produced by this constructor expects gzip headers
+    /// for the compressed data.
+    ///
+    /// # Panics
+    ///
+    /// If `window_bits` does not fall into the range 9 ..= 15,
+    /// `new_with_window_bits` will panic.
+    ///
+    /// # Note
+    ///
+    /// This constructor is only available when the `zlib` feature is used.
+    /// Other backends currently do not support gzip headers for Decompress.
+    #[cfg(feature = "zlib")]
+    pub fn new_gzip(window_bits: u8) -> Decompress {
+        assert!(
+            window_bits > 8 && window_bits < 16,
+            "window_bits must be within 9 ..= 15"
+        );
+        Decompress {
+            inner: Inflate::make(true, window_bits + 16),
         }
     }
 
