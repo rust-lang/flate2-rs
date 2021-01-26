@@ -706,4 +706,30 @@ mod tests {
 
         assert_eq!(&decoded[..decoder.total_out() as usize], string);
     }
+
+    #[cfg(feature = "zlib")]
+    #[test]
+    fn test_gzip_flate() {
+        let string = "hello, hello!".as_bytes();
+
+        let mut encoded = Vec::with_capacity(1024);
+
+        let mut encoder = Compress::new_gzip(Compression::default(), 9);
+
+        encoder
+            .compress_vec(string, &mut encoded, FlushCompress::Finish)
+            .unwrap();
+
+        assert_eq!(encoder.total_in(), string.len() as u64);
+        assert_eq!(encoder.total_out(), encoded.len() as u64);
+
+        let mut decoder = Decompress::new_gzip(9);
+
+        let mut decoded = [0; 1024];
+        decoder
+            .decompress(&encoded, &mut decoded, FlushDecompress::Finish)
+            .unwrap();
+
+        assert_eq!(&decoded[..decoder.total_out() as usize], string);
+    }
 }
