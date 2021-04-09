@@ -38,13 +38,13 @@ impl Default for StreamWrapper {
                 reserved: 0,
                 opaque: ptr::null_mut(),
                 state: ptr::null_mut(),
-                #[cfg(feature = "any_zlib")]
+                #[cfg(all(feature = "any_zlib", not(feature = "cloudflare-zlib-sys")))]
                 zalloc,
-                #[cfg(feature = "any_zlib")]
+                #[cfg(all(feature = "any_zlib", not(feature = "cloudflare-zlib-sys")))]
                 zfree,
-                #[cfg(not(feature = "any_zlib"))]
+                #[cfg(not(all(feature = "any_zlib", not(feature = "cloudflare-zlib-sys"))))]
                 zalloc: Some(zalloc),
-                #[cfg(not(feature = "any_zlib"))]
+                #[cfg(not(all(feature = "any_zlib", not(feature = "cloudflare-zlib-sys"))))]
                 zfree: Some(zfree),
             }),
         }
