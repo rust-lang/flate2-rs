@@ -114,9 +114,10 @@ pub enum FlushDecompress {
 }
 
 /// The inner state for an error when decompressing
-#[derive(Debug, Default)]
-pub(crate) struct DecompressErrorInner {
-    pub(crate) needs_dictionary: Option<u32>,
+#[derive(Debug)]
+pub(crate) enum DecompressErrorInner {
+    General { msg: Option<&'static str> },
+    NeedsDictionary(u32),
 }
 
 /// Error returned when a decompression object finds that the input stream of
@@ -130,26 +131,36 @@ impl DecompressError {
     /// The resulting integer is the Adler-32 checksum of the dictionary
     /// required.
     pub fn needs_dictionary(&self) -> Option<u32> {
-        self.0.needs_dictionary
+        match self.0 {
+            DecompressErrorInner::NeedsDictionary(adler) => Some(adler),
+            _ => None,
+        }
     }
 }
 
 #[inline]
-pub(crate) fn decompress_failed() -> Result<Status, DecompressError> {
-    Err(DecompressError(Default::default()))
+pub(crate) fn decompress_failed<T>(msg: Option<&'static str>) -> Result<T, DecompressError> {
+    Err(DecompressError(DecompressErrorInner::General { msg }))
 }
 
 #[inline]
-pub(crate) fn decompress_need_dict(adler: u32) -> Result<Status, DecompressError> {
-    Err(DecompressError(DecompressErrorInner {
-        needs_dictionary: Some(adler),
-    }))
+pub(crate) fn decompress_need_dict<T>(adler: u32) -> Result<T, DecompressError> {
+    Err(DecompressError(DecompressErrorInner::NeedsDictionary(
+        adler,
+    )))
 }
 
 /// Error returned when a compression object is used incorrectly or otherwise
 /// generates an error.
 #[derive(Debug)]
-pub struct CompressError(pub(crate) ());
+pub struct CompressError {
+    pub(crate) msg: Option<&'static str>,
+}
+
+#[inline]
+pub(crate) fn compress_failed<T>(msg: Option<&'static str>) -> Result<T, CompressError> {
+    Err(CompressError { msg })
+}
 
 /// Possible status results of compressing some data or successfully
 /// decompressing a block of data.
@@ -270,13 +281,14 @@ impl Compress {
     #[cfg(feature = "any_zlib")]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, CompressError> {
         let stream = &mut *self.inner.inner.stream_wrapper;
+        stream.msg = std::ptr::null_mut();
         let rc = unsafe {
             assert!(dictionary.len() < ffi::uInt::max_value() as usize);
             ffi::deflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
         };
 
         match rc {
-            ffi::MZ_STREAM_ERROR => Err(CompressError(())),
+            ffi::MZ_STREAM_ERROR => compress_failed(self.inner.inner.msg()),
             ffi::MZ_OK => Ok(stream.adler as u32),
             c => panic!("unknown return code: {}", c),
         }
@@ -303,12 +315,13 @@ impl Compress {
     pub fn set_level(&mut self, level: Compression) -> Result<(), CompressError> {
         use libc::c_int;
         let stream = &mut *self.inner.inner.stream_wrapper;
+        stream.msg = std::ptr::null_mut();
 
         let rc = unsafe { ffi::deflateParams(stream, level.0 as c_int, ffi::MZ_DEFAULT_STRATEGY) };
 
         match rc {
             ffi::MZ_OK => Ok(()),
-            ffi::MZ_BUF_ERROR => Err(CompressError(())),
+            ffi::MZ_BUF_ERROR => compress_failed(self.inner.inner.msg()),
             c => panic!("unknown return code: {}", c),
         }
     }
@@ -503,16 +516,15 @@ impl Decompress {
     #[cfg(feature = "any_zlib")]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, DecompressError> {
         let stream = &mut *self.inner.inner.stream_wrapper;
+        stream.msg = std::ptr::null_mut();
         let rc = unsafe {
             assert!(dictionary.len() < ffi::uInt::max_value() as usize);
             ffi::inflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
         };
 
         match rc {
-            ffi::MZ_STREAM_ERROR => Err(DecompressError(Default::default())),
-            ffi::MZ_DATA_ERROR => Err(DecompressError(DecompressErrorInner {
-                needs_dictionary: Some(stream.adler as u32),
-            })),
+            ffi::MZ_STREAM_ERROR => decompress_failed(self.inner.inner.msg()),
+            ffi::MZ_DATA_ERROR => decompress_need_dict(stream.adler as u32),
             ffi::MZ_OK => Ok(stream.adler as u32),
             c => panic!("unknown return code: {}", c),
         }
@@ -533,6 +545,16 @@ impl Decompress {
 
 impl Error for DecompressError {}
 
+impl DecompressError {
+    /// Retrieve the implementation's message about why the operation failed, if one exists.
+    pub fn message(&self) -> Option<&str> {
+        match self.0 {
+            DecompressErrorInner::General { msg } => msg,
+            _ => None,
+        }
+    }
+}
+
 impl From<DecompressError> for io::Error {
     fn from(data: DecompressError) -> io::Error {
         io::Error::new(io::ErrorKind::Other, data)
@@ -541,11 +563,25 @@ impl From<DecompressError> for io::Error {
 
 impl fmt::Display for DecompressError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "deflate decompression error")
+        let msg = match self.0 {
+            DecompressErrorInner::General { msg } => msg,
+            DecompressErrorInner::NeedsDictionary { .. } => Some("requires a dictionary"),
+        };
+        match msg {
+            Some(msg) => write!(f, "deflate decompression error: {}", msg),
+            None => write!(f, "deflate decompression error"),
+        }
     }
 }
 
 impl Error for CompressError {}
+
+impl CompressError {
+    /// Retrieve the implementation's message about why the operation failed, if one exists.
+    pub fn message(&self) -> Option<&str> {
+        self.msg
+    }
+}
 
 impl From<CompressError> for io::Error {
     fn from(data: CompressError) -> io::Error {
@@ -555,7 +591,10 @@ impl From<CompressError> for io::Error {
 
 impl fmt::Display for CompressError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "deflate decompression error")
+        match self.msg {
+            Some(msg) => write!(f, "deflate compression error: {}", msg),
+            None => write!(f, "deflate compression error"),
+        }
     }
 }
 

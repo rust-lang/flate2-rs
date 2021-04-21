@@ -73,7 +73,7 @@ impl InflateBackend for Inflate {
             },
             Err(status) => match status {
                 MZError::Buf => Ok(Status::BufError),
-                _ => mem::decompress_failed(),
+                _ => mem::decompress_failed(None),
             },
         }
     }
@@ -144,11 +144,11 @@ impl DeflateBackend for Deflate {
             Ok(status) => match status {
                 MZStatus::Ok => Ok(Status::Ok),
                 MZStatus::StreamEnd => Ok(Status::StreamEnd),
-                MZStatus::NeedDict => Err(CompressError(())),
+                MZStatus::NeedDict => mem::compress_failed(None),
             },
             Err(status) => match status {
                 MZError::Buf => Ok(Status::BufError),
-                _ => Err(CompressError(())),
+                _ => mem::compress_failed(None),
             },
         }
     }

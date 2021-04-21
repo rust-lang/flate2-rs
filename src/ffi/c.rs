@@ -2,6 +2,7 @@
 use std::alloc::{self, Layout};
 use std::cmp;
 use std::convert::TryFrom;
+use std::ffi;
 use std::fmt;
 use std::marker;
 use std::ops::{Deref, DerefMut};
@@ -138,6 +139,18 @@ pub struct Stream<D: Direction> {
     pub _marker: marker::PhantomData<D>,
 }
 
+impl<D: Direction> Stream<D> {
+    pub fn msg(&self) -> Option<&'static str> {
+        let msg = self.stream_wrapper.msg;
+        if msg.is_null() {
+            None
+        } else {
+            let s = unsafe { ffi::CStr::from_ptr(msg) };
+            std::str::from_utf8(s.to_bytes()).ok()
+        }
+    }
+}
+
 impl<D: Direction> Drop for Stream<D> {
     fn drop(&mut self) {
         unsafe {
@@ -193,6 +206,7 @@ impl InflateBackend for Inflate {
         flush: FlushDecompress,
     ) -> Result<Status, DecompressError> {
         let raw = &mut *self.inner.stream_wrapper;
+        raw.msg = ptr::null_mut();
         raw.next_in = input.as_ptr() as *mut u8;
         raw.avail_in = cmp::min(input.len(), c_uint::max_value() as usize) as c_uint;
         raw.next_out = output.as_mut_ptr();
@@ -206,7 +220,7 @@ impl InflateBackend for Inflate {
         self.inner.total_out += (raw.next_out as usize - output.as_ptr() as usize) as u64;
 
         match rc {
-            MZ_DATA_ERROR | MZ_STREAM_ERROR => mem::decompress_failed(),
+            MZ_DATA_ERROR | MZ_STREAM_ERROR => mem::decompress_failed(self.inner.msg()),
             MZ_OK => Ok(Status::Ok),
             MZ_BUF_ERROR => Ok(Status::BufError),
             MZ_STREAM_END => Ok(Status::StreamEnd),
@@ -286,6 +300,7 @@ impl DeflateBackend for Deflate {
         flush: FlushCompress,
     ) -> Result<Status, CompressError> {
         let raw = &mut *self.inner.stream_wrapper;
+        raw.msg = ptr::null_mut();
         raw.next_in = input.as_ptr() as *mut _;
         raw.avail_in = cmp::min(input.len(), c_uint::max_value() as usize) as c_uint;
         raw.next_out = output.as_mut_ptr();
@@ -302,7 +317,7 @@ impl DeflateBackend for Deflate {
             MZ_OK => Ok(Status::Ok),
             MZ_BUF_ERROR => Ok(Status::BufError),
             MZ_STREAM_END => Ok(Status::StreamEnd),
-            MZ_STREAM_ERROR => Err(CompressError(())),
+            MZ_STREAM_ERROR => mem::compress_failed(self.inner.msg()),
             c => panic!("unknown return code: {}", c),
         }
     }
