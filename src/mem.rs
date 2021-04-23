@@ -771,4 +771,18 @@ mod tests {
 
         assert_eq!(&decoded[..decoder.total_out() as usize], string);
     }
+
+    #[cfg(feature = "any_zlib")]
+    #[test]
+    fn test_error_message() {
+        let mut decoder = Decompress::new(false);
+        let mut decoded = [0; 128];
+        let garbage = b"xbvxzi";
+
+        let err = decoder
+            .decompress(&*garbage, &mut decoded, FlushDecompress::Finish)
+            .unwrap_err();
+
+        assert_eq!(err.message(), Some("invalid stored block lengths"));
+    }
 }
