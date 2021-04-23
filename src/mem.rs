@@ -252,7 +252,7 @@ impl Compress {
     ///
     /// This constructor is only available when the `zlib` feature is used.
     /// Other backends currently do not support gzip headers for Compress.
-    #[cfg(feature = "zlib")]
+    #[cfg(feature = "any_zlib")]
     pub fn new_gzip(level: Compression, window_bits: u8) -> Compress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -423,7 +423,7 @@ impl Decompress {
     ///
     /// This constructor is only available when the `zlib` feature is used.
     /// Other backends currently do not support gzip headers for Decompress.
-    #[cfg(feature = "zlib")]
+    #[cfg(feature = "any_zlib")]
     pub fn new_gzip(window_bits: u8) -> Decompress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -746,7 +746,7 @@ mod tests {
         assert_eq!(&decoded[..decoder.total_out() as usize], string);
     }
 
-    #[cfg(feature = "zlib")]
+    #[cfg(feature = "any_zlib")]
     #[test]
     fn test_gzip_flate() {
         let string = "hello, hello!".as_bytes();
