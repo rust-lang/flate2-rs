@@ -2,7 +2,6 @@
 use std::alloc::{self, Layout};
 use std::cmp;
 use std::convert::TryFrom;
-use std::ffi;
 use std::fmt;
 use std::marker;
 use std::ops::{Deref, DerefMut};
@@ -12,6 +11,23 @@ pub use libc::{c_int, c_uint, c_void, size_t};
 
 use super::*;
 use crate::mem::{self, FlushDecompress, Status};
+
+// miniz doesn't provide any error messages, so only enable the field when we use a real zlib
+#[derive(Default)]
+pub struct ErrorMessage(#[cfg(feature = "any_zlib")] Option<&'static str>);
+
+impl ErrorMessage {
+    pub fn get(&self) -> Option<&str> {
+        #[cfg(feature = "any_zlib")]
+        {
+            self.0
+        }
+        #[cfg(not(feature = "any_zlib"))]
+        {
+            None
+        }
+    }
+}
 
 pub struct StreamWrapper {
     pub inner: Box<mz_stream>,
@@ -140,13 +156,20 @@ pub struct Stream<D: Direction> {
 }
 
 impl<D: Direction> Stream<D> {
-    pub fn msg(&self) -> Option<&'static str> {
-        let msg = self.stream_wrapper.msg;
-        if msg.is_null() {
-            None
-        } else {
-            let s = unsafe { ffi::CStr::from_ptr(msg) };
-            std::str::from_utf8(s.to_bytes()).ok()
+    pub fn msg(&self) -> ErrorMessage {
+        #[cfg(feature = "any_zlib")]
+        {
+            let msg = self.stream_wrapper.msg;
+            ErrorMessage(if msg.is_null() {
+                None
+            } else {
+                let s = unsafe { std::ffi::CStr::from_ptr(msg) };
+                std::str::from_utf8(s.to_bytes()).ok()
+            })
+        }
+        #[cfg(not(feature = "any_zlib"))]
+        {
+            ErrorMessage()
         }
     }
 }

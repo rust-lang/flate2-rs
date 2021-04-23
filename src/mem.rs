@@ -3,7 +3,7 @@ use std::fmt;
 use std::io;
 use std::slice;
 
-use crate::ffi::{self, Backend, Deflate, DeflateBackend, Inflate, InflateBackend};
+use crate::ffi::{self, Backend, Deflate, DeflateBackend, ErrorMessage, Inflate, InflateBackend};
 use crate::Compression;
 
 /// Raw in-memory compression stream for blocks of data.
@@ -116,7 +116,7 @@ pub enum FlushDecompress {
 /// The inner state for an error when decompressing
 #[derive(Debug)]
 pub(crate) enum DecompressErrorInner {
-    General { msg: Option<&'static str> },
+    General { msg: ErrorMessage },
     NeedsDictionary(u32),
 }
 
@@ -139,7 +139,7 @@ impl DecompressError {
 }
 
 #[inline]
-pub(crate) fn decompress_failed<T>(msg: Option<&'static str>) -> Result<T, DecompressError> {
+pub(crate) fn decompress_failed<T>(msg: ErrorMessage) -> Result<T, DecompressError> {
     Err(DecompressError(DecompressErrorInner::General { msg }))
 }
 
@@ -154,11 +154,11 @@ pub(crate) fn decompress_need_dict<T>(adler: u32) -> Result<T, DecompressError> 
 /// generates an error.
 #[derive(Debug)]
 pub struct CompressError {
-    pub(crate) msg: Option<&'static str>,
+    pub(crate) msg: ErrorMessage,
 }
 
 #[inline]
-pub(crate) fn compress_failed<T>(msg: Option<&'static str>) -> Result<T, CompressError> {
+pub(crate) fn compress_failed<T>(msg: ErrorMessage) -> Result<T, CompressError> {
     Err(CompressError { msg })
 }
 
@@ -548,8 +548,8 @@ impl Error for DecompressError {}
 impl DecompressError {
     /// Retrieve the implementation's message about why the operation failed, if one exists.
     pub fn message(&self) -> Option<&str> {
-        match self.0 {
-            DecompressErrorInner::General { msg } => msg,
+        match &self.0 {
+            DecompressErrorInner::General { msg } => msg.get(),
             _ => None,
         }
     }
@@ -563,8 +563,8 @@ impl From<DecompressError> for io::Error {
 
 impl fmt::Display for DecompressError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let msg = match self.0 {
-            DecompressErrorInner::General { msg } => msg,
+        let msg = match &self.0 {
+            DecompressErrorInner::General { msg } => msg.get(),
             DecompressErrorInner::NeedsDictionary { .. } => Some("requires a dictionary"),
         };
         match msg {
@@ -579,7 +579,7 @@ impl Error for CompressError {}
 impl CompressError {
     /// Retrieve the implementation's message about why the operation failed, if one exists.
     pub fn message(&self) -> Option<&str> {
-        self.msg
+        self.msg.get()
     }
 }
 
@@ -591,7 +591,7 @@ impl From<CompressError> for io::Error {
 
 impl fmt::Display for CompressError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.msg {
+        match self.msg.get() {
             Some(msg) => write!(f, "deflate compression error: {}", msg),
             None => write!(f, "deflate compression error"),
         }
