@@ -415,11 +415,11 @@ pub struct GzHeaderPartial {
 impl GzHeaderPartial {
     fn new() -> GzHeaderPartial {
         GzHeaderPartial {
-            buf : Vec::with_capacity(10), // minimum header length
-            state : GzHeaderParsingState::GzHeaderParsingStart,
-            flg : 0,
-            os : 0,
-            xlen : 0,
+            buf: Vec::with_capacity(10), // minimum header length
+            state: GzHeaderParsingState::GzHeaderParsingStart,
+            flg: 0,
+            os: 0,
+            xlen: 0,
             mtime: 0,
             extra: None,
             filename: Vec::new(),
@@ -428,8 +428,16 @@ impl GzHeaderPartial {
     }
 
     pub fn take_header(self) -> GzHeader {
-        let filename = if self.flg & FNAME != 0 {Some(self.filename)}  else {None};
-        let comment = if self.flg & FCOMMENT != 0 {Some(self.comment)}  else {None};
+        let filename = if self.flg & FNAME != 0 {
+            Some(self.filename)
+        } else {
+            None
+        };
+        let comment = if self.flg & FCOMMENT != 0 {
+            Some(self.comment)
+        } else {
+            None
+        };
         return GzHeader {
             extra: self.extra,
             filename: filename,
@@ -486,7 +494,10 @@ impl<'a, T: Read> Read for Buffer<'a, T> {
     }
 }
 
-impl<'a, T> Buffer<'a, T> where T: std::io::Read {
+impl<'a, T> Buffer<'a, T>
+where
+    T: std::io::Read,
+{
     // If we manage to read all the bytes, we reset the buffer
     fn read_once(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.read_exact(buf)?;
@@ -578,7 +589,9 @@ impl<R: BufRead> Read for GzDecoder<R> {
                             *header = Some(part.take_header());
                             GzState::Body
                         }
-                        Err(ref err) if io::ErrorKind::WouldBlock == err.kind() => GzState::Header(part),
+                        Err(ref err) if io::ErrorKind::WouldBlock == err.kind() => {
+                            GzState::Header(part)
+                        }
                         Err(err) => GzState::Err(err),
                     };
                     state
