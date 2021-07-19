@@ -499,21 +499,8 @@ where
     T: std::io::Read,
 {
     // If we manage to read all the bytes, we reset the buffer
-    fn read_once(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
-        while !buf.is_empty() {
-            match self.read(buf) {
-                Ok(0) => break,
-                Ok(n) => {
-                    if n < buf.len() {
-                        self.part.buf.extend_from_slice(&buf[..n]);
-                    }
-                    let tmp = buf;
-                    buf = &mut tmp[n..];
-                }
-                Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
-                Err(e) => return Err(e),
-            }
-        }
+    fn read_once(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.read_exact(buf)?;
         let rlen = buf.len();
         self.crc.update(buf);
         self.part.buf.truncate(0);
