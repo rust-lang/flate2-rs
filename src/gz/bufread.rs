@@ -49,7 +49,7 @@ fn read_le_u16_once<R: Read>(r: &mut Buffer<R>) -> io::Result<u16> {
 fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
     loop {
         match r.part.state {
-            GzHeaderParsingState::GzHeaderParsingStart => {
+            GzHeaderParsingState::Start => {
                 let mut header = [0; 10];
                 r.read_once(&mut header)?;
                 r.part.buf.truncate(0);
@@ -68,23 +68,23 @@ fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
                     | ((header[7] as u32) << 24);
                 let _xfl = header[8];
                 r.part.os = header[9];
-                r.part.state = GzHeaderParsingState::GzHeaderParsingXlen;
+                r.part.state = GzHeaderParsingState::Xlen;
             }
-            GzHeaderParsingState::GzHeaderParsingXlen => {
+            GzHeaderParsingState::Xlen => {
                 if r.part.flg & FEXTRA != 0 {
                     r.part.xlen = read_le_u16_once(r)?;
                 }
-                r.part.state = GzHeaderParsingState::GzHeaderParsingExtra;
+                r.part.state = GzHeaderParsingState::Extra;
             }
-            GzHeaderParsingState::GzHeaderParsingExtra => {
+            GzHeaderParsingState::Extra => {
                 if r.part.flg & FEXTRA != 0 {
                     let mut extra = vec![0; r.part.xlen as usize];
                     r.read_once(&mut extra)?;
                     r.part.extra = Some(extra);
                 }
-                r.part.state = GzHeaderParsingState::GzHeaderParsingFilename;
+                r.part.state = GzHeaderParsingState::Filename;
             }
-            GzHeaderParsingState::GzHeaderParsingFilename => {
+            GzHeaderParsingState::Filename => {
                 if r.part.flg & FNAME != 0 {
                     for byte in r.reader.bytes() {
                         let byte = byte?;
@@ -95,9 +95,9 @@ fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
                         r.part.filename.push(byte);
                     }
                 }
-                r.part.state = GzHeaderParsingState::GzHeaderParsingComment;
+                r.part.state = GzHeaderParsingState::Comment;
             }
-            GzHeaderParsingState::GzHeaderParsingComment => {
+            GzHeaderParsingState::Comment => {
                 if r.part.flg & FCOMMENT != 0 {
                     for byte in r.reader.bytes() {
                         let byte = byte?;
@@ -108,9 +108,9 @@ fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
                         r.part.comment.push(byte);
                     }
                 }
-                r.part.state = GzHeaderParsingState::GzHeaderParsingCrc;
+                r.part.state = GzHeaderParsingState::Crc;
             }
-            GzHeaderParsingState::GzHeaderParsingCrc => {
+            GzHeaderParsingState::Crc => {
                 if r.part.flg & FHCRC != 0 {
                     let stored_crc = read_le_u16_once(r)?;
                     let calced_crc = r.crc.sum() as u16;
@@ -390,12 +390,12 @@ pub struct GzDecoder<R> {
 
 #[derive(Debug)]
 pub enum GzHeaderParsingState {
-    GzHeaderParsingStart = 0,
-    GzHeaderParsingXlen = 1,
-    GzHeaderParsingExtra = 2,
-    GzHeaderParsingFilename = 3,
-    GzHeaderParsingComment = 4,
-    GzHeaderParsingCrc = 5,
+    Start,
+    Xlen,
+    Extra,
+    Filename,
+    Comment,
+    Crc,
 }
 
 #[derive(Debug)]
@@ -416,7 +416,7 @@ impl GzHeaderPartial {
     fn new() -> GzHeaderPartial {
         GzHeaderPartial {
             buf: Vec::with_capacity(10), // minimum header length
-            state: GzHeaderParsingState::GzHeaderParsingStart,
+            state: GzHeaderParsingState::Start,
             flg: 0,
             os: 0,
             xlen: 0,
