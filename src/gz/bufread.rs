@@ -34,12 +34,6 @@ fn bad_header() -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput, "invalid gzip header")
 }
 
-fn read_le_u16<R: Read>(r: &mut R) -> io::Result<u16> {
-    let mut b = [0; 2];
-    r.read_exact(&mut b)?;
-    Ok((b[0] as u16) | ((b[1] as u16) << 8))
-}
-
 fn read_le_u16_once<R: Read>(r: &mut Buffer<R>) -> io::Result<u16> {
     let mut b = [0; 2];
     r.read_once(&mut b)?;
@@ -137,80 +131,21 @@ fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
 }
 
 pub(crate) fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
-    let mut crc_reader = CrcReader::new(r);
-    let mut header = [0; 10];
-    crc_reader.read_exact(&mut header)?;
+    let mut part = GzHeaderPartial::new();
 
-    let id1 = header[0];
-    let id2 = header[1];
-    if id1 != 0x1f || id2 != 0x8b {
-        return Err(bad_header());
-    }
-    let cm = header[2];
-    if cm != 8 {
-        return Err(bad_header());
-    }
-
-    let flg = header[3];
-    let mtime = ((header[4] as u32) << 0)
-        | ((header[5] as u32) << 8)
-        | ((header[6] as u32) << 16)
-        | ((header[7] as u32) << 24);
-    let _xfl = header[8];
-    let os = header[9];
-
-    let extra = if flg & FEXTRA != 0 {
-        let xlen = read_le_u16(&mut crc_reader)?;
-        let mut extra = vec![0; xlen as usize];
-        crc_reader.read_exact(&mut extra)?;
-        Some(extra)
-    } else {
-        None
-    };
-    let filename = if flg & FNAME != 0 {
-        // wow this is slow
-        let mut b = Vec::new();
-        for byte in crc_reader.by_ref().bytes() {
-            let byte = byte?;
-            if byte == 0 {
-                break;
-            }
-            b.push(byte);
-        }
-        Some(b)
-    } else {
-        None
-    };
-    let comment = if flg & FCOMMENT != 0 {
-        // wow this is slow
-        let mut b = Vec::new();
-        for byte in crc_reader.by_ref().bytes() {
-            let byte = byte?;
-            if byte == 0 {
-                break;
-            }
-            b.push(byte);
-        }
-        Some(b)
-    } else {
-        None
+    let result = {
+        let mut reader = Buffer::new(&mut part, r);
+        read_gz_header_part(&mut reader)
     };
 
-    if flg & FHCRC != 0 {
-        let calced_crc = crc_reader.crc().sum() as u16;
-        let stored_crc = read_le_u16(&mut crc_reader)?;
-        if calced_crc != stored_crc {
-            return Err(corrupt());
+    match result {
+        Ok(()) => {
+            return Ok(part.take_header());
         }
-    }
-
-    Ok(GzHeader {
-        extra: extra,
-        filename: filename,
-        comment: comment,
-        operating_system: os,
-        mtime: mtime,
-    })
+        Err(err) => {
+            return Err(err);
+        }
+    };
 }
 
 /// A gzip streaming encoder
