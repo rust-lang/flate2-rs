@@ -428,10 +428,12 @@ where
 {
     // If we manage to read all the bytes, we reset the buffer
     fn read_once(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.buf_cur = 0;
         self.read_exact(buf)?;
         let rlen = buf.len();
         self.crc.update(buf);
         self.part.buf.truncate(0);
+        self.buf_max = 0;
         return Ok(rlen);
     }
 }
@@ -727,5 +729,158 @@ impl<R: BufRead + Write> Write for MultiGzDecoder<R> {
 impl<R: AsyncWrite + BufRead> AsyncWrite for MultiGzDecoder<R> {
     fn shutdown(&mut self) -> Poll<(), io::Error> {
         self.get_mut().shutdown()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::gz::bufread::*;
+    use std::io;
+    use std::io::{Cursor, Read, Write};
+
+    //a cursor turning EOF into blocking errors
+    #[derive(Debug)]
+    pub struct BlockingCursor {
+        pub cursor: Cursor<Vec<u8>>,
+    }
+
+    impl BlockingCursor {
+        pub fn new() -> BlockingCursor {
+            BlockingCursor {
+                cursor: Cursor::new(Vec::new()),
+            }
+        }
+
+        pub fn set_position(&mut self, pos: u64) {
+            return self.cursor.set_position(pos);
+        }
+
+        pub fn position(&mut self) -> u64 {
+            return self.cursor.position();
+        }
+    }
+
+    impl Write for BlockingCursor {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            return self.cursor.write(buf);
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            return self.cursor.flush();
+        }
+    }
+
+    impl Read for BlockingCursor {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            //use the cursor, except it turns eof into blocking error
+            let r = self.cursor.read(buf);
+            match r {
+                Err(ref err) => {
+                    if err.kind() == io::ErrorKind::UnexpectedEof {
+                        return Err(io::ErrorKind::WouldBlock.into());
+                    }
+                }
+                Ok(0) => {
+                    //regular EOF turned into blocking error
+                    return Err(io::ErrorKind::WouldBlock.into());
+                }
+                Ok(_n) => {}
+            }
+            return r;
+        }
+    }
+    #[test]
+    // test function read_once of Buffer
+    fn buffer_read_once() {
+        // this is unused except for the buffering
+        let mut part = GzHeaderPartial::new();
+        // this is a reader which receives data afterwards
+        let mut r = BlockingCursor::new();
+        let data = vec![1, 2, 3];
+        let mut out = Vec::with_capacity(7);
+
+        match r.write_all(&data) {
+            Ok(()) => {}
+            _ => {
+                panic!("Unexpected result for write_all");
+            }
+        }
+        r.set_position(0);
+
+        // First read : successful for one byte
+        let mut reader = Buffer::new(&mut part, &mut r);
+        out.resize(1, 0);
+        match reader.read_once(&mut out) {
+            Ok(1) => {}
+            _ => {
+                panic!("Unexpected result for read_once with data");
+            }
+        }
+
+        // Second read : incomplete for 7 bytes (we have only 2)
+        out.resize(7, 0);
+        match reader.read_once(&mut out) {
+            Err(ref err) => {
+                assert_eq!(io::ErrorKind::WouldBlock, err.kind());
+            }
+            _ => {
+                panic!("Unexpected result for read_once with incomplete");
+            }
+        }
+
+        // 3 more data bytes have arrived
+        let pos = r.position();
+        let data2 = vec![4, 5, 6];
+        match r.write_all(&data2) {
+            Ok(()) => {}
+            _ => {
+                panic!("Unexpected result for write_all");
+            }
+        }
+        r.set_position(pos);
+
+        // Third read : still incomplete for 7 bytes (we have 5)
+        let mut reader2 = Buffer::new(&mut part, &mut r);
+        match reader2.read_once(&mut out) {
+            Err(ref err) => {
+                assert_eq!(io::ErrorKind::WouldBlock, err.kind());
+            }
+            _ => {
+                panic!("Unexpected result for read_once with more incomplete");
+            }
+        }
+
+        // 3 more data bytes have arrived again
+        let pos2 = r.position();
+        let data3 = vec![7, 8, 9];
+        match r.write_all(&data3) {
+            Ok(()) => {}
+            _ => {
+                panic!("Unexpected result for write_all");
+            }
+        }
+        r.set_position(pos2);
+
+        // Fourth read : now succesful for 7 bytes
+        let mut reader3 = Buffer::new(&mut part, &mut r);
+        match reader3.read_once(&mut out) {
+            Ok(7) => {
+                assert_eq!(out[0], 2);
+                assert_eq!(out[6], 8);
+            }
+            _ => {
+                panic!("Unexpected result for read_once with data");
+            }
+        }
+
+        // Fifth read : succesful for one more byte
+        out.resize(1, 0);
+        match reader3.read_once(&mut out) {
+            Ok(1) => {
+                assert_eq!(out[0], 9);
+            }
+            _ => {
+                panic!("Unexpected result for read_once with data");
+            }
+        }
     }
 }
