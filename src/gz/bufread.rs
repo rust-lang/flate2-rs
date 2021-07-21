@@ -62,12 +62,12 @@ fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
                 }
 
                 r.part.flg = header[3];
-                r.part.mtime = ((header[4] as u32) << 0)
+                r.part.header.mtime = ((header[4] as u32) << 0)
                     | ((header[5] as u32) << 8)
                     | ((header[6] as u32) << 16)
                     | ((header[7] as u32) << 24);
                 let _xfl = header[8];
-                r.part.os = header[9];
+                r.part.header.operating_system = header[9];
                 r.part.state = GzHeaderParsingState::Xlen;
             }
             GzHeaderParsingState::Xlen => {
@@ -80,32 +80,44 @@ fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
                 if r.part.flg & FEXTRA != 0 {
                     let mut extra = vec![0; r.part.xlen as usize];
                     r.read_once(&mut extra)?;
-                    r.part.extra = Some(extra);
+                    r.part.header.extra = Some(extra);
                 }
                 r.part.state = GzHeaderParsingState::Filename;
             }
             GzHeaderParsingState::Filename => {
                 if r.part.flg & FNAME != 0 {
-                    for byte in r.reader.bytes() {
-                        let byte = byte?;
-                        r.crc.update(&[byte]);
-                        if byte == 0 {
-                            break;
+                    if None == r.part.header.filename {
+                        let vec = Vec::new();
+                        r.part.header.filename = Some(vec);
+                    };
+                    if let Some(ref mut b) = r.part.header.filename {
+                        for byte in r.reader.bytes() {
+                            let byte = byte?;
+                            r.crc.update(&[byte]);
+                            if byte == 0 {
+                                break;
+                            }
+                            b.push(byte);
                         }
-                        r.part.filename.push(byte);
                     }
                 }
                 r.part.state = GzHeaderParsingState::Comment;
             }
             GzHeaderParsingState::Comment => {
                 if r.part.flg & FCOMMENT != 0 {
-                    for byte in r.reader.bytes() {
-                        let byte = byte?;
-                        r.crc.update(&[byte]);
-                        if byte == 0 {
-                            break;
+                    if None == r.part.header.comment {
+                        let vec = Vec::new();
+                        r.part.header.comment = Some(vec);
+                    };
+                    if let Some(ref mut b) = r.part.header.comment {
+                        for byte in r.reader.bytes() {
+                            let byte = byte?;
+                            r.crc.update(&[byte]);
+                            if byte == 0 {
+                                break;
+                            }
+                            b.push(byte);
                         }
-                        r.part.comment.push(byte);
                     }
                 }
                 r.part.state = GzHeaderParsingState::Crc;
@@ -401,15 +413,10 @@ pub enum GzHeaderParsingState {
 #[derive(Debug)]
 pub struct GzHeaderPartial {
     buf: Vec<u8>,
-
     state: GzHeaderParsingState,
     flg: u8,
-    os: u8,
     xlen: u16,
-    mtime: u32,
-    extra: Option<Vec<u8>>,
-    filename: Vec<u8>,
-    comment: Vec<u8>,
+    header: GzHeader,
 }
 
 impl GzHeaderPartial {
@@ -418,33 +425,19 @@ impl GzHeaderPartial {
             buf: Vec::with_capacity(10), // minimum header length
             state: GzHeaderParsingState::Start,
             flg: 0,
-            os: 0,
             xlen: 0,
-            mtime: 0,
-            extra: None,
-            filename: Vec::new(),
-            comment: Vec::new(),
+            header: GzHeader {
+                extra: None,
+                filename: None,
+                comment: None,
+                operating_system: 0,
+                mtime: 0,
+            },
         }
     }
 
     pub fn take_header(self) -> GzHeader {
-        let filename = if self.flg & FNAME != 0 {
-            Some(self.filename)
-        } else {
-            None
-        };
-        let comment = if self.flg & FCOMMENT != 0 {
-            Some(self.comment)
-        } else {
-            None
-        };
-        return GzHeader {
-            extra: self.extra,
-            filename: filename,
-            comment: comment,
-            operating_system: self.os,
-            mtime: self.mtime,
-        };
+        return self.header;
     }
 }
 
