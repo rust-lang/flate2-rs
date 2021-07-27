@@ -87,7 +87,7 @@ fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
                     if let Some(ref mut b) = r.part.header.filename {
                         for byte in r.reader.bytes() {
                             let byte = byte?;
-                            r.crc.update(&[byte]);
+                            r.part.crc.update(&[byte]);
                             if byte == 0 {
                                 break;
                             }
@@ -106,7 +106,7 @@ fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
                     if let Some(ref mut b) = r.part.header.comment {
                         for byte in r.reader.bytes() {
                             let byte = byte?;
-                            r.crc.update(&[byte]);
+                            r.part.crc.update(&[byte]);
                             if byte == 0 {
                                 break;
                             }
@@ -119,7 +119,7 @@ fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
             GzHeaderParsingState::Crc => {
                 if r.part.flg & FHCRC != 0 {
                     let stored_crc = read_le_u16_once(r)?;
-                    let calced_crc = r.crc.sum() as u16;
+                    let calced_crc = r.part.crc.sum() as u16;
                     if stored_crc != calced_crc {
                         return Err(corrupt());
                     }
@@ -351,6 +351,7 @@ pub struct GzHeaderPartial {
     state: GzHeaderParsingState,
     flg: u8,
     xlen: u16,
+    crc: Crc,
     header: GzHeader,
 }
 
@@ -361,6 +362,7 @@ impl GzHeaderPartial {
             state: GzHeaderParsingState::Start,
             flg: 0,
             xlen: 0,
+            crc: Crc::new(),
             header: GzHeader {
                 extra: None,
                 filename: None,
@@ -392,7 +394,6 @@ struct Buffer<'a, T: 'a> {
     part: &'a mut GzHeaderPartial,
     buf_cur: usize,
     buf_max: usize,
-    crc: Crc,
     reader: &'a mut T,
 }
 
@@ -402,7 +403,6 @@ impl<'a, T> Buffer<'a, T> {
             reader,
             buf_cur: 0,
             buf_max: part.buf.len(),
-            crc: Crc::new(),
             part,
         }
     }
@@ -431,7 +431,7 @@ where
         self.buf_cur = 0;
         self.read_exact(buf)?;
         let rlen = buf.len();
-        self.crc.update(buf);
+        self.part.crc.update(buf);
         self.part.buf.truncate(0);
         self.buf_max = 0;
         return Ok(rlen);
