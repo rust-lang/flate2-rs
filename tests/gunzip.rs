@@ -4,8 +4,36 @@ use flate2::read::GzDecoder;
 use flate2::read::MultiGzDecoder;
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::{self, BufReader};
+use std::io::{self, BufReader, BufWriter};
 use std::path::Path;
+
+fn hex_to_bin(hex_reader: impl Read, bin_writer: impl Write) {
+    let mut bin_writer = BufWriter::new(bin_writer);
+    let hex_reader = BufReader::new(hex_reader);
+
+    let mut hex = String::new();
+    let mut bytes = hex_reader.bytes();
+    loop {
+        let d = if let Some(b) = bytes.next() {
+            String::from_utf8(vec![b.unwrap()]).unwrap()
+        } else {
+            "".into()
+        };
+        if !hex.is_empty() && (&d == " " || d.is_empty()) {
+            bin_writer
+                .write_all(&[u8::from_str_radix(&hex, 16).unwrap()])
+                .unwrap();
+            hex.clear();
+        } else if &d != " " {
+            hex.push_str(&d);
+        }
+        if hex.is_empty() && d.is_empty() {
+            break;
+        }
+    }
+
+    bin_writer.flush().unwrap();
+}
 
 // test extraction of a gzipped file
 #[test]
@@ -33,7 +61,7 @@ fn test_extract_success_partial_multi() {
 // test extraction fails on a corrupt file
 #[test]
 fn test_extract_failure() {
-    let result = extract_file(Path::new("tests/corrupt-gz-file.bin"));
+    let result = extract_hexfile(Path::new("tests/corrupt-file.gz.hex"));
     assert_eq!(result.err().unwrap().kind(), io::ErrorKind::InvalidInput);
 }
 
@@ -56,7 +84,14 @@ fn extract_file(path_compressed: &Path) -> io::Result<Vec<u8>> {
     GzDecoder::new(f).read_to_end(&mut v)?;
     Ok(v)
 }
-
+// Tries to extract path into memory (assuming a .gz hex file).
+fn extract_hexfile(path_compressed: &Path) -> io::Result<Vec<u8>> {
+    let mut v = Vec::new();
+    let mut bin = Vec::new();
+    hex_to_bin(File::open(path_compressed).unwrap(), &mut bin);
+    GzDecoder::new(bin.as_slice()).read_to_end(&mut v)?;
+    Ok(v)
+}
 // Tries to extract path into memory (decompressing all members in case
 // of a multi member .gz file).
 fn extract_file_multi(path_compressed: &Path) -> io::Result<Vec<u8>> {
