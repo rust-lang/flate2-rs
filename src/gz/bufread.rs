@@ -36,17 +36,19 @@ fn bad_header() -> io::Error {
 
 fn read_le_u16_once<R: Read>(r: &mut Buffer<R>) -> io::Result<u16> {
     let mut b = [0; 2];
-    r.read_once(&mut b)?;
+    r.read_and_forget(&mut b)?;
     Ok((b[0] as u16) | ((b[1] as u16) << 8))
 }
+
+//impl<'b, 'a, T> Buffer<'b, 'a, T> {
+//    fn new(part: &'b mut GzHeaderPartial, reader: &'a mut T) -> Buffer<'b, 'a, T> {
 
 fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
     loop {
         match r.part.state {
             GzHeaderParsingState::Start => {
                 let mut header = [0; 10];
-                r.read_once(&mut header)?;
-                r.part.buf.truncate(0);
+                r.read_and_forget(&mut header)?;
 
                 if header[0] != 0x1f || header[1] != 0x8b {
                     return Err(bad_header());
@@ -73,7 +75,7 @@ fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
             GzHeaderParsingState::Extra => {
                 if r.part.flg & FEXTRA != 0 {
                     let mut extra = vec![0; r.part.xlen as usize];
-                    r.read_once(&mut extra)?;
+                    r.read_and_forget(&mut extra)?;
                     r.part.header.extra = Some(extra);
                 }
                 r.part.state = GzHeaderParsingState::Filename;
@@ -84,14 +86,12 @@ fn read_gz_header_part<R: Read>(r: &mut Buffer<R>) -> io::Result<()> {
                         let vec = Vec::new();
                         r.part.header.filename = Some(vec);
                     };
-                    if let Some(ref mut b) = r.part.header.filename {
-                        for byte in r.reader.bytes() {
-                            let byte = byte?;
-                            r.part.crc.update(&[byte]);
-                            if byte == 0 {
-                                break;
-                            }
-                            b.push(byte);
+                    r.direct_buffer = r.part.header.filename.as_ref();
+                    for byte in r.bytes() {
+                        let byte = byte?;
+                        if byte == 0 {
+                            r.direct_buffer = None;
+                            break;
                         }
                     }
                 }
@@ -390,17 +390,19 @@ enum GzState {
 /// A small adapter which reads data originally from `buf` and then reads all
 /// further data from `reader`. This will also buffer all data read from
 /// `reader` into `buf` for reuse on a further call.
-struct Buffer<'a, T: 'a> {
-    part: &'a mut GzHeaderPartial,
+struct Buffer<'b, 'a, T: 'a> {
+    part: &'b mut GzHeaderPartial,
+    direct_buffer: Option<&'b Vec<u8>>,
     buf_cur: usize,
     buf_max: usize,
     reader: &'a mut T,
 }
 
-impl<'a, T> Buffer<'a, T> {
-    fn new(part: &'a mut GzHeaderPartial, reader: &'a mut T) -> Buffer<'a, T> {
+impl<'b, 'a, T> Buffer<'b, 'a, T> {
+    fn new(part: &'b mut GzHeaderPartial, reader: &'a mut T) -> Buffer<'b, 'a, T> {
         Buffer {
             reader,
+            direct_buffer: None,
             buf_cur: 0,
             buf_max: part.buf.len(),
             part,
@@ -408,11 +410,17 @@ impl<'a, T> Buffer<'a, T> {
     }
 }
 
-impl<'a, T: Read> Read for Buffer<'a, T> {
+impl<'b, 'a, T: Read> Read for Buffer<'b, 'a, T> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        if self.buf_cur == self.buf_max {
+        if let Some(ref mut b) = self.direct_buffer {
+            let len = self.reader.read(buf)?;
+            b.extend_from_slice(&buf[..len]);
+            self.part.crc.update(&buf[..len]);
+            Ok(len)
+        } else if self.buf_cur == self.buf_max {
             let len = self.reader.read(buf)?;
             self.part.buf.extend_from_slice(&buf[..len]);
+            self.part.crc.update(&buf[..len]);
             Ok(len)
         } else {
             let len = (&self.part.buf[self.buf_cur..self.buf_max]).read(buf)?;
@@ -422,17 +430,16 @@ impl<'a, T: Read> Read for Buffer<'a, T> {
     }
 }
 
-impl<'a, T> Buffer<'a, T>
+impl<'b, 'a, T> Buffer<'b, 'a, T>
 where
     T: std::io::Read,
 {
     // If we manage to read all the bytes, we reset the buffer
-    fn read_once(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.buf_cur = 0;
+    fn read_and_forget(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.read_exact(buf)?;
         let rlen = buf.len();
-        self.part.crc.update(buf);
         self.part.buf.truncate(0);
+        self.buf_cur = 0;
         self.buf_max = 0;
         return Ok(rlen);
     }
@@ -789,8 +796,8 @@ mod tests {
         }
     }
     #[test]
-    // test function read_once of Buffer
-    fn buffer_read_once() {
+    // test function read_and_forget of Buffer
+    fn buffer_read_and_forget() {
         // this is unused except for the buffering
         let mut part = GzHeaderPartial::new();
         // this is a reader which receives data afterwards
@@ -809,21 +816,21 @@ mod tests {
         // First read : successful for one byte
         let mut reader = Buffer::new(&mut part, &mut r);
         out.resize(1, 0);
-        match reader.read_once(&mut out) {
+        match reader.read_and_forget(&mut out) {
             Ok(1) => {}
             _ => {
-                panic!("Unexpected result for read_once with data");
+                panic!("Unexpected result for read_and_forget with data");
             }
         }
 
         // Second read : incomplete for 7 bytes (we have only 2)
         out.resize(7, 0);
-        match reader.read_once(&mut out) {
+        match reader.read_and_forget(&mut out) {
             Err(ref err) => {
                 assert_eq!(io::ErrorKind::WouldBlock, err.kind());
             }
             _ => {
-                panic!("Unexpected result for read_once with incomplete");
+                panic!("Unexpected result for read_and_forget with incomplete");
             }
         }
 
@@ -840,12 +847,12 @@ mod tests {
 
         // Third read : still incomplete for 7 bytes (we have 5)
         let mut reader2 = Buffer::new(&mut part, &mut r);
-        match reader2.read_once(&mut out) {
+        match reader2.read_and_forget(&mut out) {
             Err(ref err) => {
                 assert_eq!(io::ErrorKind::WouldBlock, err.kind());
             }
             _ => {
-                panic!("Unexpected result for read_once with more incomplete");
+                panic!("Unexpected result for read_and_forget with more incomplete");
             }
         }
 
@@ -862,24 +869,24 @@ mod tests {
 
         // Fourth read : now succesful for 7 bytes
         let mut reader3 = Buffer::new(&mut part, &mut r);
-        match reader3.read_once(&mut out) {
+        match reader3.read_and_forget(&mut out) {
             Ok(7) => {
                 assert_eq!(out[0], 2);
                 assert_eq!(out[6], 8);
             }
             _ => {
-                panic!("Unexpected result for read_once with data");
+                panic!("Unexpected result for read_and_forget with data");
             }
         }
 
         // Fifth read : succesful for one more byte
         out.resize(1, 0);
-        match reader3.read_once(&mut out) {
+        match reader3.read_and_forget(&mut out) {
             Ok(1) => {
                 assert_eq!(out[0], 9);
             }
             _ => {
-                panic!("Unexpected result for read_once with data");
+                panic!("Unexpected result for read_and_forget with data");
             }
         }
     }
