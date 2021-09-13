@@ -528,10 +528,11 @@ impl<R: BufRead> Read for GzDecoder<R> {
                             *header = Some(part.take_header());
                             GzState::Body
                         }
-                        Err(ref err) if io::ErrorKind::WouldBlock == err.kind() => {
-                            GzState::Header(part)
+                        Err(err) if io::ErrorKind::WouldBlock == err.kind() => {
+                            *inner = GzState::Header(part);
+                            return Err(err);
                         }
-                        Err(err) => GzState::Err(err),
+                        Err(err) => return Err(err),
                     };
                     state
                 }
@@ -742,7 +743,7 @@ impl<R: AsyncWrite + BufRead> AsyncWrite for MultiGzDecoder<R> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::gz::bufread::*;
     use std::io;
     use std::io::{Cursor, Read, Write};
