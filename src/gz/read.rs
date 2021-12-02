@@ -43,7 +43,7 @@ pub struct GzEncoder<R> {
 }
 
 pub fn gz_encoder<R: Read>(inner: bufread::GzEncoder<BufReader<R>>) -> GzEncoder<R> {
-    GzEncoder { inner: inner }
+    GzEncoder { inner }
 }
 
 impl<R: Read> GzEncoder<R> {

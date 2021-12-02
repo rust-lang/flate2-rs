@@ -20,7 +20,7 @@ fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
         *slot = *val;
     }
     *pos += min;
-    return min;
+    min
 }
 
 pub(crate) fn corrupt() -> io::Error {
@@ -126,15 +126,7 @@ pub(crate) fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
         let mut reader = Buffer::new(&mut part, r);
         read_gz_header_part(&mut reader)
     };
-
-    match result {
-        Ok(()) => {
-            return Ok(part.take_header());
-        }
-        Err(err) => {
-            return Err(err);
-        }
-    };
+    result.map(|()| part.take_header())
 }
 
 /// A gzip streaming encoder
@@ -179,7 +171,7 @@ pub fn gz_encoder<R: BufRead>(header: Vec<u8>, r: R, lvl: Compression) -> GzEnco
     let crc = CrcReader::new(r);
     GzEncoder {
         inner: deflate::bufread::DeflateEncoder::new(crc, lvl),
-        header: header,
+        header,
         pos: 0,
         eof: false,
     }
@@ -363,7 +355,7 @@ impl GzHeaderPartial {
     }
 
     pub fn take_header(self) -> GzHeader {
-        return self.header;
+        self.header
     }
 }
 
@@ -443,7 +435,7 @@ where
         self.part.buf.truncate(0);
         self.buf_cur = 0;
         self.buf_max = 0;
-        return Ok(rlen);
+        Ok(rlen)
     }
 }
 
@@ -523,7 +515,7 @@ impl<R: BufRead> Read for GzDecoder<R> {
                         let mut reader = Buffer::new(&mut part, reader.get_mut().get_mut());
                         read_gz_header_part(&mut reader)
                     };
-                    let state = match result {
+                    match result {
                         Ok(()) => {
                             *header = Some(part.take_header());
                             GzState::Body
@@ -533,8 +525,7 @@ impl<R: BufRead> Read for GzDecoder<R> {
                             return Err(err);
                         }
                         Err(err) => return Err(err),
-                    };
-                    state
+                    }
                 }
                 GzState::Body => {
                     if into.is_empty() {

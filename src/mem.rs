@@ -283,7 +283,7 @@ impl Compress {
         let stream = &mut *self.inner.inner.stream_wrapper;
         stream.msg = std::ptr::null_mut();
         let rc = unsafe {
-            assert!(dictionary.len() < ffi::uInt::max_value() as usize);
+            assert!(dictionary.len() < ffi::uInt::MAX as usize);
             ffi::deflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
         };
 
@@ -367,7 +367,7 @@ impl Compress {
                 self.compress(input, out, flush)
             };
             output.set_len((self.total_out() - before) as usize + len);
-            return ret;
+            ret
         }
     }
 }
@@ -508,7 +508,7 @@ impl Decompress {
                 self.decompress(input, out, flush)
             };
             output.set_len((self.total_out() - before) as usize + len);
-            return ret;
+            ret
         }
     }
 
@@ -518,7 +518,7 @@ impl Decompress {
         let stream = &mut *self.inner.inner.stream_wrapper;
         stream.msg = std::ptr::null_mut();
         let rc = unsafe {
-            assert!(dictionary.len() < ffi::uInt::max_value() as usize);
+            assert!(dictionary.len() < ffi::uInt::MAX as usize);
             ffi::inflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
         };
 
