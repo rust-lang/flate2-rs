@@ -55,7 +55,7 @@ fn read_gz_header_part<'a, R: Read>(r: &'a mut Buffer<'a, R>) -> io::Result<()> 
                 }
 
                 r.part.flg = header[3];
-                r.part.header.mtime = ((header[4] as u32) << 0)
+                r.part.header.mtime = (header[4] as u32)
                     | ((header[5] as u32) << 8)
                     | ((header[6] as u32) << 16)
                     | ((header[7] as u32) << 24);
@@ -194,12 +194,12 @@ impl<R: BufRead> GzEncoder<R> {
             return Ok(0);
         }
         let crc = self.inner.get_ref().crc();
-        let ref arr = [
-            (crc.sum() >> 0) as u8,
+        let arr = &[
+            crc.sum() as u8,
             (crc.sum() >> 8) as u8,
             (crc.sum() >> 16) as u8,
             (crc.sum() >> 24) as u8,
-            (crc.amount() >> 0) as u8,
+            crc.amount() as u8,
             (crc.amount() >> 8) as u8,
             (crc.amount() >> 16) as u8,
             (crc.amount() >> 24) as u8,
@@ -230,11 +230,11 @@ impl<R> GzEncoder<R> {
 
 #[inline]
 fn finish(buf: &[u8; 8]) -> (u32, u32) {
-    let crc = ((buf[0] as u32) << 0)
+    let crc = (buf[0] as u32)
         | ((buf[1] as u32) << 8)
         | ((buf[2] as u32) << 16)
         | ((buf[3] as u32) << 24);
-    let amt = ((buf[4] as u32) << 0)
+    let amt = (buf[4] as u32)
         | ((buf[5] as u32) << 8)
         | ((buf[6] as u32) << 16)
         | ((buf[7] as u32) << 24);
@@ -753,20 +753,20 @@ pub mod tests {
         }
 
         pub fn set_position(&mut self, pos: u64) {
-            return self.cursor.set_position(pos);
+            self.cursor.set_position(pos)
         }
 
         pub fn position(&mut self) -> u64 {
-            return self.cursor.position();
+            self.cursor.position()
         }
     }
 
     impl Write for BlockingCursor {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            return self.cursor.write(buf);
+            self.cursor.write(buf)
         }
         fn flush(&mut self) -> io::Result<()> {
-            return self.cursor.flush();
+            self.cursor.flush()
         }
     }
 
@@ -786,7 +786,7 @@ pub mod tests {
                 }
                 Ok(_n) => {}
             }
-            return r;
+            r
         }
     }
     #[test]

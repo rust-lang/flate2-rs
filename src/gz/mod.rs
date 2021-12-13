@@ -212,23 +212,23 @@ impl GzBuilder {
         let mut header = vec![0u8; 10];
         if let Some(v) = extra {
             flg |= FEXTRA;
-            header.push((v.len() >> 0) as u8);
+            header.push(v.len() as u8);
             header.push((v.len() >> 8) as u8);
             header.extend(v);
         }
         if let Some(filename) = filename {
             flg |= FNAME;
-            header.extend(filename.as_bytes_with_nul().iter().map(|x| *x));
+            header.extend(filename.as_bytes_with_nul().iter().copied());
         }
         if let Some(comment) = comment {
             flg |= FCOMMENT;
-            header.extend(comment.as_bytes_with_nul().iter().map(|x| *x));
+            header.extend(comment.as_bytes_with_nul().iter().copied());
         }
         header[0] = 0x1f;
         header[1] = 0x8b;
         header[2] = 8;
         header[3] = flg;
-        header[4] = (mtime >> 0) as u8;
+        header[4] = mtime as u8;
         header[5] = (mtime >> 8) as u8;
         header[6] = (mtime >> 16) as u8;
         header[7] = (mtime >> 24) as u8;
@@ -285,14 +285,14 @@ mod tests {
         let v = crate::random_bytes().take(1024).collect::<Vec<_>>();
         for _ in 0..200 {
             let to_write = &v[..thread_rng().gen_range(0, v.len())];
-            real.extend(to_write.iter().map(|x| *x));
+            real.extend(to_write.iter().copied());
             w.write_all(to_write).unwrap();
         }
         let result = w.finish().unwrap();
         let mut r = read::GzDecoder::new(&result[..]);
         let mut v = Vec::new();
         r.read_to_end(&mut v).unwrap();
-        assert!(v == real);
+        assert_eq!(v, real);
     }
 
     #[test]
@@ -301,7 +301,7 @@ mod tests {
         let mut r = read::GzDecoder::new(read::GzEncoder::new(&v[..], Compression::default()));
         let mut res = Vec::new();
         r.read_to_end(&mut res).unwrap();
-        assert!(res == v);
+        assert_eq!(res, v);
     }
 
     #[test]
