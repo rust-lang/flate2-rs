@@ -47,7 +47,7 @@ pub fn gz_encoder<W: Write>(header: Vec<u8>, w: W, lvl: Compression) -> GzEncode
     GzEncoder {
         inner: zio::Writer::new(w, Compress::new(lvl, false)),
         crc: Crc::new(),
-        header: header,
+        header,
         crc_bytes_written: 0,
     }
 }
@@ -134,7 +134,7 @@ impl<W: Write> GzEncoder<W> {
     }
 
     fn write_header(&mut self) -> io::Result<()> {
-        while self.header.len() > 0 {
+        while !self.header.is_empty() {
             let n = self.inner.get_mut().write(&self.header)?;
             self.header.drain(..n);
         }
@@ -368,13 +368,11 @@ impl<W: Write> Write for GzDecoder<W> {
         } else {
             let (n, status) = self.inner.write_with_status(buf)?;
 
-            if status == Status::StreamEnd {
-                if n < buf.len() && self.crc_bytes.len() < 8 {
-                    let remaining = buf.len() - n;
-                    let crc_bytes = cmp::min(remaining, CRC_BYTES_LEN - self.crc_bytes.len());
-                    self.crc_bytes.extend(&buf[n..n + crc_bytes]);
-                    return Ok(n + crc_bytes);
-                }
+            if status == Status::StreamEnd && n < buf.len() && self.crc_bytes.len() < 8 {
+                let remaining = buf.len() - n;
+                let crc_bytes = cmp::min(remaining, CRC_BYTES_LEN - self.crc_bytes.len());
+                self.crc_bytes.extend(&buf[n..n + crc_bytes]);
+                return Ok(n + crc_bytes);
             }
             Ok(n)
         }
