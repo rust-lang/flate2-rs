@@ -633,7 +633,7 @@ const char *mz_error(int err)
 extern "C" {
 #endif
 
-/* ------------------- Low-level Compression (independent from all decompression APIs) */
+/* ------------------- Low-level Compression (independent from all decompression API's) */
 
 /* Purposely making these tables static for faster init and thread safety. */
 static const mz_uint16 s_tdefl_len_sym[256] =
@@ -4074,7 +4074,7 @@ static mz_bool mz_zip_file_stat_internal(mz_zip_archive *pZip, mz_uint file_inde
     memcpy(pStat->m_comment, p + MZ_ZIP_CENTRAL_DIR_HEADER_SIZE + MZ_READ_LE16(p + MZ_ZIP_CDH_FILENAME_LEN_OFS) + MZ_READ_LE16(p + MZ_ZIP_CDH_EXTRA_LEN_OFS), n);
     pStat->m_comment[n] = '\0';
 
-    /* Set some flags for convenience */
+    /* Set some flags for convienance */
     pStat->m_is_directory = mz_zip_reader_is_file_a_directory(pZip, file_index);
     pStat->m_is_encrypted = mz_zip_reader_is_file_encrypted(pZip, file_index);
     pStat->m_is_supported = mz_zip_reader_is_file_supported(pZip, file_index);
@@ -6097,8 +6097,8 @@ mz_bool mz_zip_writer_add_mem_ex_v2(mz_zip_archive *pZip, const char *pArchive_n
     if (!pState->m_zip64)
     {
         /* Bail early if the archive would obviously become too large */
-        if ((pZip->m_archive_size + num_alignment_padding_bytes + MZ_ZIP_LOCAL_DIR_HEADER_SIZE + archive_name_size
-			+ MZ_ZIP_CENTRAL_DIR_HEADER_SIZE + archive_name_size + comment_size + user_extra_data_len +
+        if ((pZip->m_archive_size + num_alignment_padding_bytes + MZ_ZIP_LOCAL_DIR_HEADER_SIZE + archive_name_size 
+			+ MZ_ZIP_CENTRAL_DIR_HEADER_SIZE + archive_name_size + comment_size + user_extra_data_len + 
 			pState->m_central_dir.m_size + MZ_ZIP_END_OF_CENTRAL_DIR_HEADER_SIZE + user_extra_data_central_len
 			+ MZ_ZIP_DATA_DESCRIPTER_SIZE32) > 0xFFFFFFFF)
         {
@@ -6367,7 +6367,7 @@ mz_bool mz_zip_writer_add_cfile(mz_zip_archive *pZip, const char *pArchive_name,
     if (!pState->m_zip64)
     {
         /* Bail early if the archive would obviously become too large */
-        if ((pZip->m_archive_size + num_alignment_padding_bytes + MZ_ZIP_LOCAL_DIR_HEADER_SIZE + archive_name_size + MZ_ZIP_CENTRAL_DIR_HEADER_SIZE
+        if ((pZip->m_archive_size + num_alignment_padding_bytes + MZ_ZIP_LOCAL_DIR_HEADER_SIZE + archive_name_size + MZ_ZIP_CENTRAL_DIR_HEADER_SIZE 
 			+ archive_name_size + comment_size + user_extra_data_len + pState->m_central_dir.m_size + MZ_ZIP_END_OF_CENTRAL_DIR_HEADER_SIZE + 1024
 			+ MZ_ZIP_DATA_DESCRIPTER_SIZE32 + user_extra_data_central_len) > 0xFFFFFFFF)
         {
@@ -6710,7 +6710,7 @@ static mz_bool mz_zip_writer_update_zip64_extension_block(mz_zip_array *pNew_ext
     return MZ_TRUE;
 }
 
-/* TODO: This func is now pretty freaking complex due to zip64, split it up? */
+/* TODO: This func is now pretty freakin complex due to zip64, split it up? */
 mz_bool mz_zip_writer_add_from_zip_reader(mz_zip_archive *pZip, mz_zip_archive *pSource_zip, mz_uint src_file_index)
 {
     mz_uint n, bit_flags, num_alignment_padding_bytes, src_central_dir_following_data_size;
