@@ -116,7 +116,7 @@
 
 
 
-/* Defines to completely disable specific portions of miniz.c: 
+/* Defines to completely disable specific portions of miniz.c:
    If all macros here are defined the only functionality remaining will be CRC-32, adler-32, tinfl, and tdefl. */
 
 /* Define MINIZ_NO_STDIO to disable all usage and any functions which rely on stdio for file I/O. */
@@ -139,7 +139,7 @@
 /* Define MINIZ_NO_ZLIB_COMPATIBLE_NAME to disable zlib names, to prevent conflicts against stock zlib. */
 /*#define MINIZ_NO_ZLIB_COMPATIBLE_NAMES */
 
-/* Define MINIZ_NO_MALLOC to disable all calls to malloc, free, and realloc. 
+/* Define MINIZ_NO_MALLOC to disable all calls to malloc, free, and realloc.
    Note if MINIZ_NO_MALLOC is defined then the user must always provide custom user alloc/free/realloc
    callbacks to the zlib and archive API's, and a few stand-alone helper API's which don't provide custom user
    functions (such as tdefl_compress_mem_to_heap() and tinfl_decompress_mem_to_heap()) won't work. */
@@ -606,7 +606,7 @@ enum
 /*  flags: The max match finder probes (default is 128) logically OR'd against the above flags. Higher probes are slower but improve compression. */
 /* On return: */
 /*  Function returns a pointer to the compressed data, or NULL on failure. */
-/*  *pOut_len will be set to the compressed data's size, which could be larger than src_buf_len on uncompressible data. */
+/*  *pOut_len will be set to the compressed data's size, which could be larger than src_buf_len on incompressible data. */
 /*  The caller must free() the returned block when it's no longer needed. */
 void *tdefl_compress_mem_to_heap(const void *pSrc_buf, size_t src_buf_len, size_t *pOut_len, int flags);
 
@@ -1296,7 +1296,7 @@ mz_bool mz_zip_writer_add_from_zip_reader(mz_zip_archive *pZip, mz_zip_archive *
 /* An archive must be manually finalized by calling this function for it to be valid. */
 mz_bool mz_zip_writer_finalize_archive(mz_zip_archive *pZip);
 
-/* Finalizes a heap archive, returning a poiner to the heap block and its size. */
+/* Finalizes a heap archive, returning a pointer to the heap block and its size. */
 /* The heap block will be allocated using the mz_zip_archive's alloc/realloc callbacks. */
 mz_bool mz_zip_writer_finalize_heap_archive(mz_zip_archive *pZip, void **ppBuf, size_t *pSize);
 
