@@ -139,7 +139,7 @@ impl<W: Write> DeflateEncoder<W> {
         Ok(self.inner.take_inner())
     }
 
-    /// Returns the number of bytes that have been written to this compresor.
+    /// Returns the number of bytes that have been written to this compressor.
     ///
     /// Note that not all bytes written to this object may be accounted for,
     /// there may still be some active buffering.
