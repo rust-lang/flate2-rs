@@ -65,7 +65,7 @@ pub enum FlushCompress {
     /// All of the input data so far will be available to the decompressor (as
     /// with `Flush::Sync`. This completes the current deflate block and follows
     /// it with an empty fixed codes block that is 10 bites long, and it assures
-    /// that enough bytes are output in order for the decompessor to finish the
+    /// that enough bytes are output in order for the decompressor to finish the
     /// block before the empty fixed code block.
     Partial = ffi::MZ_PARTIAL_FLUSH as isize,
 
@@ -407,7 +407,7 @@ impl Decompress {
 
     /// Creates a new object ready for decompressing data that it's given.
     ///
-    /// The Deompress object produced by this constructor expects gzip headers
+    /// The Decompress object produced by this constructor expects gzip headers
     /// for the compressed data.
     ///
     /// # Panics

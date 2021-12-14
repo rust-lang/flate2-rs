@@ -861,7 +861,7 @@ pub mod tests {
         }
         r.set_position(pos2);
 
-        // Fourth read : now succesful for 7 bytes
+        // Fourth read : now successful for 7 bytes
         let mut reader3 = Buffer::new(&mut part, &mut r);
         match reader3.read_and_forget(&mut out) {
             Ok(7) => {
@@ -873,7 +873,7 @@ pub mod tests {
             }
         }
 
-        // Fifth read : succesful for one more byte
+        // Fifth read : successful for one more byte
         out.resize(1, 0);
         match reader3.read_and_forget(&mut out) {
             Ok(1) => {
