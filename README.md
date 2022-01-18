@@ -85,7 +85,7 @@ documentation](https://crates.io/crates/cloudflare-zlib-sys). Note that
 uses another version of zlib/libz.
 
 For compatibility with previous versions of `flate2`, the C version of `miniz.c`
-is still available, using the feature `miniz-sys`.
+is still available, using the feature `miniz`.
 
 # License
 
