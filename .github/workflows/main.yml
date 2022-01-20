@@ -43,7 +43,6 @@ jobs:
     - run: cargo test --features cloudflare_zlib --no-default-features
       if: matrix.build != 'mingw'
     - run: cargo test --features miniz-sys --no-default-features
-    - run: cargo test --features tokio
 
   rustfmt:
     name: Rustfmt
