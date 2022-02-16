@@ -25,15 +25,15 @@ cfg-if = "1.0.0"
 miniz-sys = { path = "miniz-sys", version = "0.1.11", optional = true }
 libz-sys = { version = "1.1.0", optional = true, default-features = false }
 cloudflare-zlib-sys = { version = "0.3.0", optional = true }
-miniz_oxide = { version = "0.4.0", optional = true, default-features = false }
+miniz_oxide = { version = "0.5.0", optional = true, default-features = false }
 crc32fast = "1.2.0"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))'.dependencies]
-miniz_oxide = { version = "0.4.0", default-features = false }
+miniz_oxide = { version = "0.5.0", default-features = false }
 
 [dev-dependencies]
-rand = "0.7"
-quickcheck = { version = "0.9", default-features = false }
+rand = "0.8"
+quickcheck = { version = "1.0", default-features = false }
 
 [features]
 default = ["rust_backend"]
