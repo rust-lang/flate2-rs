@@ -32,8 +32,8 @@ crc32fast = "1.2.0"
 miniz_oxide = { version = "0.5.0", default-features = false }
 
 [dev-dependencies]
-rand = "0.7"
-quickcheck = { version = "0.9", default-features = false }
+rand = "0.8"
+quickcheck = { version = "1.0", default-features = false }
 
 [features]
 default = ["rust_backend"]
