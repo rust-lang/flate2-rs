@@ -87,7 +87,7 @@ See [the libz-sys
 README](https://github.com/rust-lang/libz-sys/blob/main/README.md) for details.
 To avoid that, use the `"zlib-ng"` feature instead.
 
-For compatibility with previous versions of `flate2`, the cloudflare optimized
+For compatibility with previous versions of `flate2`, the Cloudflare optimized
 version of zlib is available, via the `cloudflare_zlib` feature. It's not as
 fast as zlib-ng, but it's faster than stock zlib. It requires an x86-64 CPU with
 SSE 4.2 or ARM64 with NEON & CRC. It does not support 32-bit CPUs at all and is
@@ -101,9 +101,9 @@ uses another version of zlib/libz.
 This project is licensed under either of
 
  * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
-   http://www.apache.org/licenses/LICENSE-2.0)
+   https://www.apache.org/licenses/LICENSE-2.0)
  * MIT license ([LICENSE-MIT](LICENSE-MIT) or
-   http://opensource.org/licenses/MIT)
+   https://opensource.org/licenses/MIT)
 
 at your option.
 
