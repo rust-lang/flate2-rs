@@ -23,10 +23,10 @@ jobs:
             os: macos-latest
             rust: stable
           - build: windows
-            os: windows-latest
+            os: windows-2019
             rust: stable
           - build: mingw
-            os: windows-latest
+            os: windows-2019
             rust: stable-x86_64-gnu
     steps:
     - uses: actions/checkout@master
@@ -43,7 +43,6 @@ jobs:
     - run: cargo test --features cloudflare_zlib --no-default-features
       if: matrix.build != 'mingw'
     - run: cargo test --features miniz-sys --no-default-features
-    - run: cargo test --features tokio
 
   rustfmt:
     name: Rustfmt
