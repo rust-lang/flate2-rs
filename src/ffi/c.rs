@@ -7,7 +7,10 @@ use std::marker;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 
-pub use libc::{c_int, c_uint, c_void, size_t};
+pub use std::os::raw::{c_int, c_uint, c_void};
+
+#[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+pub use libc::size_t;
 
 use super::*;
 use crate::mem::{self, FlushDecompress, Status};
@@ -378,8 +381,8 @@ mod c_backend {
 #[cfg(feature = "any_zlib")]
 #[allow(bad_style)]
 mod c_backend {
-    use libc::{c_char, c_int};
     use std::mem;
+    use std::os::raw::{c_char, c_int};
 
     #[cfg(feature = "cloudflare_zlib")]
     use cloudflare_zlib_sys as libz;
