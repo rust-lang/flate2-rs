@@ -7,7 +7,7 @@ use std::marker;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 
-pub use libc::{c_int, c_uint, c_void, size_t};
+use libc::{c_int, c_uint, c_void};
 
 use super::*;
 use crate::mem::{self, FlushDecompress, Status};
