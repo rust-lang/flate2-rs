@@ -1,6 +1,6 @@
 // Copyright 2013 The Rust Project Developers. See the COPYRIGHT
 // file at the top-level directory of this distribution and at
-// https://www.rust-lang.org/COPYRIGHT.
+// <https://github.com/rust-lang/rust/blob/HEAD/COPYRIGHT>.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
