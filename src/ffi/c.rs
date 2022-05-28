@@ -5,9 +5,8 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::marker;
 use std::ops::{Deref, DerefMut};
+use std::os::raw::{c_int, c_uint, c_void};
 use std::ptr;
-
-use libc::{c_int, c_uint, c_void};
 
 use super::*;
 use crate::mem::{self, FlushDecompress, Status};
@@ -349,8 +348,8 @@ pub use self::c_backend::*;
 /// For backwards compatibility, we provide symbols as `mz_` to mimic the miniz API
 #[allow(bad_style)]
 mod c_backend {
-    use libc::{c_char, c_int};
     use std::mem;
+    use std::os::raw::{c_char, c_int};
 
     #[cfg(feature = "zlib-ng")]
     use libz_ng_sys as libz;
