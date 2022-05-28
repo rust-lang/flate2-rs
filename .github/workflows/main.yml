@@ -40,6 +40,7 @@ jobs:
     - run: cargo test --features miniz-sys
     - run: cargo test --features zlib --no-default-features
     - run: cargo test --features zlib-ng-compat --no-default-features
+      if: matrix.build != 'mingw'
     - run: cargo test --features cloudflare_zlib --no-default-features
       if: matrix.build != 'mingw'
     - run: cargo test --features miniz-sys --no-default-features
