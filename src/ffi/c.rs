@@ -352,9 +352,13 @@ mod c_backend {
     use libc::{c_char, c_int};
     use std::mem;
 
-    #[cfg(feature = "cloudflare_zlib")]
+    #[cfg(feature = "zlib-ng")]
+    use libz_ng_sys as libz;
+
+    #[cfg(all(not(feature = "zlib-ng"), feature = "cloudflare_zlib"))]
     use cloudflare_zlib_sys as libz;
-    #[cfg(not(feature = "cloudflare_zlib"))]
+
+    #[cfg(all(not(feature = "cloudflare_zlib"), not(feature = "zlib-ng")))]
     use libz_sys as libz;
 
     pub use libz::deflate as mz_deflate;
@@ -383,6 +387,9 @@ mod c_backend {
 
     pub const MZ_DEFAULT_WINDOW_BITS: c_int = 15;
 
+    #[cfg(feature = "zlib-ng")]
+    const ZLIB_VERSION: &'static str = "2.1.0.devel\0";
+    #[cfg(not(feature = "zlib-ng"))]
     const ZLIB_VERSION: &'static str = "1.2.8\0";
 
     pub unsafe extern "C" fn mz_deflateInit2(
