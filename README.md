@@ -84,9 +84,6 @@ documentation](https://crates.io/crates/cloudflare-zlib-sys). Note that
 `cloudflare_zlib` will cause breakage if any other crate in your crate graph
 uses another version of zlib/libz.
 
-For compatibility with previous versions of `flate2`, the C version of `miniz.c`
-is still available, using the feature `miniz-sys`.
-
 # License
 
 This project is licensed under either of

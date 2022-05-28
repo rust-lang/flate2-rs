@@ -37,13 +37,11 @@ jobs:
     - run: rustdoc --test README.md -L target/debug/deps --extern flate2=target/debug/libflate2.rlib --edition=2018
     - run: cargo test
     - run: cargo test --features zlib
-    - run: cargo test --features miniz-sys
     - run: cargo test --features zlib --no-default-features
     - run: cargo test --features zlib-ng-compat --no-default-features
       if: matrix.build != 'mingw'
     - run: cargo test --features cloudflare_zlib --no-default-features
       if: matrix.build != 'mingw'
-    - run: cargo test --features miniz-sys --no-default-features
 
   rustfmt:
     name: Rustfmt
@@ -53,15 +51,6 @@ jobs:
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup component add rustfmt
     - run: cargo fmt -- --check
-
-  systest:
-    name: Systest
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@master
-    - name: Install Rust
-      run: rustup update stable && rustup default stable
-    - run: cargo run --manifest-path systest/Cargo.toml
 
   wasm:
     name: WebAssembly
