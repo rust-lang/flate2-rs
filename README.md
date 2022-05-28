@@ -52,8 +52,19 @@ fn main() {
 
 ## Backends
 
-The default `miniz_oxide` backend has the advantage of being pure Rust, but if
-you're already using zlib with another C library, for example, you can use that
+The default `miniz_oxide` backend has the advantage of being pure Rust. If you
+want maximum performance, you can use the zlib-ng C library:
+
+```toml
+[dependencies]
+flate2 = { version = "1.0.17", features = ["zlib-ng"], default-features = false }
+```
+
+Note that the `"zlib-ng"` feature works even if some other part of your crate
+graph depends on zlib.
+
+However, if you're already using another C or Rust library that depends on
+zlib, and you want to avoid including both zlib and zlib-ng, you can use that
 for Rust code as well:
 
 ```toml
@@ -61,19 +72,20 @@ for Rust code as well:
 flate2 = { version = "1.0.17", features = ["zlib"], default-features = false }
 ```
 
-This supports either the high-performance zlib-ng backend (in zlib-compat mode)
-or the use of a shared system zlib library. To explicitly opt into the fast
-zlib-ng backend, use:
+Or, if you have C or Rust code that depends on zlib and you want to use zlib-ng
+via libz-sys in zlib-compat mode, use:
 
 ```toml
 [dependencies]
 flate2 = { version = "1.0.17", features = ["zlib-ng-compat"], default-features = false }
 ```
 
-Note that if any crate in your dependency graph explicitly requests stock zlib,
-or uses libz-sys directly without `default-features = false`, you'll get stock
-zlib rather than zlib-ng. See [the libz-sys
+Note that when using the `"zlib-ng-compat"` feature, if any crate in your
+dependency graph explicitly requests stock zlib, or uses libz-sys directly
+without `default-features = false`, you'll get stock zlib rather than zlib-ng.
+See [the libz-sys
 README](https://github.com/rust-lang/libz-sys/blob/main/README.md) for details.
+To avoid that, use the `"zlib-ng"` feature instead.
 
 For compatibility with previous versions of `flate2`, the cloudflare optimized
 version of zlib is available, via the `cloudflare_zlib` feature. It's not as
