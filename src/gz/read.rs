@@ -90,13 +90,11 @@ impl<R: Read + Write> Write for GzEncoder<R> {
     }
 }
 
-/// A gzip streaming decoder
+/// A decoder for a single member of a gzip file. Prefer [MultiGzDecoder] for
+/// most uses.
 ///
 /// This structure exposes a [`Read`] interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
-/// Use [`MultiGzDecoder`] if your file has multiple streams.
-///
-/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 ///
 /// # Examples
 ///
@@ -180,21 +178,16 @@ impl<R: Read + Write> Write for GzDecoder<R> {
     }
 }
 
-/// A gzip streaming decoder that decodes all members of a multistream
+/// A gzip streaming decoder that decodes a full [gzip file].
 ///
-/// A gzip member consists of a header, compressed data and a trailer. The [gzip
-/// specification](https://tools.ietf.org/html/rfc1952), however, allows multiple
-/// gzip members to be joined in a single stream.  `MultiGzDecoder` will
-/// decode all consecutive members while [`GzDecoder`] will only decompress the
-/// first gzip member. The multistream format is commonly used in bioinformatics,
-/// for example when using the BGZF compressed data. It's also useful
-/// to compress large amounts of data in parallel where each thread produces one stream
-/// for a chunk of input data.
+/// A gzip file consists of a series of "members" concatenated one after another.
+/// MultiGzDecoder decodes all members of a file, while [GzDecoder] will only decode
+/// the first one member. MultiGzDecoder is preferable in most cases.
 ///
 /// This structure exposes a [`Read`] interface that will consume all gzip members
 /// from the underlying reader and emit uncompressed data.
 ///
-/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+/// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
 ///
 /// # Examples
 ///
