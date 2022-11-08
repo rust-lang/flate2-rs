@@ -115,6 +115,7 @@ pub mod write {
     pub use crate::deflate::write::DeflateEncoder;
     pub use crate::gz::write::GzDecoder;
     pub use crate::gz::write::GzEncoder;
+    pub use crate::gz::write::MultiGzDecoder;
     pub use crate::zlib::write::ZlibDecoder;
     pub use crate::zlib::write::ZlibEncoder;
 }
