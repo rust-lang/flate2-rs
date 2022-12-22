@@ -1,5 +1,3 @@
-extern crate flate2;
-
 use flate2::bufread;
 use std::env::args;
 use std::fs::File;
