@@ -284,7 +284,7 @@ mod tests {
         let mut w = write::GzEncoder::new(Vec::new(), Compression::default());
         let v = crate::random_bytes().take(1024).collect::<Vec<_>>();
         for _ in 0..200 {
-            let to_write = &v[..thread_rng().gen_range(0, v.len())];
+            let to_write = &v[..thread_rng().gen_range(0..v.len())];
             real.extend(to_write.iter().copied());
             w.write_all(to_write).unwrap();
         }
