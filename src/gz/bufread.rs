@@ -50,7 +50,7 @@ fn read_gz_header_part<'a, R: Read>(r: &'a mut Buffer<'a, R>) -> io::Result<()> 
                 }
 
                 r.part.flg = header[3];
-                r.part.header.mtime = (header[4] as u32)
+                r.part.header.mtime = ((header[4] as u32) << 0)
                     | ((header[5] as u32) << 8)
                     | ((header[6] as u32) << 16)
                     | ((header[7] as u32) << 24);
@@ -189,12 +189,12 @@ impl<R: BufRead> GzEncoder<R> {
             return Ok(0);
         }
         let crc = self.inner.get_ref().crc();
-        let arr = &[
-            crc.sum() as u8,
+        let ref arr = [
+            (crc.sum() >> 0) as u8,
             (crc.sum() >> 8) as u8,
             (crc.sum() >> 16) as u8,
             (crc.sum() >> 24) as u8,
-            crc.amount() as u8,
+            (crc.amount() >> 0) as u8,
             (crc.amount() >> 8) as u8,
             (crc.amount() >> 16) as u8,
             (crc.amount() >> 24) as u8,
@@ -225,11 +225,11 @@ impl<R> GzEncoder<R> {
 
 #[inline]
 fn finish(buf: &[u8; 8]) -> (u32, u32) {
-    let crc = (buf[0] as u32)
+    let crc = ((buf[0] as u32) << 0)
         | ((buf[1] as u32) << 8)
         | ((buf[2] as u32) << 16)
         | ((buf[3] as u32) << 24);
-    let amt = (buf[4] as u32)
+    let amt = ((buf[4] as u32) << 0)
         | ((buf[5] as u32) << 8)
         | ((buf[6] as u32) << 16)
         | ((buf[7] as u32) << 24);
