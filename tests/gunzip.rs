@@ -1,5 +1,3 @@
-extern crate flate2;
-
 use flate2::read::GzDecoder;
 use flate2::read::MultiGzDecoder;
 use std::fs::File;
