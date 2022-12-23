@@ -40,9 +40,10 @@ pub struct Decompress {
     inner: Inflate,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 /// Values which indicate the form of flushing to be used when compressing
 /// in-memory data.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[non_exhaustive]
 pub enum FlushCompress {
     /// A typical parameter for passing to compression/decompression functions,
     /// this indicates that the underlying stream to decide how much data to
@@ -80,14 +81,12 @@ pub enum FlushCompress {
     /// The return value may indicate that the stream is not yet done and more
     /// data has yet to be processed.
     Finish = ffi::MZ_FINISH as isize,
-
-    #[doc(hidden)]
-    _Nonexhaustive,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 /// Values which indicate the form of flushing to be used when
 /// decompressing in-memory data.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[non_exhaustive]
 pub enum FlushDecompress {
     /// A typical parameter for passing to compression/decompression functions,
     /// this indicates that the underlying stream to decide how much data to
@@ -108,9 +107,6 @@ pub enum FlushDecompress {
     /// The return value may indicate that the stream is not yet done and more
     /// data has yet to be processed.
     Finish = ffi::MZ_FINISH as isize,
-
-    #[doc(hidden)]
-    _Nonexhaustive,
 }
 
 /// The inner state for an error when decompressing
@@ -362,7 +358,7 @@ impl Compress {
         unsafe {
             let before = self.total_out();
             let ret = {
-                let ptr = output.as_mut_ptr().offset(len as isize);
+                let ptr = output.as_mut_ptr().add(len);
                 let out = slice::from_raw_parts_mut(ptr, cap - len);
                 self.compress(input, out, flush)
             };
@@ -503,7 +499,7 @@ impl Decompress {
         unsafe {
             let before = self.total_out();
             let ret = {
-                let ptr = output.as_mut_ptr().offset(len as isize);
+                let ptr = output.as_mut_ptr().add(len);
                 let out = slice::from_raw_parts_mut(ptr, cap - len);
                 self.decompress(input, out, flush)
             };

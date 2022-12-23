@@ -14,7 +14,7 @@ fn test_extract_success() {
         .unwrap()
         .read_to_end(&mut expected)
         .unwrap();
-    assert!(content == expected);
+    assert_eq!(content, expected);
 }
 //
 // test partial extraction of a multistream gzipped file

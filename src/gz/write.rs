@@ -92,7 +92,7 @@ impl<W: Write> GzEncoder<W> {
         self.inner.finish()?;
 
         while self.crc_bytes_written < 8 {
-            let (sum, amt) = (self.crc.sum() as u32, self.crc.amount());
+            let (sum, amt) = (self.crc.sum(), self.crc.amount());
             let buf = [
                 (sum >> 0) as u8,
                 (sum >> 8) as u8,
@@ -296,7 +296,7 @@ impl<W: Write> GzDecoder<W> {
             | ((self.crc_bytes[5] as u32) << 8)
             | ((self.crc_bytes[6] as u32) << 16)
             | ((self.crc_bytes[7] as u32) << 24);
-        if crc != self.inner.get_ref().crc().sum() as u32 {
+        if crc != self.inner.get_ref().crc().sum() {
             return Err(corrupt());
         }
         if amt != self.inner.get_ref().crc().amount() {
@@ -377,7 +377,7 @@ impl<W: Read + Write> Read for GzDecoder<W> {
 mod tests {
     use super::*;
 
-    const STR: &'static str = "Hello World Hello World Hello World Hello World Hello World \
+    const STR: &str = "Hello World Hello World Hello World Hello World Hello World \
                                Hello World Hello World Hello World Hello World Hello World \
                                Hello World Hello World Hello World Hello World Hello World \
                                Hello World Hello World Hello World Hello World Hello World \

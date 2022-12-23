@@ -74,7 +74,7 @@ fn read_gz_header_part<'a, R: Read>(r: &'a mut Buffer<'a, R>) -> io::Result<()> 
             }
             GzHeaderParsingState::Filename => {
                 if r.part.flg & FNAME != 0 {
-                    if None == r.part.header.filename {
+                    if r.part.header.filename.is_none() {
                         r.part.header.filename = Some(Vec::new());
                     };
                     for byte in r.bytes() {
@@ -88,7 +88,7 @@ fn read_gz_header_part<'a, R: Read>(r: &'a mut Buffer<'a, R>) -> io::Result<()> 
             }
             GzHeaderParsingState::Comment => {
                 if r.part.flg & FCOMMENT != 0 {
-                    if None == r.part.header.comment {
+                    if r.part.header.comment.is_none() {
                         r.part.header.comment = Some(Vec::new());
                     };
                     for byte in r.bytes() {
@@ -718,20 +718,20 @@ pub mod tests {
         }
 
         pub fn set_position(&mut self, pos: u64) {
-            return self.cursor.set_position(pos);
+            self.cursor.set_position(pos)
         }
 
         pub fn position(&mut self) -> u64 {
-            return self.cursor.position();
+            self.cursor.position()
         }
     }
 
     impl Write for BlockingCursor {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            return self.cursor.write(buf);
+            self.cursor.write(buf)
         }
         fn flush(&mut self) -> io::Result<()> {
-            return self.cursor.flush();
+            self.cursor.flush()
         }
     }
 
@@ -751,7 +751,7 @@ pub mod tests {
                 }
                 Ok(_n) => {}
             }
-            return r;
+            r
         }
     }
     #[test]
