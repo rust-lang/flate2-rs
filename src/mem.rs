@@ -211,11 +211,6 @@ impl Compress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
-    ///
-    /// # Note
-    ///
-    /// This constructor is only available when the `zlib` feature is used.
-    /// Other backends currently do not support custom window bits.
     #[cfg(feature = "any_zlib")]
     pub fn new_with_window_bits(
         level: Compression,
@@ -243,11 +238,6 @@ impl Compress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
-    ///
-    /// # Note
-    ///
-    /// This constructor is only available when the `zlib` feature is used.
-    /// Other backends currently do not support gzip headers for Compress.
     #[cfg(feature = "any_zlib")]
     pub fn new_gzip(level: Compression, window_bits: u8) -> Compress {
         assert!(
@@ -389,11 +379,6 @@ impl Decompress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
-    ///
-    /// # Note
-    ///
-    /// This constructor is only available when the `zlib` feature is used.
-    /// Other backends currently do not support custom window bits.
     #[cfg(feature = "any_zlib")]
     pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
         assert!(
@@ -414,11 +399,6 @@ impl Decompress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
-    ///
-    /// # Note
-    ///
-    /// This constructor is only available when the `zlib` feature is used.
-    /// Other backends currently do not support gzip headers for Decompress.
     #[cfg(feature = "any_zlib")]
     pub fn new_gzip(window_bits: u8) -> Decompress {
         assert!(
