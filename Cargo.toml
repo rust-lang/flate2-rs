@@ -39,3 +39,7 @@ zlib-ng = ["any_zlib", "libz-ng-sys"]
 cloudflare_zlib = ["any_zlib", "cloudflare-zlib-sys"]
 rust_backend = ["miniz_oxide"]
 miniz-sys = ["rust_backend"] # For backwards compatibility
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
