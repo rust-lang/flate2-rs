@@ -169,7 +169,7 @@ impl<W: Write> Drop for GzEncoder<W> {
 
 /// A gzip streaming decoder
 ///
-/// This structure exposes a [`Write`] interface that will emit compressed data
+/// This structure exposes a [`Write`] interface that will emit uncompressed data
 /// to the underlying writer `W`.
 ///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
