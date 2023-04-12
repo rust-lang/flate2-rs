@@ -63,7 +63,7 @@ impl Crc {
 
     /// Combine the CRC with the CRC for the subsequent block of bytes.
     pub fn combine(&mut self, additional_crc: &Crc) {
-        self.amt += additional_crc.amt;
+        self.amt = self.amt.wrapping_add(additional_crc.amt);
         self.hasher.combine(&additional_crc.hasher);
     }
 }
