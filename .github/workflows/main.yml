@@ -29,7 +29,7 @@ jobs:
             os: windows-2019
             rust: stable-x86_64-gnu
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v3
     - name: Install Rust (rustup)
       run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
       shell: bash
@@ -49,7 +49,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v3
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup component add rustfmt
     - run: cargo fmt -- --check
@@ -61,7 +61,7 @@ jobs:
       matrix:
         target: [wasm32-unknown-unknown, wasm32-wasi]
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v3
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup target add ${{ matrix.target }}
     - run: cargo build --target ${{ matrix.target }}
