@@ -1,7 +1,7 @@
 [package]
 name = "flate2"
 authors = ["Alex Crichton <alex@alexcrichton.com>", "Josh Triplett <josh@joshtriplett.org>"]
-version = "1.0.25"
+version = "1.0.26"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
