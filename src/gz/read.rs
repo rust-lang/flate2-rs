@@ -276,3 +276,84 @@ impl<R: Read + Write> Write for MultiGzDecoder<R> {
         self.get_mut().flush()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::{Cursor, ErrorKind, Read, Result, Write};
+
+    use super::GzDecoder;
+
+    //a cursor turning EOF into blocking errors
+    #[derive(Debug)]
+    pub struct BlockingCursor {
+        pub cursor: Cursor<Vec<u8>>,
+    }
+
+    impl BlockingCursor {
+        pub fn new() -> BlockingCursor {
+            BlockingCursor {
+                cursor: Cursor::new(Vec::new()),
+            }
+        }
+
+        pub fn set_position(&mut self, pos: u64) {
+            return self.cursor.set_position(pos);
+        }
+    }
+
+    impl Write for BlockingCursor {
+        fn write(&mut self, buf: &[u8]) -> Result<usize> {
+            return self.cursor.write(buf);
+        }
+        fn flush(&mut self) -> Result<()> {
+            return self.cursor.flush();
+        }
+    }
+
+    impl Read for BlockingCursor {
+        fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+            //use the cursor, except it turns eof into blocking error
+            let r = self.cursor.read(buf);
+            match r {
+                Err(ref err) => {
+                    if err.kind() == ErrorKind::UnexpectedEof {
+                        return Err(ErrorKind::WouldBlock.into());
+                    }
+                }
+                Ok(0) => {
+                    //regular EOF turned into blocking error
+                    return Err(ErrorKind::WouldBlock.into());
+                }
+                Ok(_n) => {}
+            }
+            return r;
+        }
+    }
+
+    #[test]
+    fn blocked_partial_header_read() {
+        // this is a reader which receives data afterwards
+        let mut r = BlockingCursor::new();
+        let data = vec![1, 2, 3];
+
+        match r.write_all(&data) {
+            Ok(()) => {}
+            _ => {
+                panic!("Unexpected result for write_all");
+            }
+        }
+        r.set_position(0);
+
+        // this is unused except for the buffering
+        let mut decoder = GzDecoder::new(r);
+        let mut out = Vec::with_capacity(7);
+        match decoder.read(&mut out) {
+            Err(e) => {
+                assert_eq!(e.kind(), ErrorKind::WouldBlock);
+            }
+            _ => {
+                panic!("Unexpected result for decoder.read");
+            }
+        }
+    }
+}
