@@ -3,9 +3,12 @@ use std::io;
 use std::io::prelude::*;
 use std::mem;
 
+use super::corrupt;
+use super::read_gz_header_part;
+use super::Buffer;
+use super::GzHeaderPartial;
 use super::{GzBuilder, GzHeader};
-use super::{FCOMMENT, FEXTRA, FHCRC, FNAME};
-use crate::crc::{Crc, CrcReader};
+use crate::crc::CrcReader;
 use crate::deflate;
 use crate::Compression;
 
@@ -16,112 +19,6 @@ fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
     }
     *pos += min;
     min
-}
-
-pub(crate) fn corrupt() -> io::Error {
-    io::Error::new(
-        io::ErrorKind::InvalidInput,
-        "corrupt gzip stream does not have a matching checksum",
-    )
-}
-
-fn bad_header() -> io::Error {
-    io::Error::new(io::ErrorKind::InvalidInput, "invalid gzip header")
-}
-
-fn read_le_u16<R: Read>(r: &mut Buffer<R>) -> io::Result<u16> {
-    let mut b = [0; 2];
-    r.read_and_forget(&mut b)?;
-    Ok((b[0] as u16) | ((b[1] as u16) << 8))
-}
-
-fn read_gz_header_part<'a, R: Read>(r: &'a mut Buffer<'a, R>) -> io::Result<()> {
-    loop {
-        match r.part.state {
-            GzHeaderParsingState::Start => {
-                let mut header = [0; 10];
-                r.read_and_forget(&mut header)?;
-
-                if header[0] != 0x1f || header[1] != 0x8b {
-                    return Err(bad_header());
-                }
-                if header[2] != 8 {
-                    return Err(bad_header());
-                }
-
-                r.part.flg = header[3];
-                r.part.header.mtime = ((header[4] as u32) << 0)
-                    | ((header[5] as u32) << 8)
-                    | ((header[6] as u32) << 16)
-                    | ((header[7] as u32) << 24);
-                let _xfl = header[8];
-                r.part.header.operating_system = header[9];
-                r.part.state = GzHeaderParsingState::Xlen;
-            }
-            GzHeaderParsingState::Xlen => {
-                if r.part.flg & FEXTRA != 0 {
-                    r.part.xlen = read_le_u16(r)?;
-                }
-                r.part.state = GzHeaderParsingState::Extra;
-            }
-            GzHeaderParsingState::Extra => {
-                if r.part.flg & FEXTRA != 0 {
-                    let mut extra = vec![0; r.part.xlen as usize];
-                    r.read_and_forget(&mut extra)?;
-                    r.part.header.extra = Some(extra);
-                }
-                r.part.state = GzHeaderParsingState::Filename;
-            }
-            GzHeaderParsingState::Filename => {
-                if r.part.flg & FNAME != 0 {
-                    if r.part.header.filename.is_none() {
-                        r.part.header.filename = Some(Vec::new());
-                    };
-                    for byte in r.bytes() {
-                        let byte = byte?;
-                        if byte == 0 {
-                            break;
-                        }
-                    }
-                }
-                r.part.state = GzHeaderParsingState::Comment;
-            }
-            GzHeaderParsingState::Comment => {
-                if r.part.flg & FCOMMENT != 0 {
-                    if r.part.header.comment.is_none() {
-                        r.part.header.comment = Some(Vec::new());
-                    };
-                    for byte in r.bytes() {
-                        let byte = byte?;
-                        if byte == 0 {
-                            break;
-                        }
-                    }
-                }
-                r.part.state = GzHeaderParsingState::Crc;
-            }
-            GzHeaderParsingState::Crc => {
-                if r.part.flg & FHCRC != 0 {
-                    let stored_crc = read_le_u16(r)?;
-                    let calced_crc = r.part.crc.sum() as u16;
-                    if stored_crc != calced_crc {
-                        return Err(corrupt());
-                    }
-                }
-                return Ok(());
-            }
-        }
-    }
-}
-
-pub(crate) fn read_gz_header<R: Read>(r: &mut R) -> io::Result<GzHeader> {
-    let mut part = GzHeaderPartial::new();
-
-    let result = {
-        let mut reader = Buffer::new(&mut part, r);
-        read_gz_header_part(&mut reader)
-    };
-    result.map(|()| part.take_header())
 }
 
 /// A gzip streaming encoder
@@ -312,126 +209,12 @@ pub struct GzDecoder<R> {
 }
 
 #[derive(Debug)]
-pub enum GzHeaderParsingState {
-    Start,
-    Xlen,
-    Extra,
-    Filename,
-    Comment,
-    Crc,
-}
-
-#[derive(Debug)]
-pub struct GzHeaderPartial {
-    buf: Vec<u8>,
-    state: GzHeaderParsingState,
-    flg: u8,
-    xlen: u16,
-    crc: Crc,
-    header: GzHeader,
-}
-
-impl GzHeaderPartial {
-    fn new() -> GzHeaderPartial {
-        GzHeaderPartial {
-            buf: Vec::with_capacity(10), // minimum header length
-            state: GzHeaderParsingState::Start,
-            flg: 0,
-            xlen: 0,
-            crc: Crc::new(),
-            header: GzHeader {
-                extra: None,
-                filename: None,
-                comment: None,
-                operating_system: 0,
-                mtime: 0,
-            },
-        }
-    }
-
-    pub fn take_header(self) -> GzHeader {
-        self.header
-    }
-}
-
-#[derive(Debug)]
 enum GzState {
     Header(GzHeaderPartial),
     Body,
     Finished(usize, [u8; 8]),
     Err(io::Error),
     End,
-}
-
-/// A small adapter which reads data originally from `buf` and then reads all
-/// further data from `reader`. This will also buffer all data read from
-/// `reader` into `buf` for reuse on a further call.
-struct Buffer<'a, T: 'a> {
-    part: &'a mut GzHeaderPartial,
-    buf_cur: usize,
-    buf_max: usize,
-    reader: &'a mut T,
-}
-
-impl<'a, T> Buffer<'a, T> {
-    fn new(part: &'a mut GzHeaderPartial, reader: &'a mut T) -> Buffer<'a, T> {
-        Buffer {
-            reader,
-            buf_cur: 0,
-            buf_max: part.buf.len(),
-            part,
-        }
-    }
-}
-
-impl<'a, T: Read> Read for Buffer<'a, T> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let mut bufref = match self.part.state {
-            GzHeaderParsingState::Filename => self.part.header.filename.as_mut(),
-            GzHeaderParsingState::Comment => self.part.header.comment.as_mut(),
-            _ => None,
-        };
-        if let Some(ref mut b) = bufref {
-            // we have a direct reference to a buffer where to write
-            let len = self.reader.read(buf)?;
-            if len > 0 && buf[len - 1] == 0 {
-                // we do not append the final 0
-                b.extend_from_slice(&buf[..len - 1]);
-            } else {
-                b.extend_from_slice(&buf[..len]);
-            }
-            self.part.crc.update(&buf[..len]);
-            Ok(len)
-        } else if self.buf_cur == self.buf_max {
-            // we read new bytes and also save them in self.part.buf
-            let len = self.reader.read(buf)?;
-            self.part.buf.extend_from_slice(&buf[..len]);
-            self.part.crc.update(&buf[..len]);
-            Ok(len)
-        } else {
-            // we first read the previously saved bytes
-            let len = (&self.part.buf[self.buf_cur..self.buf_max]).read(buf)?;
-            self.buf_cur += len;
-            Ok(len)
-        }
-    }
-}
-
-impl<'a, T> Buffer<'a, T>
-where
-    T: std::io::Read,
-{
-    // If we manage to read all the bytes, we reset the buffer
-    fn read_and_forget(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.read_exact(buf)?;
-        // we managed to read the whole buf
-        // we will no longer need the previously saved bytes in self.part.buf
-        let rlen = buf.len();
-        self.part.buf.truncate(0);
-        self.buf_cur = 0;
-        self.buf_max = 0;
-        Ok(rlen)
-    }
 }
 
 impl<R: BufRead> GzDecoder<R> {
