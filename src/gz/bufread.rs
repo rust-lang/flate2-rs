@@ -305,8 +305,7 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
 /// ```
 #[derive(Debug)]
 pub struct GzDecoder<R> {
-    inner: GzState,
-    header: Option<GzHeader>,
+    state: GzState,
     reader: CrcReader<deflate::bufread::DeflateDecoder<R>>,
     multi: bool,
 }
@@ -357,10 +356,10 @@ impl GzHeaderPartial {
 #[derive(Debug)]
 enum GzState {
     Header(GzHeaderPartial),
-    Body,
-    Finished(usize, [u8; 8]),
+    Body(GzHeader),
+    Finished(GzHeader, usize, [u8; 8]),
     Err(io::Error),
-    End,
+    End(Option<GzHeader>),
 }
 
 /// A small adapter which reads data originally from `buf` and then reads all
@@ -439,7 +438,6 @@ impl<R: BufRead> GzDecoder<R> {
     /// gzip header.
     pub fn new(mut r: R) -> GzDecoder<R> {
         let mut part = GzHeaderPartial::new();
-        let mut header = None;
 
         let result = {
             let mut reader = Buffer::new(&mut part, &mut r);
@@ -448,18 +446,17 @@ impl<R: BufRead> GzDecoder<R> {
 
         let state = match result {
             Ok(()) => {
-                header = Some(part.take_header());
-                GzState::Body
+                let header = part.take_header();
+                GzState::Body(header)
             }
             Err(ref err) if io::ErrorKind::WouldBlock == err.kind() => GzState::Header(part),
             Err(err) => GzState::Err(err),
         };
 
         GzDecoder {
-            inner: state,
+            state,
             reader: CrcReader::new(deflate::bufread::DeflateDecoder::new(r)),
             multi: false,
-            header,
         }
     }
 
@@ -472,7 +469,11 @@ impl<R: BufRead> GzDecoder<R> {
 impl<R> GzDecoder<R> {
     /// Returns the header associated with this stream, if it was valid
     pub fn header(&self) -> Option<&GzHeader> {
-        self.header.as_ref()
+        match &self.state {
+            GzState::Body(header) | GzState::Finished(header, _, _) => Some(header),
+            GzState::End(header) => header.as_ref(),
+            _ => None,
+        }
     }
 
     /// Acquires a reference to the underlying reader.
@@ -497,14 +498,13 @@ impl<R> GzDecoder<R> {
 impl<R: BufRead> Read for GzDecoder<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         let GzDecoder {
-            inner,
-            header,
+            state,
             reader,
             multi,
         } = self;
 
         loop {
-            *inner = match mem::replace(inner, GzState::End) {
+            *state = match mem::replace(state, GzState::End(None)) {
                 GzState::Header(mut part) => {
                     let result = {
                         let mut reader = Buffer::new(&mut part, reader.get_mut().get_mut());
@@ -512,94 +512,92 @@ impl<R: BufRead> Read for GzDecoder<R> {
                     };
                     match result {
                         Ok(()) => {
-                            *header = Some(part.take_header());
-                            GzState::Body
+                            let header = part.take_header();
+                            GzState::Body(header)
                         }
                         Err(err) if io::ErrorKind::WouldBlock == err.kind() => {
-                            *inner = GzState::Header(part);
+                            *state = GzState::Header(part);
                             return Err(err);
                         }
                         Err(err) => return Err(err),
                     }
                 }
-                GzState::Body => {
+                GzState::Body(header) => {
                     if into.is_empty() {
-                        *inner = GzState::Body;
+                        *state = GzState::Body(header);
                         return Ok(0);
                     }
 
-                    let n = reader.read(into).map_err(|err| {
-                        if io::ErrorKind::WouldBlock == err.kind() {
-                            *inner = GzState::Body;
-                        }
+                    let n = match reader.read(into) {
+                        Ok(n) => n,
+                        Err(err) => {
+                            if io::ErrorKind::WouldBlock == err.kind() {
+                                *state = GzState::Body(header);
+                            }
 
-                        err
-                    })?;
+                            return Err(err);
+                        }
+                    };
 
                     match n {
-                        0 => GzState::Finished(0, [0; 8]),
+                        0 => GzState::Finished(header, 0, [0; 8]),
                         n => {
-                            *inner = GzState::Body;
+                            *state = GzState::Body(header);
                             return Ok(n);
                         }
                     }
                 }
-                GzState::Finished(pos, mut buf) => {
+                GzState::Finished(header, pos, mut buf) => {
                     if pos < buf.len() {
-                        let n = reader
-                            .get_mut()
-                            .get_mut()
-                            .read(&mut buf[pos..])
-                            .and_then(|n| {
+                        let n = match reader.get_mut().get_mut().read(&mut buf[pos..]) {
+                            Ok(n) => {
                                 if n == 0 {
-                                    Err(io::ErrorKind::UnexpectedEof.into())
+                                    return Err(io::ErrorKind::UnexpectedEof.into());
                                 } else {
-                                    Ok(n)
+                                    n
                                 }
-                            })
-                            .map_err(|err| {
+                            }
+                            Err(err) => {
                                 if io::ErrorKind::WouldBlock == err.kind() {
-                                    *inner = GzState::Finished(pos, buf);
+                                    *state = GzState::Finished(header, pos, buf);
                                 }
 
-                                err
-                            })?;
+                                return Err(err);
+                            }
+                        };
 
-                        GzState::Finished(pos + n, buf)
+                        GzState::Finished(header, pos + n, buf)
                     } else {
                         let (crc, amt) = finish(&buf);
 
                         if crc != reader.crc().sum() || amt != reader.crc().amount() {
                             return Err(corrupt());
                         } else if *multi {
-                            let is_eof = reader
-                                .get_mut()
-                                .get_mut()
-                                .fill_buf()
-                                .map(|buf| buf.is_empty())
-                                .map_err(|err| {
+                            let is_eof = match reader.get_mut().get_mut().fill_buf() {
+                                Ok(buf) => buf.is_empty(),
+                                Err(err) => {
                                     if io::ErrorKind::WouldBlock == err.kind() {
-                                        *inner = GzState::Finished(pos, buf);
+                                        *state = GzState::Finished(header, pos, buf);
                                     }
 
-                                    err
-                                })?;
+                                    return Err(err);
+                                }
+                            };
 
                             if is_eof {
-                                GzState::End
+                                GzState::End(Some(header))
                             } else {
                                 reader.reset();
                                 reader.get_mut().reset_data();
-                                header.take();
                                 GzState::Header(GzHeaderPartial::new())
                             }
                         } else {
-                            GzState::End
+                            GzState::End(Some(header))
                         }
                     }
                 }
                 GzState::Err(err) => return Err(err),
-                GzState::End => return Ok(0),
+                GzState::End(_) => return Ok(0),
             };
         }
     }
