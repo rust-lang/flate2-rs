@@ -171,6 +171,7 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
 ///
 /// This structure consumes a [`BufRead`] interface, reading compressed data
 /// from the underlying reader, and emitting uncompressed data.
+/// Use [`MultiGzDecoder`] if your file has multiple streams.
 ///
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 ///

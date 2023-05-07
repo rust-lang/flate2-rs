@@ -94,13 +94,13 @@ impl<R: Read + Write> Write for GzEncoder<R> {
 ///
 /// This structure exposes a [`Read`] interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
+/// Use [`MultiGzDecoder`] if your file has multiple streams.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 ///
 /// # Examples
 ///
 /// ```
-///
 /// use std::io::prelude::*;
 /// use std::io;
 /// # use flate2::Compression;
