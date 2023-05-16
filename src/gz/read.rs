@@ -237,9 +237,9 @@ impl<R: Read> MultiGzDecoder<R> {
 }
 
 impl<R> MultiGzDecoder<R> {
-    /// Returns the current header associated with this stream, if it's valid.
-    pub fn header(&self) -> Option<&GzHeader> {
-        self.inner.header()
+    /// Returns the headers processed so far
+    pub fn headers(&self) -> Vec<&GzHeader> {
+        self.inner.headers()
     }
 
     /// Acquires a reference to the underlying reader.

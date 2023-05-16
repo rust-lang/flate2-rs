@@ -205,6 +205,7 @@ pub struct GzDecoder<R> {
     state: GzState,
     reader: CrcReader<deflate::bufread::DeflateDecoder<R>>,
     multi: bool,
+    headers: Vec<GzHeader>,
 }
 
 #[derive(Debug)]
@@ -240,6 +241,7 @@ impl<R: BufRead> GzDecoder<R> {
             state,
             reader: CrcReader::new(deflate::bufread::DeflateDecoder::new(r)),
             multi: false,
+            headers: Vec::new(),
         }
     }
 
@@ -284,6 +286,7 @@ impl<R: BufRead> Read for GzDecoder<R> {
             state,
             reader,
             multi,
+            headers,
         } = self;
 
         loop {
@@ -366,9 +369,10 @@ impl<R: BufRead> Read for GzDecoder<R> {
                                     return Err(err);
                                 }
                             };
+                            headers.push(header);
 
                             if is_eof {
-                                GzState::End(Some(header))
+                                GzState::End(None)
                             } else {
                                 reader.reset();
                                 reader.get_mut().reset_data();
@@ -449,9 +453,13 @@ impl<R: BufRead> MultiGzDecoder<R> {
 }
 
 impl<R> MultiGzDecoder<R> {
-    /// Returns the current header associated with this stream, if it's valid
-    pub fn header(&self) -> Option<&GzHeader> {
-        self.0.header()
+    /// Returns the headers processed so far
+    pub fn headers(&self) -> Vec<&GzHeader> {
+        let mut hdrs: Vec<&GzHeader> = self.0.headers.iter().collect();
+        if let Some(hdr) = &self.0.header() {
+            hdrs.push(hdr)
+        }
+        hdrs
     }
 
     /// Acquires a reference to the underlying reader.
