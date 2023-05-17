@@ -154,7 +154,7 @@ fn _assert_send_sync() {
 }
 
 /// When compressing data, the compression level can be specified by a value in
-/// this enum.
+/// this struct.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct Compression(u32);
 
