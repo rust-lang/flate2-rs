@@ -25,11 +25,11 @@ use crate::Compression;
 /// // Return a vector containing the GZ compressed version of hello world
 ///
 /// fn gzencode_hello_world() -> io::Result<Vec<u8>> {
-///     let mut ret_vec = [0;100];
+///     let mut ret_vec = Vec::new();
 ///     let bytestring = b"hello world";
 ///     let mut gz = GzEncoder::new(&bytestring[..], Compression::fast());
-///     let count = gz.read(&mut ret_vec)?;
-///     Ok(ret_vec[0..count].to_vec())
+///     let count = gz.read_to_end(&mut ret_vec)?;
+///     Ok(ret_vec)
 /// }
 /// ```
 #[derive(Debug)]
