@@ -32,13 +32,14 @@ quickcheck = { version = "1.0", default-features = false }
 
 [features]
 default = ["rust_backend"]
-any_zlib = [] # note: this is not a real user-facing feature
+any_zlib = ["any_impl"] # note: this is not a real user-facing feature
+any_impl = [] # note: this is not a real user-facing feature
 zlib = ["any_zlib", "libz-sys"]
 zlib-default = ["any_zlib", "libz-sys/default"]
 zlib-ng-compat = ["zlib", "libz-sys/zlib-ng"]
 zlib-ng = ["any_zlib", "libz-ng-sys"]
 cloudflare_zlib = ["any_zlib", "cloudflare-zlib-sys"]
-rust_backend = ["miniz_oxide"]
+rust_backend = ["miniz_oxide", "any_impl"]
 miniz-sys = ["rust_backend"] # For backwards compatibility
 
 [package.metadata.docs.rs]
