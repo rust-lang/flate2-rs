@@ -44,6 +44,14 @@ impl<W: Write> ZlibEncoder<W> {
         }
     }
 
+    /// Same as `new` but with the ability to add a `Compress` instance rather
+    /// than a `Compression` instance.
+    pub fn new_with_compress(w: W, compress: crate::Compress) -> ZlibEncoder<W> {
+        ZlibEncoder {
+            inner: zio::Writer::new(w, compress),
+        }
+    }
+
     /// Acquires a reference to the underlying writer.
     pub fn get_ref(&self) -> &W {
         self.inner.get_ref()
@@ -215,6 +223,13 @@ impl<W: Write> ZlibDecoder<W> {
     pub fn new(w: W) -> ZlibDecoder<W> {
         ZlibDecoder {
             inner: zio::Writer::new(w, Decompress::new(true)),
+        }
+    }
+
+    /// This is like `new` but with a supplied `Decompress` instance.
+    pub fn new_with_decompress(w: W, decomp: Decompress) -> ZlibDecoder<W> {
+        ZlibDecoder {
+            inner: zio::Writer::new(w, decomp),
         }
     }
 

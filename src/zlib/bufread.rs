@@ -47,6 +47,15 @@ impl<R: BufRead> ZlibEncoder<R> {
             data: Compress::new(level, true),
         }
     }
+
+    /// Same as `new` but instead of passing a `Compression` instance,
+    /// a `Compress` instance is passed.
+    pub fn new_with_compress(r: R, compress: crate::Compress) -> ZlibEncoder<R> {
+        ZlibEncoder {
+            obj: r,
+            data: compress,
+        }
+    }
 }
 
 pub fn reset_encoder_data<R>(zlib: &mut ZlibEncoder<R>) {
@@ -163,6 +172,17 @@ impl<R: BufRead> ZlibDecoder<R> {
         ZlibDecoder {
             obj: r,
             data: Decompress::new(true),
+        }
+    }
+
+    /// Creates a new decoder which will decompress data read from the given
+    /// stream.
+    ///
+    /// Also takes in a Decompress instance.
+    pub fn new_with_decompress(r: R, decompress: Decompress) -> ZlibDecoder<R> {
+        ZlibDecoder {
+            obj: r,
+            data: decompress,
         }
     }
 }

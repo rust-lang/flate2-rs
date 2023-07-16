@@ -3,6 +3,7 @@ use std::io::prelude::*;
 
 use super::bufread;
 use crate::bufreader::BufReader;
+use crate::Decompress;
 
 /// A ZLIB encoder, or compressor.
 ///
@@ -40,6 +41,14 @@ impl<R: Read> ZlibEncoder<R> {
     pub fn new(r: R, level: crate::Compression) -> ZlibEncoder<R> {
         ZlibEncoder {
             inner: bufread::ZlibEncoder::new(BufReader::new(r), level),
+        }
+    }
+
+    /// Same as `new` but with the ability to add a `Compress` instance rather
+    /// than a `Compression` instance.
+    pub fn new_with_compress(r: R, compress: crate::Compress) -> ZlibEncoder<R> {
+        ZlibEncoder {
+            inner: bufread::ZlibEncoder::new_with_compress(BufReader::new(r), compress),
         }
     }
 }
@@ -167,6 +176,31 @@ impl<R: Read> ZlibDecoder<R> {
     pub fn new_with_buf(r: R, buf: Vec<u8>) -> ZlibDecoder<R> {
         ZlibDecoder {
             inner: bufread::ZlibDecoder::new(BufReader::with_buf(buf, r)),
+        }
+    }
+
+    /// Creates a new decoder which will decompress data read from the given
+    /// stream.
+    ///
+    /// Also takes in a custom Decompress instance.
+    pub fn new_with_decompress(r: R, decompress: Decompress) -> ZlibDecoder<R> {
+        ZlibDecoder::new_with_decompress_and_buf(r, vec![0; 32 * 1024], decompress)
+    }
+
+    /// Same as `new_with_decompress`, but the intermediate buffer for data is specified.
+    ///
+    /// Note that the specified buffer will only be used up to its current
+    /// length. The buffer's capacity will also not grow over time.
+    pub fn new_with_decompress_and_buf(
+        r: R,
+        buf: Vec<u8>,
+        decompress: Decompress,
+    ) -> ZlibDecoder<R> {
+        ZlibDecoder {
+            inner: bufread::ZlibDecoder::new_with_decompress(
+                BufReader::with_buf(buf, r),
+                decompress,
+            ),
         }
     }
 }
