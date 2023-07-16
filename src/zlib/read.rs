@@ -182,7 +182,7 @@ impl<R: Read> ZlibDecoder<R> {
     /// Creates a new decoder which will decompress data read from the given
     /// stream.
     ///
-    /// Also takes in a custom Decompress instance.
+    /// Also takes in a custom `Decompress` instance.
     pub fn new_with_decompress(r: R, decompress: Decompress) -> ZlibDecoder<R> {
         ZlibDecoder::new_with_decompress_and_buf(r, vec![0; 32 * 1024], decompress)
     }
