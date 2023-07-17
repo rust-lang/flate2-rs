@@ -182,7 +182,7 @@ impl GzHeaderParser {
                         read_to_nul(r, filename)?;
                         if let Some(crc) = crc {
                             crc.update(filename);
-                            crc.update(b"0");
+                            crc.update(b"\0");
                         }
                     }
                     self.state = GzHeaderState::Comment(crc.take());
@@ -193,7 +193,7 @@ impl GzHeaderParser {
                         read_to_nul(r, comment)?;
                         if let Some(crc) = crc {
                             crc.update(comment);
-                            crc.update(b"0");
+                            crc.update(b"\0");
                         }
                     }
                     self.state = GzHeaderState::Crc(crc.take(), 0, [0; 2]);
@@ -457,8 +457,8 @@ impl GzBuilder {
 mod tests {
     use std::io::prelude::*;
 
-    use super::{read, write, GzBuilder};
-    use crate::Compression;
+    use super::{read, write, GzBuilder, GzHeaderParser};
+    use crate::{Compression, GzHeader};
     use rand::{thread_rng, Rng};
 
     #[test]
@@ -506,6 +506,85 @@ mod tests {
         let mut res = Vec::new();
         r.read_to_end(&mut res).unwrap();
         assert_eq!(res, v);
+    }
+
+    // A Rust implementation of CRC that closely matches the C code in RFC1952.
+    // Only use this to create CRCs for tests.
+    struct Rfc1952Crc {
+        /* Table of CRCs of all 8-bit messages. */
+        crc_table: [u32; 256],
+    }
+
+    impl Rfc1952Crc {
+        fn new() -> Self {
+            let mut crc = Rfc1952Crc {
+                crc_table: [0; 256],
+            };
+            /* Make the table for a fast CRC. */
+            for n in 0usize..256 {
+                let mut c = n as u32;
+                for _k in 0..8 {
+                    if c & 1 != 0 {
+                        c = 0xedb88320 ^ (c >> 1);
+                    } else {
+                        c = c >> 1;
+                    }
+                }
+                crc.crc_table[n] = c;
+            }
+            crc
+        }
+
+        /*
+         Update a running crc with the bytes buf and return
+         the updated crc. The crc should be initialized to zero. Pre- and
+         post-conditioning (one's complement) is performed within this
+         function so it shouldn't be done by the caller.
+        */
+        fn update_crc(&self, crc: u32, buf: &[u8]) -> u32 {
+            let mut c = crc ^ 0xffffffff;
+
+            for b in buf {
+                c = self.crc_table[(c as u8 ^ *b) as usize] ^ (c >> 8);
+            }
+            c ^ 0xffffffff
+        }
+
+        /* Return the CRC of the bytes buf. */
+        fn crc(&self, buf: &[u8]) -> u32 {
+            self.update_crc(0, buf)
+        }
+    }
+
+    #[test]
+    fn roundtrip_header() {
+        let mut header = GzBuilder::new()
+            .mtime(1234)
+            .operating_system(57)
+            .filename("filename")
+            .comment("comment")
+            .into_header(Compression::fast());
+
+        // Add a CRC to the header
+        header[3] = header[3] ^ super::FHCRC;
+        let rfc1952_crc = Rfc1952Crc::new();
+        let crc32 = rfc1952_crc.crc(&header);
+        let crc16 = crc32 as u16;
+        header.extend(&crc16.to_le_bytes());
+
+        let mut parser = GzHeaderParser::new();
+        parser.parse(&mut header.as_slice()).unwrap();
+        let actual = parser.header().unwrap();
+        assert_eq!(
+            actual,
+            &GzHeader {
+                extra: None,
+                filename: Some("filename".as_bytes().to_vec()),
+                comment: Some("comment".as_bytes().to_vec()),
+                operating_system: 57,
+                mtime: 1234
+            }
+        )
     }
 
     #[test]
