@@ -397,11 +397,11 @@ impl<R: BufRead + Write> Write for GzDecoder<R> {
     }
 }
 
-/// A gzip streaming decoder that decodes a full [gzip file].
+/// A gzip streaming decoder that decodes a complete [gzip file].
 ///
 /// A gzip file consists of a series of "members" concatenated one after another.
 /// MultiGzDecoder decodes all members of a file, while [GzDecoder] will only decode
-/// the first one member. MultiGzDecoder is preferable in most cases.
+/// the first member. MultiGzDecoder is preferable in most cases.
 ///
 /// This structure exposes a [`BufRead`] interface that will consume all gzip members
 /// from the underlying reader and emit uncompressed data.
