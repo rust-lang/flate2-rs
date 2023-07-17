@@ -25,7 +25,7 @@ use crate::bufreader::BufReader;
 /// let f = File::open("examples/hello_world.txt")?;
 /// let mut z = ZlibEncoder::new(f, Compression::fast());
 /// let mut buffer = Vec::new();
-/// let byte_count = z.read_to_end(&mut buffer)?;
+/// z.read_to_end(&mut buffer)?;
 /// # Ok(buffer)
 /// # }
 /// ```

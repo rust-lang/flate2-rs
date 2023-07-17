@@ -28,7 +28,7 @@ use crate::Compression;
 ///     let mut ret_vec = Vec::new();
 ///     let bytestring = b"hello world";
 ///     let mut gz = GzEncoder::new(&bytestring[..], Compression::fast());
-///     let count = gz.read_to_end(&mut ret_vec)?;
+///     gz.read_to_end(&mut ret_vec)?;
 ///     Ok(ret_vec)
 /// }
 /// ```
