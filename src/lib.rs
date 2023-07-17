@@ -78,6 +78,9 @@
 #![cfg_attr(test, deny(warnings))]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
+#[cfg(not(feature = "any_impl",))]
+compile_error!("You need to choose a zlib backend");
+
 pub use crate::crc::{Crc, CrcReader, CrcWriter};
 pub use crate::gz::GzBuilder;
 pub use crate::gz::GzHeader;
@@ -154,7 +157,7 @@ fn _assert_send_sync() {
 }
 
 /// When compressing data, the compression level can be specified by a value in
-/// this enum.
+/// this struct.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct Compression(u32);
 

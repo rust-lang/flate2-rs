@@ -25,11 +25,11 @@ use crate::Compression;
 /// // Return a vector containing the GZ compressed version of hello world
 ///
 /// fn gzencode_hello_world() -> io::Result<Vec<u8>> {
-///     let mut ret_vec = [0;100];
+///     let mut ret_vec = Vec::new();
 ///     let bytestring = b"hello world";
 ///     let mut gz = GzEncoder::new(&bytestring[..], Compression::fast());
-///     let count = gz.read(&mut ret_vec)?;
-///     Ok(ret_vec[0..count].to_vec())
+///     gz.read_to_end(&mut ret_vec)?;
+///     Ok(ret_vec)
 /// }
 /// ```
 #[derive(Debug)]
@@ -94,13 +94,13 @@ impl<R: Read + Write> Write for GzEncoder<R> {
 ///
 /// This structure exposes a [`Read`] interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
+/// Use [`MultiGzDecoder`] if your file has multiple streams.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 ///
 /// # Examples
 ///
 /// ```
-///
 /// use std::io::prelude::*;
 /// use std::io;
 /// # use flate2::Compression;
@@ -185,9 +185,11 @@ impl<R: Read + Write> Write for GzDecoder<R> {
 /// A gzip member consists of a header, compressed data and a trailer. The [gzip
 /// specification](https://tools.ietf.org/html/rfc1952), however, allows multiple
 /// gzip members to be joined in a single stream.  `MultiGzDecoder` will
-/// decode all consecutive members while `GzDecoder` will only decompress the
+/// decode all consecutive members while [`GzDecoder`] will only decompress the
 /// first gzip member. The multistream format is commonly used in bioinformatics,
-/// for example when using the BGZF compressed data.
+/// for example when using the BGZF compressed data. It's also useful
+/// to compress large amounts of data in parallel where each thread produces one stream
+/// for a chunk of input data.
 ///
 /// This structure exposes a [`Read`] interface that will consume all gzip members
 /// from the underlying reader and emit uncompressed data.
