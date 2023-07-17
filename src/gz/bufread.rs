@@ -3,11 +3,7 @@ use std::io;
 use std::io::prelude::*;
 use std::mem;
 
-use super::corrupt;
-use super::read_gz_header_part;
-use super::Buffer;
-use super::GzHeaderPartial;
-use super::{GzBuilder, GzHeader};
+use super::{corrupt, read_into, GzBuilder, GzHeader, GzHeaderParser};
 use crate::crc::CrcReader;
 use crate::deflate;
 use crate::Compression;
@@ -210,7 +206,7 @@ pub struct GzDecoder<R> {
 
 #[derive(Debug)]
 enum GzState {
-    Header(GzHeaderPartial),
+    Header(GzHeaderParser),
     Body(GzHeader),
     Finished(GzHeader, usize, [u8; 8]),
     Err(io::Error),
@@ -221,19 +217,13 @@ impl<R: BufRead> GzDecoder<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// gzip header.
     pub fn new(mut r: R) -> GzDecoder<R> {
-        let mut part = GzHeaderPartial::new();
+        let mut header_parser = GzHeaderParser::new();
 
-        let result = {
-            let mut reader = Buffer::new(&mut part, &mut r);
-            read_gz_header_part(&mut reader)
-        };
-
-        let state = match result {
-            Ok(()) => {
-                let header = part.take_header();
-                GzState::Body(header)
+        let state = match header_parser.parse(&mut r) {
+            Ok(_) => GzState::Body(GzHeader::from(header_parser)),
+            Err(ref err) if io::ErrorKind::WouldBlock == err.kind() => {
+                GzState::Header(header_parser)
             }
-            Err(ref err) if io::ErrorKind::WouldBlock == err.kind() => GzState::Header(part),
             Err(err) => GzState::Err(err),
         };
 
@@ -281,108 +271,61 @@ impl<R> GzDecoder<R> {
 
 impl<R: BufRead> Read for GzDecoder<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
-        let GzDecoder {
-            state,
-            reader,
-            multi,
-        } = self;
-
         loop {
-            *state = match mem::replace(state, GzState::End(None)) {
-                GzState::Header(mut part) => {
-                    let result = {
-                        let mut reader = Buffer::new(&mut part, reader.get_mut().get_mut());
-                        read_gz_header_part(&mut reader)
-                    };
-                    match result {
-                        Ok(()) => {
-                            let header = part.take_header();
-                            GzState::Body(header)
-                        }
-                        Err(err) if io::ErrorKind::WouldBlock == err.kind() => {
-                            *state = GzState::Header(part);
-                            return Err(err);
-                        }
-                        Err(err) => return Err(err),
-                    }
+            match &mut self.state {
+                GzState::Header(parser) => {
+                    parser.parse(self.reader.get_mut().get_mut())?;
+                    self.state = GzState::Body(GzHeader::from(mem::take(parser)));
                 }
                 GzState::Body(header) => {
                     if into.is_empty() {
-                        *state = GzState::Body(header);
                         return Ok(0);
                     }
-
-                    let n = match reader.read(into) {
-                        Ok(n) => n,
-                        Err(err) => {
-                            if io::ErrorKind::WouldBlock == err.kind() {
-                                *state = GzState::Body(header);
-                            }
-
-                            return Err(err);
+                    match self.reader.read(into)? {
+                        0 => {
+                            self.state = GzState::Finished(mem::take(header), 0, [0; 8]);
                         }
-                    };
-
-                    match n {
-                        0 => GzState::Finished(header, 0, [0; 8]),
                         n => {
-                            *state = GzState::Body(header);
                             return Ok(n);
                         }
                     }
                 }
-                GzState::Finished(header, pos, mut buf) => {
-                    if pos < buf.len() {
-                        let n = match reader.get_mut().get_mut().read(&mut buf[pos..]) {
-                            Ok(n) => {
-                                if n == 0 {
-                                    return Err(io::ErrorKind::UnexpectedEof.into());
-                                } else {
-                                    n
-                                }
-                            }
-                            Err(err) => {
-                                if io::ErrorKind::WouldBlock == err.kind() {
-                                    *state = GzState::Finished(header, pos, buf);
-                                }
-
-                                return Err(err);
-                            }
-                        };
-
-                        GzState::Finished(header, pos + n, buf)
+                GzState::Finished(header, pos, buf) => {
+                    if *pos < buf.len() {
+                        *pos += read_into(self.reader.get_mut().get_mut(), &mut buf[*pos..])?;
                     } else {
                         let (crc, amt) = finish(&buf);
 
-                        if crc != reader.crc().sum() || amt != reader.crc().amount() {
+                        if crc != self.reader.crc().sum() || amt != self.reader.crc().amount() {
+                            self.state = GzState::End(Some(mem::take(header)));
                             return Err(corrupt());
-                        } else if *multi {
-                            let is_eof = match reader.get_mut().get_mut().fill_buf() {
-                                Ok(buf) => buf.is_empty(),
-                                Err(err) => {
-                                    if io::ErrorKind::WouldBlock == err.kind() {
-                                        *state = GzState::Finished(header, pos, buf);
-                                    }
-
-                                    return Err(err);
-                                }
-                            };
+                        } else if self.multi {
+                            let is_eof = self
+                                .reader
+                                .get_mut()
+                                .get_mut()
+                                .fill_buf()
+                                .map(|buf| buf.is_empty())?;
 
                             if is_eof {
-                                GzState::End(Some(header))
+                                self.state = GzState::End(Some(mem::take(header)));
                             } else {
-                                reader.reset();
-                                reader.get_mut().reset_data();
-                                GzState::Header(GzHeaderPartial::new())
+                                self.reader.reset();
+                                self.reader.get_mut().reset_data();
+                                self.state = GzState::Header(GzHeaderParser::new())
                             }
                         } else {
-                            GzState::End(Some(header))
+                            self.state = GzState::End(Some(mem::take(header)));
                         }
                     }
                 }
-                GzState::Err(err) => return Err(err),
+                GzState::Err(err) => {
+                    let result = Err(mem::replace(err, io::ErrorKind::Other.into()));
+                    self.state = GzState::End(None);
+                    return result;
+                }
                 GzState::End(_) => return Ok(0),
-            };
+            }
         }
     }
 }
@@ -479,158 +422,5 @@ impl<R> MultiGzDecoder<R> {
 impl<R: BufRead> Read for MultiGzDecoder<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         self.0.read(into)
-    }
-}
-
-#[cfg(test)]
-pub mod tests {
-    use crate::gz::bufread::*;
-    use std::io;
-    use std::io::{Cursor, Read, Write};
-
-    //a cursor turning EOF into blocking errors
-    #[derive(Debug)]
-    pub struct BlockingCursor {
-        pub cursor: Cursor<Vec<u8>>,
-    }
-
-    impl BlockingCursor {
-        pub fn new() -> BlockingCursor {
-            BlockingCursor {
-                cursor: Cursor::new(Vec::new()),
-            }
-        }
-
-        pub fn set_position(&mut self, pos: u64) {
-            self.cursor.set_position(pos)
-        }
-
-        pub fn position(&mut self) -> u64 {
-            self.cursor.position()
-        }
-    }
-
-    impl Write for BlockingCursor {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            self.cursor.write(buf)
-        }
-        fn flush(&mut self) -> io::Result<()> {
-            self.cursor.flush()
-        }
-    }
-
-    impl Read for BlockingCursor {
-        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            //use the cursor, except it turns eof into blocking error
-            let r = self.cursor.read(buf);
-            match r {
-                Err(ref err) => {
-                    if err.kind() == io::ErrorKind::UnexpectedEof {
-                        return Err(io::ErrorKind::WouldBlock.into());
-                    }
-                }
-                Ok(0) => {
-                    //regular EOF turned into blocking error
-                    return Err(io::ErrorKind::WouldBlock.into());
-                }
-                Ok(_n) => {}
-            }
-            r
-        }
-    }
-    #[test]
-    // test function read_and_forget of Buffer
-    fn buffer_read_and_forget() {
-        // this is unused except for the buffering
-        let mut part = GzHeaderPartial::new();
-        // this is a reader which receives data afterwards
-        let mut r = BlockingCursor::new();
-        let data = vec![1, 2, 3];
-        let mut out = Vec::with_capacity(7);
-
-        match r.write_all(&data) {
-            Ok(()) => {}
-            _ => {
-                panic!("Unexpected result for write_all");
-            }
-        }
-        r.set_position(0);
-
-        // First read : successful for one byte
-        let mut reader = Buffer::new(&mut part, &mut r);
-        out.resize(1, 0);
-        match reader.read_and_forget(&mut out) {
-            Ok(1) => {}
-            _ => {
-                panic!("Unexpected result for read_and_forget with data");
-            }
-        }
-
-        // Second read : incomplete for 7 bytes (we have only 2)
-        out.resize(7, 0);
-        match reader.read_and_forget(&mut out) {
-            Err(ref err) => {
-                assert_eq!(io::ErrorKind::WouldBlock, err.kind());
-            }
-            _ => {
-                panic!("Unexpected result for read_and_forget with incomplete");
-            }
-        }
-
-        // 3 more data bytes have arrived
-        let pos = r.position();
-        let data2 = vec![4, 5, 6];
-        match r.write_all(&data2) {
-            Ok(()) => {}
-            _ => {
-                panic!("Unexpected result for write_all");
-            }
-        }
-        r.set_position(pos);
-
-        // Third read : still incomplete for 7 bytes (we have 5)
-        let mut reader2 = Buffer::new(&mut part, &mut r);
-        match reader2.read_and_forget(&mut out) {
-            Err(ref err) => {
-                assert_eq!(io::ErrorKind::WouldBlock, err.kind());
-            }
-            _ => {
-                panic!("Unexpected result for read_and_forget with more incomplete");
-            }
-        }
-
-        // 3 more data bytes have arrived again
-        let pos2 = r.position();
-        let data3 = vec![7, 8, 9];
-        match r.write_all(&data3) {
-            Ok(()) => {}
-            _ => {
-                panic!("Unexpected result for write_all");
-            }
-        }
-        r.set_position(pos2);
-
-        // Fourth read : now successful for 7 bytes
-        let mut reader3 = Buffer::new(&mut part, &mut r);
-        match reader3.read_and_forget(&mut out) {
-            Ok(7) => {
-                assert_eq!(out[0], 2);
-                assert_eq!(out[6], 8);
-            }
-            _ => {
-                panic!("Unexpected result for read_and_forget with data");
-            }
-        }
-
-        // Fifth read : successful for one more byte
-        out.resize(1, 0);
-        match reader3.read_and_forget(&mut out) {
-            Ok(1) => {
-                assert_eq!(out[0], 9);
-            }
-            _ => {
-                panic!("Unexpected result for read_and_forget with data");
-            }
-        }
     }
 }
