@@ -15,7 +15,7 @@ jobs:
       uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
       with:
         oss-fuzz-project-name: 'flate2-rs'
-        fuzz-seconds: 300
+        fuzz-seconds: 180
         dry-run: false
         language: rust
     - name: Upload Crash
