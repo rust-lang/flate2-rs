@@ -44,11 +44,11 @@ impl<R: Read> ZlibEncoder<R> {
         }
     }
 
-    /// Same as `new` but with the ability to add a `Compress` instance rather
-    /// than a `Compression` instance.
-    pub fn new_with_compress(r: R, compress: crate::Compress) -> ZlibEncoder<R> {
+    /// Creates a new encoder with given `compression` settings which will
+    /// read uncompressed data from the given stream `r` and emit the compressed stream.
+    pub fn new_with_compress(r: R, compression: crate::Compress) -> ZlibEncoder<R> {
         ZlibEncoder {
-            inner: bufread::ZlibEncoder::new_with_compress(BufReader::new(r), compress),
+            inner: bufread::ZlibEncoder::new_with_compress(BufReader::new(r), compression),
         }
     }
 }
@@ -169,7 +169,8 @@ impl<R: Read> ZlibDecoder<R> {
         ZlibDecoder::new_with_buf(r, vec![0; 32 * 1024])
     }
 
-    /// Same as `new`, but the intermediate buffer for data is specified.
+    /// Creates a new decoder along with `buf` for intermediate data,
+    /// which will decompress data read from the given stream `r`.
     ///
     /// Note that the specified buffer will only be used up to its current
     /// length. The buffer's capacity will also not grow over time.
@@ -180,26 +181,26 @@ impl<R: Read> ZlibDecoder<R> {
     }
 
     /// Creates a new decoder which will decompress data read from the given
-    /// stream.
-    ///
-    /// Also takes in a custom `Decompress` instance.
-    pub fn new_with_decompress(r: R, decompress: Decompress) -> ZlibDecoder<R> {
-        ZlibDecoder::new_with_decompress_and_buf(r, vec![0; 32 * 1024], decompress)
+    /// stream `r`, along with `decompression` settings
+    pub fn new_with_decompress(r: R, decompression: Decompress) -> ZlibDecoder<R> {
+        ZlibDecoder::new_with_decompress_and_buf(r, vec![0; 32 * 1024], decompression)
     }
 
-    /// Same as `new_with_decompress`, but the intermediate buffer for data is specified.
+    /// Creates a new decoder along with `buf` for intermediate data,
+    /// which will decompress data read from the given stream `r`, along with
+    /// `decompression` settings
     ///
     /// Note that the specified buffer will only be used up to its current
     /// length. The buffer's capacity will also not grow over time.
     pub fn new_with_decompress_and_buf(
         r: R,
         buf: Vec<u8>,
-        decompress: Decompress,
+        decompression: Decompress,
     ) -> ZlibDecoder<R> {
         ZlibDecoder {
             inner: bufread::ZlibDecoder::new_with_decompress(
                 BufReader::with_buf(buf, r),
-                decompress,
+                decompression,
             ),
         }
     }

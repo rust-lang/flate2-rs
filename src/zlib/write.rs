@@ -44,11 +44,11 @@ impl<W: Write> ZlibEncoder<W> {
         }
     }
 
-    /// Same as `new` but with the ability to add a `Compress` instance rather
-    /// than a `Compression` instance.
-    pub fn new_with_compress(w: W, compress: crate::Compress) -> ZlibEncoder<W> {
+    /// Creates a new encoder which will write compressed data to the stream
+    /// `w` with the given `compression` settings.
+    pub fn new_with_compress(w: W, compression: crate::Compress) -> ZlibEncoder<W> {
         ZlibEncoder {
-            inner: zio::Writer::new(w, compress),
+            inner: zio::Writer::new(w, compression),
         }
     }
 
@@ -226,10 +226,14 @@ impl<W: Write> ZlibDecoder<W> {
         }
     }
 
-    /// This is like `new` but with a supplied `Decompress` instance.
-    pub fn new_with_decompress(w: W, decomp: Decompress) -> ZlibDecoder<W> {
+    /// Creates a new decoder which will write uncompressed data to the stream `w`
+    /// using the given `decompression` settings.
+    ///
+    /// When this decoder is dropped or unwrapped the final pieces of data will
+    /// be flushed.
+    pub fn new_with_decompress(w: W, decompression: Decompress) -> ZlibDecoder<W> {
         ZlibDecoder {
-            inner: zio::Writer::new(w, decomp),
+            inner: zio::Writer::new(w, decompression),
         }
     }
 

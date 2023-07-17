@@ -48,12 +48,12 @@ impl<R: BufRead> ZlibEncoder<R> {
         }
     }
 
-    /// Same as `new` but instead of passing a `Compression` instance,
-    /// a `Compress` instance is passed.
-    pub fn new_with_compress(r: R, compress: crate::Compress) -> ZlibEncoder<R> {
+    /// Creates a new encoder with given `compresson` settings which will
+    /// read uncompressed data from the given stream `r` and emit the compressed stream.
+    pub fn new_with_compress(r: R, compression: crate::Compress) -> ZlibEncoder<R> {
         ZlibEncoder {
             obj: r,
-            data: compress,
+            data: compression,
         }
     }
 }
