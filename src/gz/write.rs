@@ -377,7 +377,7 @@ impl<W: Read + Write> Read for GzDecoder<W> {
 ///
 /// A gzip file consists of a series of "members" concatenated one after another.
 /// MultiGzDecoder decodes all members of a file, while [GzDecoder] will only decode
-/// the first one member. MultiGzDecoder is preferable in most cases.
+/// the first member. MultiGzDecoder is preferable in most cases.
 ///
 /// This structure exposes a [`Write`] interface that will consume all gzip members
 /// from the written buffers and write uncompressed data to the writer.
