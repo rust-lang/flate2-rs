@@ -65,12 +65,30 @@
 //! `Write` trait if `T: Write`. That is, the "dual trait" is forwarded directly
 //! to the underlying object if available.
 //!
+//! # About multi-member Gzip files
+//!
+//! While most `gzip` files one encounters will have a single *member* that can be read
+//! with the [`GzDecoder`], there may be some files which have multiple members.
+//!
+//! If these are read with a [`GzDecoder`], only the first member will be consumed and
+//! the rest will silently be left alone, which can be surprising.
+//!
+//! The [`MultiGzDecoder`] on the other hand will decode all *members* of `gzip` file
+//! into one consecutive stream of bytes, which hides the underlying *members* entirely
+//! while failing if the file does not contain solely `gzip` *members*.
+//!
+//! It's worth noting that major browser like Chrome, Firefox as well as tool like `curl`
+//! will only decode the first member of a `gzip` encoded reply, so what's right to do
+//! truly depends on the context, as well the expected input of the library or application.
+//!
 //! [`read`]: read/index.html
 //! [`bufread`]: bufread/index.html
 //! [`write`]: write/index.html
 //! [read]: https://doc.rust-lang.org/std/io/trait.Read.html
 //! [write]: https://doc.rust-lang.org/std/io/trait.Write.html
 //! [bufread]: https://doc.rust-lang.org/std/io/trait.BufRead.html
+//! [`GzDecoder`]: read/struct.GzDecoder.html
+//! [`MultiGzDecoder`]: read/struct.MultiGzDecoder.html
 #![doc(html_root_url = "https://docs.rs/flate2/0.2")]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
