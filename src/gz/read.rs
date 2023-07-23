@@ -90,11 +90,13 @@ impl<R: Read + Write> Write for GzEncoder<R> {
     }
 }
 
-/// A decoder for a single member of a gzip file. Prefer [MultiGzDecoder] for
-/// most uses.
+/// A decoder for a gzip file with a single member.
 ///
 /// This structure exposes a [`Read`] interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
+///
+/// This decoder only handles gzipped data with a single stream.
+/// Use [`MultiGzDecoder`] for gzipped data with multiple streams.
 ///
 /// # Examples
 ///
@@ -178,11 +180,12 @@ impl<R: Read + Write> Write for GzDecoder<R> {
     }
 }
 
-/// A gzip streaming decoder that decodes a full [gzip file].
+/// A gzip streaming decoder that decodes a [gzip file] with multiple members.
 ///
 /// A gzip file consists of a series of "members" concatenated one after another.
 /// MultiGzDecoder decodes all members of a file, while [GzDecoder] will only decode
-/// the first member. MultiGzDecoder is preferable in most cases.
+/// the first member. Learn more
+/// [in the introduction](https://docs.rs/flate2/*/flate2/#About-multi-member-Gzip-files).
 ///
 /// This structure exposes a [`Read`] interface that will consume all gzip members
 /// from the underlying reader and emit uncompressed data.

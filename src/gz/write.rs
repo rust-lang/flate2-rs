@@ -166,11 +166,13 @@ impl<W: Write> Drop for GzEncoder<W> {
     }
 }
 
-/// A decoder for a single member of a gzip file. Prefer [MultiGzDecoder] for
-/// most uses.
+/// A decoder for a gzip file with a single member.
 ///
 /// This structure exposes a [`Write`] interface that will emit uncompressed data
 /// to the underlying writer `W`.
+///
+/// This decoder only handles gzipped data with a single stream.
+/// Use [`MultiGzDecoder`] for gzipped data with multiple streams.
 ///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 ///
@@ -373,11 +375,12 @@ impl<W: Read + Write> Read for GzDecoder<W> {
     }
 }
 
-/// A gzip streaming decoder that decodes a full [gzip file].
+/// A gzip streaming decoder that decodes a [gzip file] with multiple members.
 ///
 /// A gzip file consists of a series of "members" concatenated one after another.
-/// MultiGzDecoder decodes all members of a file, while [GzDecoder] will only decode
-/// the first member. MultiGzDecoder is preferable in most cases.
+/// `MultiGzDecoder` decodes all members of a file, while [GzDecoder] will only decode
+/// the first member. Learn more
+/// [in the introduction](https://docs.rs/flate2/*/flate2/#About-multi-member-Gzip-files).
 ///
 /// This structure exposes a [`Write`] interface that will consume all gzip members
 /// from the written buffers and write uncompressed data to the writer.
