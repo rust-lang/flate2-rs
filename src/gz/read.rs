@@ -90,13 +90,22 @@ impl<R: Read + Write> Write for GzEncoder<R> {
     }
 }
 
-/// A decoder for a gzip file with a single member.
+/// A decoder for the first member of a [gzip file].
 ///
 /// This structure exposes a [`Read`] interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
 ///
-/// This decoder only handles gzipped data with a single stream.
-/// Use [`MultiGzDecoder`] for gzipped data with multiple streams.
+/// After reading the first member of a gzip file (which is often, but not
+/// always, the only member), this reader will return Ok(0) even if there
+/// are more bytes available in the underlying reader. If you want to be sure
+/// not to drop bytes on the floor, call `into_inner()` after Ok(0) to
+/// recover the underlying reader.
+///
+/// To handle gzip files that may have multiple members, see [`MultiGzDecoder`]
+/// or read more
+/// [in the introduction](../index.html#about-multi-member-gzip-files).
+///
+/// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
 ///
 /// # Examples
 ///
@@ -180,15 +189,17 @@ impl<R: Read + Write> Write for GzDecoder<R> {
     }
 }
 
-/// A gzip streaming decoder that decodes a [gzip file] with multiple members.
+/// A gzip streaming decoder that decodes a [gzip file] that may have multiple members.
 ///
-/// A gzip file consists of a series of "members" concatenated one after another.
-/// MultiGzDecoder decodes all members of a file, while [GzDecoder] will only decode
-/// the first member. Learn more
-/// [in the introduction](https://docs.rs/flate2/*/flate2/#About-multi-member-Gzip-files).
+/// This structure exposes a [`Read`] interface that will consume compressed
+/// data from the underlying reader and emit uncompressed data.
 ///
-/// This structure exposes a [`Read`] interface that will consume all gzip members
-/// from the underlying reader and emit uncompressed data.
+/// A gzip file consists of a series of *members* concatenated one after another.
+/// MultiGzDecoder decodes all members of a file and returns Ok(0) once the
+/// underlying reader does.
+///
+/// To handle members seperately, see [GzDecoder] or read more
+/// [in the introduction](../index.html#about-multi-member-gzip-files).
 ///
 /// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
 ///

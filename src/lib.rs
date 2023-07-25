@@ -73,13 +73,16 @@
 //! If these are read with a [`GzDecoder`], only the first member will be consumed and
 //! the rest will silently be left alone, which can be surprising.
 //!
-//! The [`MultiGzDecoder`] on the other hand will decode all *members* of `gzip` file
-//! into one consecutive stream of bytes, which hides the underlying *members* entirely
-//! while failing if the file does not contain solely `gzip` *members*.
+//! The [`MultiGzDecoder`] on the other hand will decode all members of a `gzip` file
+//! into one consecutive stream of bytes, which hides the underlying *members* entirely.
+//! If a file contains contains non-gzip data after the gzip data, MultiGzDecoder will
+//! emit an error after decoding the gzip data. This behavior matches the `gzip`,
+//! `gunzip`, and `zcat` command line tools.
 //!
-//! It's worth noting that major browser like Chrome, Firefox as well as tool like `curl`
-//! will only decode the first member of a `gzip` encoded reply, so what's right to do
-//! truly depends on the context, as well the expected input of the library or application.
+//! Chrome and Firefox appear to implement behavior like `GzDecoder`, ignoring data
+//! after the first member. `curl` appears to implement behavior somewhat like
+//! `GzDecoder`, only decoding the first member, but emitting an error if there is
+//! data after the first member, whether or not it is gzip data.
 //!
 //! [`read`]: read/index.html
 //! [`bufread`]: bufread/index.html

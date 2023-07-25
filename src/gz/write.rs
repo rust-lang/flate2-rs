@@ -166,14 +166,19 @@ impl<W: Write> Drop for GzEncoder<W> {
     }
 }
 
-/// A decoder for a gzip file with a single member.
+/// A decoder for the first member of a [gzip file].
 ///
-/// This structure exposes a [`Write`] interface that will emit uncompressed data
-/// to the underlying writer `W`.
+/// This structure exposes a [`Write`] interface, receiving compressed data and
+/// writing uncompressed data to the underlying writer.
 ///
-/// This decoder only handles gzipped data with a single stream.
-/// Use [`MultiGzDecoder`] for gzipped data with multiple streams.
+/// After decoding the first member of a gzip file, this writer will return XXX
+/// to all subsequent writes.
 ///
+/// To handle gzip files that may have multiple members, see [`MultiGzDecoder`]
+/// or read more
+/// [in the introduction](../index.html#about-multi-member-gzip-files).
+///
+/// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 ///
 /// # Examples
@@ -377,13 +382,15 @@ impl<W: Read + Write> Read for GzDecoder<W> {
 
 /// A gzip streaming decoder that decodes a [gzip file] with multiple members.
 ///
-/// A gzip file consists of a series of "members" concatenated one after another.
-/// `MultiGzDecoder` decodes all members of a file, while [GzDecoder] will only decode
-/// the first member. Learn more
-/// [in the introduction](https://docs.rs/flate2/*/flate2/#About-multi-member-Gzip-files).
+/// This structure exposes a [`Write`] interface that will consume compressed data and
+/// write uncompressed data to the underlying writer.
 ///
-/// This structure exposes a [`Write`] interface that will consume all gzip members
-/// from the written buffers and write uncompressed data to the writer.
+/// A gzip file consists of a series of *members* concatenated one after another.
+/// `MultiGzDecoder` decodes all members of a file and writes them to the
+/// underlying writer one after another.
+///
+/// To handle members separately, see [GzDecoder] or read more
+/// [in the introduction](../index.html#about-multi-member-gzip-files).
 ///
 /// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
 #[derive(Debug)]
