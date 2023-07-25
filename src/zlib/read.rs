@@ -44,7 +44,7 @@ impl<R: Read> ZlibEncoder<R> {
         }
     }
 
-    /// Creates a new encoder with given `compression` settings which will
+    /// Creates a new encoder with the given `compression` settings which will
     /// read uncompressed data from the given stream `r` and emit the compressed stream.
     pub fn new_with_compress(r: R, compression: crate::Compress) -> ZlibEncoder<R> {
         ZlibEncoder {
@@ -169,8 +169,8 @@ impl<R: Read> ZlibDecoder<R> {
         ZlibDecoder::new_with_buf(r, vec![0; 32 * 1024])
     }
 
-    /// Creates a new decoder along with `buf` for intermediate data,
-    /// which will decompress data read from the given stream `r`.
+    /// Creates a new decoder which will decompress data read from the given
+    /// stream `r`, using `buf` as backing to speed up reading.
     ///
     /// Note that the specified buffer will only be used up to its current
     /// length. The buffer's capacity will also not grow over time.
@@ -181,14 +181,14 @@ impl<R: Read> ZlibDecoder<R> {
     }
 
     /// Creates a new decoder which will decompress data read from the given
-    /// stream `r`, along with `decompression` settings
+    /// stream `r`, along with `decompression` settings.
     pub fn new_with_decompress(r: R, decompression: Decompress) -> ZlibDecoder<R> {
         ZlibDecoder::new_with_decompress_and_buf(r, vec![0; 32 * 1024], decompression)
     }
 
-    /// Creates a new decoder along with `buf` for intermediate data,
-    /// which will decompress data read from the given stream `r`, along with
-    /// `decompression` settings
+    /// Creates a new decoder which will decompress data read from the given
+    /// stream `r`, using `buf` as backing to speed up reading,
+    /// along with `decompression` settings to configure decoder.
     ///
     /// Note that the specified buffer will only be used up to its current
     /// length. The buffer's capacity will also not grow over time.

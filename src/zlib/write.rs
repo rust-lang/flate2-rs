@@ -46,7 +46,7 @@ impl<W: Write> ZlibEncoder<W> {
 
     /// Creates a new encoder which will write compressed data to the stream
     /// `w` with the given `compression` settings.
-    pub fn new_with_compress(w: W, compression: crate::Compress) -> ZlibEncoder<W> {
+    pub fn new_with_compress(w: W, compression: Compress) -> ZlibEncoder<W> {
         ZlibEncoder {
             inner: zio::Writer::new(w, compression),
         }
