@@ -95,11 +95,11 @@ impl<R: Read + Write> Write for GzEncoder<R> {
 /// This structure exposes a [`Read`] interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
 ///
-/// After reading the first member of a gzip file (which is often, but not
-/// always, the only member), this reader will return Ok(0) even if there
-/// are more bytes available in the underlying reader. If you want to be sure
-/// not to drop bytes on the floor, call `into_inner()` after Ok(0) to
-/// recover the underlying reader.
+/// After reading a single member of the gzip data this reader will return
+/// Ok(0) even if there are more bytes available in the underlying reader.
+/// `GzDecoder` may have read additional bytes past the end of the gzip data.
+/// If you need the following bytes, wrap the `Reader` in a `std::io::BufReader` 
+/// and use `bufread::GzDecoder` instead.
 ///
 /// To handle gzip files that may have multiple members, see [`MultiGzDecoder`]
 /// or read more

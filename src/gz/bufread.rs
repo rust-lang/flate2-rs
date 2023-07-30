@@ -167,15 +167,14 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
     }
 }
 
-/// A decoder for the first member of a [gzip file].
+/// A decoder for a single member of a [gzip file].
 ///
 /// This structure exposes a [`BufRead`] interface, reading compressed data
 /// from the underlying reader, and emitting uncompressed data.
 ///
-/// After reading the first member of a gzip file (which is often, but not
-/// always, the only member), this reader will return Ok(0) even if there
-/// are more bytes available in the underlying reader. If you want to be sure
-/// not to drop bytes on the floor, call `into_inner()` after Ok(0) to
+/// After reading a single member of the gzip data this reader will return 
+/// Ok(0) even if there are more bytes available in the underlying reader. 
+/// If you need the following bytes, call `into_inner()` after Ok(0) to
 /// recover the underlying reader.
 ///
 /// To handle gzip files that may have multiple members, see [`MultiGzDecoder`]
@@ -413,8 +412,8 @@ impl<R: BufRead + Write> Write for GzDecoder<R> {
 /// data from the underlying reader and emit uncompressed data.
 ///
 /// A gzip file consists of a series of *members* concatenated one after another.
-/// MultiGzDecoder decodes all members of a file and returns Ok(0) once the
-/// underlying reader does.
+/// MultiGzDecoder decodes all members from the data and only returns Ok(0) when the
+/// underlying reader does. For a file, this reads to the end of the file.
 ///
 /// To handle members seperately, see [GzDecoder] or read more
 /// [in the introduction](../index.html#about-multi-member-gzip-files).

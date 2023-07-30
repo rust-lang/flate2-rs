@@ -70,8 +70,10 @@
 //! While most `gzip` files one encounters will have a single *member* that can be read
 //! with the [`GzDecoder`], there may be some files which have multiple members.
 //!
-//! If these are read with a [`GzDecoder`], only the first member will be consumed and
-//! the rest will silently be left alone, which can be surprising.
+//! A [`GzDecoder`] will only read the first member of gzip data, which may unexpectedly 
+//! provide partial results when a multi-member gzip file is encountered. `GzDecoder` is appropriate 
+//! for data that is designed to be read as single members from a multi-member file. `bufread::GzDecoder`
+//! and `write::GzDecoder` also allow non-gzip data following gzip data to be handled.
 //!
 //! The [`MultiGzDecoder`] on the other hand will decode all members of a `gzip` file
 //! into one consecutive stream of bytes, which hides the underlying *members* entirely.

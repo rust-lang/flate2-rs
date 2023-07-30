@@ -166,13 +166,14 @@ impl<W: Write> Drop for GzEncoder<W> {
     }
 }
 
-/// A decoder for the first member of a [gzip file].
+/// A decoder for a single member of a [gzip file].
 ///
 /// This structure exposes a [`Write`] interface, receiving compressed data and
 /// writing uncompressed data to the underlying writer.
 ///
-/// After decoding the first member of a gzip file, this writer will return XXX
-/// to all subsequent writes.
+/// After decoding a single member of the gzip data this writer will return the number of bytes up to 
+/// to the end of the gzip member and subsequent writes will return Ok(0) allowing the caller to 
+/// handle any data following the gzip member.
 ///
 /// To handle gzip files that may have multiple members, see [`MultiGzDecoder`]
 /// or read more
