@@ -163,12 +163,21 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
     }
 }
 
-/// A gzip streaming decoder
+/// A decoder for a single member of a [gzip file].
 ///
-/// This structure consumes a [`BufRead`] interface, reading compressed data
+/// This structure exposes a [`BufRead`] interface, reading compressed data
 /// from the underlying reader, and emitting uncompressed data.
-/// Use [`MultiGzDecoder`] if your file has multiple streams.
 ///
+/// After reading a single member of the gzip data this reader will return
+/// Ok(0) even if there are more bytes available in the underlying reader.
+/// If you need the following bytes, call `into_inner()` after Ok(0) to
+/// recover the underlying reader.
+///
+/// To handle gzip files that may have multiple members, see [`MultiGzDecoder`]
+/// or read more
+/// [in the introduction](../index.html#about-multi-member-gzip-files).
+///
+/// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 ///
 /// # Examples
@@ -340,20 +349,19 @@ impl<R: BufRead + Write> Write for GzDecoder<R> {
     }
 }
 
-/// A gzip streaming decoder that decodes all members of a multistream
+/// A gzip streaming decoder that decodes a [gzip file] that may have multiple members.
 ///
-/// A gzip member consists of a header, compressed data and a trailer. The [gzip
-/// specification](https://tools.ietf.org/html/rfc1952), however, allows multiple
-/// gzip members to be joined in a single stream. `MultiGzDecoder` will
-/// decode all consecutive members while [`GzDecoder`] will only decompress
-/// the first gzip member. The multistream format is commonly used in
-/// bioinformatics, for example when using the BGZF compressed data. It's also useful
-/// to compress large amounts of data in parallel where each thread produces one stream
-/// for a chunk of input data.
+/// This structure exposes a [`BufRead`] interface that will consume compressed
+/// data from the underlying reader and emit uncompressed data.
 ///
-/// This structure exposes a [`BufRead`] interface that will consume all gzip members
-/// from the underlying reader and emit uncompressed data.
+/// A gzip file consists of a series of *members* concatenated one after another.
+/// MultiGzDecoder decodes all members from the data and only returns Ok(0) when the
+/// underlying reader does. For a file, this reads to the end of the file.
 ///
+/// To handle members seperately, see [GzDecoder] or read more
+/// [in the introduction](../index.html#about-multi-member-gzip-files).
+///
+/// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 ///
 /// # Examples

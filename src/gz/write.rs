@@ -166,12 +166,20 @@ impl<W: Write> Drop for GzEncoder<W> {
     }
 }
 
-/// A gzip streaming decoder
+/// A decoder for a single member of a [gzip file].
 ///
-/// This structure exposes a [`Write`] interface that will emit uncompressed data
-/// to the underlying writer `W`.
-/// Use [`MultiGzDecoder`] if your file has multiple streams.
+/// This structure exposes a [`Write`] interface, receiving compressed data and
+/// writing uncompressed data to the underlying writer.
 ///
+/// After decoding a single member of the gzip data this writer will return the number of bytes up to
+/// to the end of the gzip member and subsequent writes will return Ok(0) allowing the caller to
+/// handle any data following the gzip member.
+///
+/// To handle gzip files that may have multiple members, see [`MultiGzDecoder`]
+/// or read more
+/// [in the introduction](../index.html#about-multi-member-gzip-files).
+///
+/// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 ///
 /// # Examples
@@ -348,17 +356,19 @@ impl<W: Read + Write> Read for GzDecoder<W> {
     }
 }
 
-/// A gzip streaming decoder that decodes all members of a multistream
+/// A gzip streaming decoder that decodes a [gzip file] with multiple members.
 ///
-/// A gzip member consists of a header, compressed data and a trailer. The [gzip
-/// specification](https://tools.ietf.org/html/rfc1952), however, allows multiple
-/// gzip members to be joined in a single stream. `MultiGzDecoder` will
-/// decode all consecutive members while `GzDecoder` will only decompress
-/// the first gzip member. The multistream format is commonly used in
-/// bioinformatics, for example when using the BGZF compressed data.
+/// This structure exposes a [`Write`] interface that will consume compressed data and
+/// write uncompressed data to the underlying writer.
 ///
-/// This structure exposes a [`Write`] interface that will consume all gzip members
-/// from the written buffers and write uncompressed data to the writer.
+/// A gzip file consists of a series of *members* concatenated one after another.
+/// `MultiGzDecoder` decodes all members of a file and writes them to the
+/// underlying writer one after another.
+///
+/// To handle members separately, see [GzDecoder] or read more
+/// [in the introduction](../index.html#about-multi-member-gzip-files).
+///
+/// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
 #[derive(Debug)]
 pub struct MultiGzDecoder<W: Write> {
     inner: GzDecoder<W>,
