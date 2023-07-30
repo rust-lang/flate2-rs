@@ -117,7 +117,14 @@ mod zlib;
 /// Types which operate over [`Read`] streams, both encoders and decoders for
 /// various formats.
 ///
+/// Note that the `read` decoder types may read past the end of the compressed
+/// data while decoding. If the caller requires subsequent reads to start
+/// immediately following the compressed data  wrap the `Read` type in a
+/// [`BufReader`] and use the `BufReader` with the equivalent decoder from the
+/// `bufread` module and also for the subsequent reads.
+///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+/// [`BufReader`]: https://doc.rust-lang.org/std/io/struct.BufReader.html
 pub mod read {
     pub use crate::deflate::read::DeflateDecoder;
     pub use crate::deflate::read::DeflateEncoder;
