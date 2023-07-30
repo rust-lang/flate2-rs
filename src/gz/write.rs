@@ -171,8 +171,8 @@ impl<W: Write> Drop for GzEncoder<W> {
 /// This structure exposes a [`Write`] interface, receiving compressed data and
 /// writing uncompressed data to the underlying writer.
 ///
-/// After decoding a single member of the gzip data this writer will return the number of bytes up to 
-/// to the end of the gzip member and subsequent writes will return Ok(0) allowing the caller to 
+/// After decoding a single member of the gzip data this writer will return the number of bytes up to
+/// to the end of the gzip member and subsequent writes will return Ok(0) allowing the caller to
 /// handle any data following the gzip member.
 ///
 /// To handle gzip files that may have multiple members, see [`MultiGzDecoder`]

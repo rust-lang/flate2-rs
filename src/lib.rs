@@ -70,8 +70,8 @@
 //! While most `gzip` files one encounters will have a single *member* that can be read
 //! with the [`GzDecoder`], there may be some files which have multiple members.
 //!
-//! A [`GzDecoder`] will only read the first member of gzip data, which may unexpectedly 
-//! provide partial results when a multi-member gzip file is encountered. `GzDecoder` is appropriate 
+//! A [`GzDecoder`] will only read the first member of gzip data, which may unexpectedly
+//! provide partial results when a multi-member gzip file is encountered. `GzDecoder` is appropriate
 //! for data that is designed to be read as single members from a multi-member file. `bufread::GzDecoder`
 //! and `write::GzDecoder` also allow non-gzip data following gzip data to be handled.
 //!
@@ -80,11 +80,6 @@
 //! If a file contains contains non-gzip data after the gzip data, MultiGzDecoder will
 //! emit an error after decoding the gzip data. This behavior matches the `gzip`,
 //! `gunzip`, and `zcat` command line tools.
-//!
-//! Chrome and Firefox appear to implement behavior like `GzDecoder`, ignoring data
-//! after the first member. `curl` appears to implement behavior somewhat like
-//! `GzDecoder`, only decoding the first member, but emitting an error if there is
-//! data after the first member, whether or not it is gzip data.
 //!
 //! [`read`]: read/index.html
 //! [`bufread`]: bufread/index.html

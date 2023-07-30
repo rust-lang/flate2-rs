@@ -98,7 +98,7 @@ impl<R: Read + Write> Write for GzEncoder<R> {
 /// After reading a single member of the gzip data this reader will return
 /// Ok(0) even if there are more bytes available in the underlying reader.
 /// `GzDecoder` may have read additional bytes past the end of the gzip data.
-/// If you need the following bytes, wrap the `Reader` in a `std::io::BufReader` 
+/// If you need the following bytes, wrap the `Reader` in a `std::io::BufReader`
 /// and use `bufread::GzDecoder` instead.
 ///
 /// To handle gzip files that may have multiple members, see [`MultiGzDecoder`]

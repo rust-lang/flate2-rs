@@ -172,8 +172,8 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
 /// This structure exposes a [`BufRead`] interface, reading compressed data
 /// from the underlying reader, and emitting uncompressed data.
 ///
-/// After reading a single member of the gzip data this reader will return 
-/// Ok(0) even if there are more bytes available in the underlying reader. 
+/// After reading a single member of the gzip data this reader will return
+/// Ok(0) even if there are more bytes available in the underlying reader.
 /// If you need the following bytes, call `into_inner()` after Ok(0) to
 /// recover the underlying reader.
 ///
