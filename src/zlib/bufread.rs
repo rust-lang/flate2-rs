@@ -47,6 +47,15 @@ impl<R: BufRead> ZlibEncoder<R> {
             data: Compress::new(level, true),
         }
     }
+
+    /// Creates a new encoder with the given `compression` settings which will
+    /// read uncompressed data from the given stream `r` and emit the compressed stream.
+    pub fn new_with_compress(r: R, compression: Compress) -> ZlibEncoder<R> {
+        ZlibEncoder {
+            obj: r,
+            data: compression,
+        }
+    }
 }
 
 pub fn reset_encoder_data<R>(zlib: &mut ZlibEncoder<R>) {
@@ -163,6 +172,15 @@ impl<R: BufRead> ZlibDecoder<R> {
         ZlibDecoder {
             obj: r,
             data: Decompress::new(true),
+        }
+    }
+
+    /// Creates a new decoder which will decompress data read from the given
+    /// stream, using the given `decompression` settings.
+    pub fn new_with_decompress(r: R, decompression: Decompress) -> ZlibDecoder<R> {
+        ZlibDecoder {
+            obj: r,
+            data: decompression,
         }
     }
 }

@@ -44,6 +44,14 @@ impl<W: Write> ZlibEncoder<W> {
         }
     }
 
+    /// Creates a new encoder which will write compressed data to the stream
+    /// `w` with the given `compression` settings.
+    pub fn new_with_compress(w: W, compression: Compress) -> ZlibEncoder<W> {
+        ZlibEncoder {
+            inner: zio::Writer::new(w, compression),
+        }
+    }
+
     /// Acquires a reference to the underlying writer.
     pub fn get_ref(&self) -> &W {
         self.inner.get_ref()
@@ -215,6 +223,17 @@ impl<W: Write> ZlibDecoder<W> {
     pub fn new(w: W) -> ZlibDecoder<W> {
         ZlibDecoder {
             inner: zio::Writer::new(w, Decompress::new(true)),
+        }
+    }
+
+    /// Creates a new decoder which will write uncompressed data to the stream `w`
+    /// using the given `decompression` settings.
+    ///
+    /// When this decoder is dropped or unwrapped the final pieces of data will
+    /// be flushed.
+    pub fn new_with_decompress(w: W, decompression: Decompress) -> ZlibDecoder<W> {
+        ZlibDecoder {
+            inner: zio::Writer::new(w, decompression),
         }
     }
 
