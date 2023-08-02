@@ -9,7 +9,7 @@ This document explains how to perform the project's maintenance tasks.
 
 #### Process
 
-To generated all the artifacts above, one proceeds as follows:
+To generate all the artifacts above, one proceeds as follows:
 
 1. `git checkout -b release-<next-version>` - move to a branch to prepare making changes to the repository. *Changes cannot be made to `main` as it is protected.*
 2. Edit `Cargo.toml` to the next package version.
