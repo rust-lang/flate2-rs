@@ -90,7 +90,7 @@ impl<R: Read + Write> Write for GzEncoder<R> {
     }
 }
 
-/// A decoder for the first member of a [gzip file].
+/// A decoder for a single member of a [gzip file].
 ///
 /// This structure exposes a [`Read`] interface that will consume compressed
 /// data from the underlying reader and emit uncompressed data.
@@ -155,6 +155,9 @@ impl<R> GzDecoder<R> {
     }
 
     /// Acquires a reference to the underlying reader.
+    ///
+    /// Note that the decoder may have read past the end of the gzip data.
+    /// To prevent this use [`bufread::GzDecoder`] instead.
     pub fn get_ref(&self) -> &R {
         self.inner.get_ref().get_ref()
     }
@@ -162,12 +165,19 @@ impl<R> GzDecoder<R> {
     /// Acquires a mutable reference to the underlying stream.
     ///
     /// Note that mutation of the stream may result in surprising results if
-    /// this decoder is continued to be used.
+    /// this decoder continues to be used.
+    ///
+    /// Note that the decoder may have read past the end of the gzip data.
+    /// To prevent this use [`bufread::GzDecoder`] instead.
     pub fn get_mut(&mut self) -> &mut R {
         self.inner.get_mut().get_mut()
     }
 
     /// Consumes this decoder, returning the underlying reader.
+    ///
+    /// Note that the decoder may have read past the end of the gzip data.
+    /// Subsequent reads will skip those bytes. To prevent this use
+    /// [`bufread::GzDecoder`] instead.
     pub fn into_inner(self) -> R {
         self.inner.into_inner().into_inner()
     }
