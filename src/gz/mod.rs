@@ -87,7 +87,7 @@ impl GzHeader {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub enum GzHeaderState {
     Start(u8, [u8; 10]),
     Xlen(Option<Box<Crc>>, u8, [u8; 2]),
@@ -95,8 +95,13 @@ pub enum GzHeaderState {
     Filename(Option<Box<Crc>>),
     Comment(Option<Box<Crc>>),
     Crc(Option<Box<Crc>>, u8, [u8; 2]),
-    #[default]
     Complete,
+}
+
+impl Default for GzHeaderState {
+    fn default() -> Self {
+        Self::Complete
+    }
 }
 
 #[derive(Debug, Default)]
