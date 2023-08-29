@@ -573,19 +573,13 @@ fn write_to_spare_capacity_of_vec<T>(
     let cap = output.capacity();
     let len = output.len();
 
-    // FIXME: This is unsound - see https://github.com/rust-lang/flate2-rs/issues/220
-    // (The code below reimplements `Vec::spare_capacity_mut`, but returns `&mut [u8]`
-    // instead of `&mut [MaybeUninit<u8>]`.)
-    unsafe {
-        let (bytes_written, ret) = {
-            let ptr = output.as_mut_ptr().add(len);
-            let out = slice::from_raw_parts_mut(ptr, cap - len);
-            writer(out)
-        };
-        let new_len = core::cmp::min(len + bytes_written, cap);  // Sanitizes `bytes_written`.
-        output.set_len(new_len);
-        ret
-    }
+    output.resize(output.capacity(), 0);
+    let (bytes_written, ret) = writer(&mut output[len..]);
+
+    let new_len = core::cmp::min(len + bytes_written, cap); // Sanitizes `bytes_written`.
+    output.resize(new_len, 0 /* unused */);
+
+    ret
 }
 
 #[cfg(test)]
