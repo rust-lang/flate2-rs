@@ -8,9 +8,8 @@ use crate::Compression;
 
 /// A gzip streaming encoder
 ///
-/// This structure exposes a [`Read`] interface that will read uncompressed data
-/// from the underlying reader and expose the compressed version as a [`Read`]
-/// interface.
+/// This structure implements a [`Read`] interface. When read from, it reads
+/// uncompressed data from the underlying [`Read`] and provides the compressed data.
 ///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 ///
@@ -92,8 +91,8 @@ impl<R: Read + Write> Write for GzEncoder<R> {
 
 /// A decoder for a single member of a [gzip file].
 ///
-/// This structure exposes a [`Read`] interface that will consume compressed
-/// data from the underlying reader and emit uncompressed data.
+/// This structure implements a [`Read`] interface. When read from, it reads
+/// compressed data from the underlying [`Read`] and provides the uncompressed data.
 ///
 /// After reading a single member of the gzip data this reader will return
 /// Ok(0) even if there are more bytes available in the underlying reader.
@@ -201,8 +200,9 @@ impl<R: Read + Write> Write for GzDecoder<R> {
 
 /// A gzip streaming decoder that decodes a [gzip file] that may have multiple members.
 ///
-/// This structure exposes a [`Read`] interface that will consume compressed
-/// data from the underlying reader and emit uncompressed data.
+/// This structure implements a [`Read`] interface. When read from, it reads
+/// compressed data from the underlying [`Read`] and provides the uncompressed
+/// data.
 ///
 /// A gzip file consists of a series of *members* concatenated one after another.
 /// MultiGzDecoder decodes all members of a file and returns Ok(0) once the
