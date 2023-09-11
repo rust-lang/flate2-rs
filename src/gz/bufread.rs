@@ -19,10 +19,10 @@ fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
 
 /// A gzip streaming encoder
 ///
-/// This structure exposes a [`BufRead`] interface that will read uncompressed data
-/// from the underlying reader and expose the compressed version as a [`BufRead`]
-/// interface.
+/// This structure implements a [`Read`] interface. When read from, it reads
+/// uncompressed data from the underlying [`BufRead`] and provides the compressed data.
 ///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 ///
 /// # Examples
@@ -165,8 +165,8 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
 
 /// A decoder for a single member of a [gzip file].
 ///
-/// This structure exposes a [`BufRead`] interface, reading compressed data
-/// from the underlying reader, and emitting uncompressed data.
+/// This structure implements a [`Read`] interface. When read from, it reads
+/// compressed data from the underlying [`BufRead`] and provides the uncompressed data.
 ///
 /// After reading a single member of the gzip data this reader will return
 /// Ok(0) even if there are more bytes available in the underlying reader.
@@ -178,6 +178,7 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
 /// [in the introduction](../index.html#about-multi-member-gzip-files).
 ///
 /// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 ///
 /// # Examples
@@ -351,8 +352,8 @@ impl<R: BufRead + Write> Write for GzDecoder<R> {
 
 /// A gzip streaming decoder that decodes a [gzip file] that may have multiple members.
 ///
-/// This structure exposes a [`BufRead`] interface that will consume compressed
-/// data from the underlying reader and emit uncompressed data.
+/// This structure implements a [`Read`] interface. When read from, it reads
+/// compressed data from the underlying [`BufRead`] and provides the uncompressed data.
 ///
 /// A gzip file consists of a series of *members* concatenated one after another.
 /// MultiGzDecoder decodes all members from the data and only returns Ok(0) when the
@@ -362,6 +363,7 @@ impl<R: BufRead + Write> Write for GzDecoder<R> {
 /// [in the introduction](../index.html#about-multi-member-gzip-files).
 ///
 /// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 ///
 /// # Examples
