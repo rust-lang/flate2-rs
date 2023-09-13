@@ -215,6 +215,16 @@ impl<R> ZlibDecoder<R> {
         &mut self.obj
     }
 
+    /// Acquires a reference to the underlying `Decompress` instance
+    pub fn get_data(&self) -> &Decompress {
+        &self.data
+    }
+
+    /// Acquires a mutable reference to the underlying `Decompress` instance
+    pub fn get_data_mut(&mut self) -> &mut Decompress {
+        &mut self.data
+    }
+
     /// Consumes this decoder, returning the underlying reader.
     pub fn into_inner(self) -> R {
         self.obj

@@ -222,6 +222,17 @@ impl<R> ZlibDecoder<R> {
         self.inner.get_mut().reset(r)
     }
 
+
+    /// Resets the state of the decoder entirely
+    /// Opposed to `reset`, this function takes into account that there was
+    /// previously a custom Decompress in place
+    /// 
+    /// `zlib_header` should be whatever was used before in `new_with_decompress`
+    pub fn reset_on_custom(&mut self, r: R, zlib_header: bool) -> R {
+        self.inner.get_data_mut().reset(zlib_header);
+        self.inner.get_mut().reset(r)
+    }
+
     /// Resets the stream for another, without wiping the bufreader.
     /// Use this when your 2nd stream is dependant on previous' streams.
     pub fn continue_read(&mut self, r: R) -> R {
