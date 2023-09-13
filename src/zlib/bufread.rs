@@ -7,9 +7,10 @@ use crate::{Compress, Decompress};
 
 /// A ZLIB encoder, or compressor.
 ///
-/// This structure consumes a [`BufRead`] interface, reading uncompressed data
-/// from the underlying reader, and emitting compressed data.
+/// This structure implements a [`Read`] interface. When read from, it reads
+/// uncompressed data from the underlying [`BufRead`] and provides the compressed data.
 ///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 ///
 /// # Examples
@@ -128,9 +129,10 @@ impl<R: BufRead + Write> Write for ZlibEncoder<R> {
 
 /// A ZLIB decoder, or decompressor.
 ///
-/// This structure consumes a [`BufRead`] interface, reading compressed data
-/// from the underlying reader, and emitting uncompressed data.
+/// This structure implements a [`Read`] interface. When read from, it reads
+/// compressed data from the underlying [`BufRead`] and provides the uncompressed data.
 ///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 ///
 /// # Examples
