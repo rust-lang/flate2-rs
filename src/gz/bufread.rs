@@ -3,11 +3,7 @@ use std::io;
 use std::io::prelude::*;
 use std::mem;
 
-use super::corrupt;
-use super::read_gz_header_part;
-use super::Buffer;
-use super::GzHeaderPartial;
-use super::{GzBuilder, GzHeader};
+use super::{corrupt, read_into, GzBuilder, GzHeader, GzHeaderParser};
 use crate::crc::CrcReader;
 use crate::deflate;
 use crate::Compression;
@@ -23,10 +19,10 @@ fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
 
 /// A gzip streaming encoder
 ///
-/// This structure exposes a [`BufRead`] interface that will read uncompressed data
-/// from the underlying reader and expose the compressed version as a [`BufRead`]
-/// interface.
+/// This structure implements a [`Read`] interface. When read from, it reads
+/// uncompressed data from the underlying [`BufRead`] and provides the compressed data.
 ///
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 ///
 /// # Examples
@@ -167,12 +163,22 @@ impl<R: BufRead + Write> Write for GzEncoder<R> {
     }
 }
 
-/// A gzip streaming decoder
+/// A decoder for a single member of a [gzip file].
 ///
-/// This structure consumes a [`BufRead`] interface, reading compressed data
-/// from the underlying reader, and emitting uncompressed data.
-/// Use [`MultiGzDecoder`] if your file has multiple streams.
+/// This structure implements a [`Read`] interface. When read from, it reads
+/// compressed data from the underlying [`BufRead`] and provides the uncompressed data.
 ///
+/// After reading a single member of the gzip data this reader will return
+/// Ok(0) even if there are more bytes available in the underlying reader.
+/// If you need the following bytes, call `into_inner()` after Ok(0) to
+/// recover the underlying reader.
+///
+/// To handle gzip files that may have multiple members, see [`MultiGzDecoder`]
+/// or read more
+/// [in the introduction](../index.html#about-multi-member-gzip-files).
+///
+/// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 ///
 /// # Examples
@@ -210,7 +216,7 @@ pub struct GzDecoder<R> {
 
 #[derive(Debug)]
 enum GzState {
-    Header(GzHeaderPartial),
+    Header(GzHeaderParser),
     Body(GzHeader),
     Finished(GzHeader, usize, [u8; 8]),
     Err(io::Error),
@@ -221,19 +227,13 @@ impl<R: BufRead> GzDecoder<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// gzip header.
     pub fn new(mut r: R) -> GzDecoder<R> {
-        let mut part = GzHeaderPartial::new();
+        let mut header_parser = GzHeaderParser::new();
 
-        let result = {
-            let mut reader = Buffer::new(&mut part, &mut r);
-            read_gz_header_part(&mut reader)
-        };
-
-        let state = match result {
-            Ok(()) => {
-                let header = part.take_header();
-                GzState::Body(header)
+        let state = match header_parser.parse(&mut r) {
+            Ok(_) => GzState::Body(GzHeader::from(header_parser)),
+            Err(ref err) if io::ErrorKind::WouldBlock == err.kind() => {
+                GzState::Header(header_parser)
             }
-            Err(ref err) if io::ErrorKind::WouldBlock == err.kind() => GzState::Header(part),
             Err(err) => GzState::Err(err),
         };
 
@@ -281,108 +281,61 @@ impl<R> GzDecoder<R> {
 
 impl<R: BufRead> Read for GzDecoder<R> {
     fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
-        let GzDecoder {
-            state,
-            reader,
-            multi,
-        } = self;
-
         loop {
-            *state = match mem::replace(state, GzState::End(None)) {
-                GzState::Header(mut part) => {
-                    let result = {
-                        let mut reader = Buffer::new(&mut part, reader.get_mut().get_mut());
-                        read_gz_header_part(&mut reader)
-                    };
-                    match result {
-                        Ok(()) => {
-                            let header = part.take_header();
-                            GzState::Body(header)
-                        }
-                        Err(err) if io::ErrorKind::WouldBlock == err.kind() => {
-                            *state = GzState::Header(part);
-                            return Err(err);
-                        }
-                        Err(err) => return Err(err),
-                    }
+            match &mut self.state {
+                GzState::Header(parser) => {
+                    parser.parse(self.reader.get_mut().get_mut())?;
+                    self.state = GzState::Body(GzHeader::from(mem::take(parser)));
                 }
                 GzState::Body(header) => {
                     if into.is_empty() {
-                        *state = GzState::Body(header);
                         return Ok(0);
                     }
-
-                    let n = match reader.read(into) {
-                        Ok(n) => n,
-                        Err(err) => {
-                            if io::ErrorKind::WouldBlock == err.kind() {
-                                *state = GzState::Body(header);
-                            }
-
-                            return Err(err);
+                    match self.reader.read(into)? {
+                        0 => {
+                            self.state = GzState::Finished(mem::take(header), 0, [0; 8]);
                         }
-                    };
-
-                    match n {
-                        0 => GzState::Finished(header, 0, [0; 8]),
                         n => {
-                            *state = GzState::Body(header);
                             return Ok(n);
                         }
                     }
                 }
-                GzState::Finished(header, pos, mut buf) => {
-                    if pos < buf.len() {
-                        let n = match reader.get_mut().get_mut().read(&mut buf[pos..]) {
-                            Ok(n) => {
-                                if n == 0 {
-                                    return Err(io::ErrorKind::UnexpectedEof.into());
-                                } else {
-                                    n
-                                }
-                            }
-                            Err(err) => {
-                                if io::ErrorKind::WouldBlock == err.kind() {
-                                    *state = GzState::Finished(header, pos, buf);
-                                }
-
-                                return Err(err);
-                            }
-                        };
-
-                        GzState::Finished(header, pos + n, buf)
+                GzState::Finished(header, pos, buf) => {
+                    if *pos < buf.len() {
+                        *pos += read_into(self.reader.get_mut().get_mut(), &mut buf[*pos..])?;
                     } else {
                         let (crc, amt) = finish(&buf);
 
-                        if crc != reader.crc().sum() || amt != reader.crc().amount() {
+                        if crc != self.reader.crc().sum() || amt != self.reader.crc().amount() {
+                            self.state = GzState::End(Some(mem::take(header)));
                             return Err(corrupt());
-                        } else if *multi {
-                            let is_eof = match reader.get_mut().get_mut().fill_buf() {
-                                Ok(buf) => buf.is_empty(),
-                                Err(err) => {
-                                    if io::ErrorKind::WouldBlock == err.kind() {
-                                        *state = GzState::Finished(header, pos, buf);
-                                    }
-
-                                    return Err(err);
-                                }
-                            };
+                        } else if self.multi {
+                            let is_eof = self
+                                .reader
+                                .get_mut()
+                                .get_mut()
+                                .fill_buf()
+                                .map(|buf| buf.is_empty())?;
 
                             if is_eof {
-                                GzState::End(Some(header))
+                                self.state = GzState::End(Some(mem::take(header)));
                             } else {
-                                reader.reset();
-                                reader.get_mut().reset_data();
-                                GzState::Header(GzHeaderPartial::new())
+                                self.reader.reset();
+                                self.reader.get_mut().reset_data();
+                                self.state = GzState::Header(GzHeaderParser::new())
                             }
                         } else {
-                            GzState::End(Some(header))
+                            self.state = GzState::End(Some(mem::take(header)));
                         }
                     }
                 }
-                GzState::Err(err) => return Err(err),
+                GzState::Err(err) => {
+                    let result = Err(mem::replace(err, io::ErrorKind::Other.into()));
+                    self.state = GzState::End(None);
+                    return result;
+                }
                 GzState::End(_) => return Ok(0),
-            };
+            }
         }
     }
 }
@@ -397,20 +350,20 @@ impl<R: BufRead + Write> Write for GzDecoder<R> {
     }
 }
 
-/// A gzip streaming decoder that decodes all members of a multistream
+/// A gzip streaming decoder that decodes a [gzip file] that may have multiple members.
 ///
-/// A gzip member consists of a header, compressed data and a trailer. The [gzip
-/// specification](https://tools.ietf.org/html/rfc1952), however, allows multiple
-/// gzip members to be joined in a single stream. `MultiGzDecoder` will
-/// decode all consecutive members while [`GzDecoder`] will only decompress
-/// the first gzip member. The multistream format is commonly used in
-/// bioinformatics, for example when using the BGZF compressed data. It's also useful
-/// to compress large amounts of data in parallel where each thread produces one stream
-/// for a chunk of input data.
+/// This structure implements a [`Read`] interface. When read from, it reads
+/// compressed data from the underlying [`BufRead`] and provides the uncompressed data.
 ///
-/// This structure exposes a [`BufRead`] interface that will consume all gzip members
-/// from the underlying reader and emit uncompressed data.
+/// A gzip file consists of a series of *members* concatenated one after another.
+/// MultiGzDecoder decodes all members from the data and only returns Ok(0) when the
+/// underlying reader does. For a file, this reads to the end of the file.
 ///
+/// To handle members seperately, see [GzDecoder] or read more
+/// [in the introduction](../index.html#about-multi-member-gzip-files).
+///
+/// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
+/// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 ///
 /// # Examples
@@ -483,154 +436,48 @@ impl<R: BufRead> Read for MultiGzDecoder<R> {
 }
 
 #[cfg(test)]
-pub mod tests {
-    use crate::gz::bufread::*;
-    use std::io;
-    use std::io::{Cursor, Read, Write};
+mod test {
+    use crate::bufread::GzDecoder;
+    use crate::gz::write;
+    use crate::Compression;
+    use std::io::{Read, Write};
 
-    //a cursor turning EOF into blocking errors
-    #[derive(Debug)]
-    pub struct BlockingCursor {
-        pub cursor: Cursor<Vec<u8>>,
-    }
-
-    impl BlockingCursor {
-        pub fn new() -> BlockingCursor {
-            BlockingCursor {
-                cursor: Cursor::new(Vec::new()),
-            }
-        }
-
-        pub fn set_position(&mut self, pos: u64) {
-            self.cursor.set_position(pos)
-        }
-
-        pub fn position(&mut self) -> u64 {
-            self.cursor.position()
-        }
-    }
-
-    impl Write for BlockingCursor {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            self.cursor.write(buf)
-        }
-        fn flush(&mut self) -> io::Result<()> {
-            self.cursor.flush()
-        }
-    }
-
-    impl Read for BlockingCursor {
-        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            //use the cursor, except it turns eof into blocking error
-            let r = self.cursor.read(buf);
-            match r {
-                Err(ref err) => {
-                    if err.kind() == io::ErrorKind::UnexpectedEof {
-                        return Err(io::ErrorKind::WouldBlock.into());
-                    }
-                }
-                Ok(0) => {
-                    //regular EOF turned into blocking error
-                    return Err(io::ErrorKind::WouldBlock.into());
-                }
-                Ok(_n) => {}
-            }
-            r
-        }
-    }
+    // GzDecoder consumes one gzip member and then returns 0 for subsequent reads, allowing any
+    // additional data to be consumed by the caller.
     #[test]
-    // test function read_and_forget of Buffer
-    fn buffer_read_and_forget() {
-        // this is unused except for the buffering
-        let mut part = GzHeaderPartial::new();
-        // this is a reader which receives data afterwards
-        let mut r = BlockingCursor::new();
-        let data = vec![1, 2, 3];
-        let mut out = Vec::with_capacity(7);
+    fn decode_extra_data() {
+        let expected = "Hello World";
 
-        match r.write_all(&data) {
-            Ok(()) => {}
-            _ => {
-                panic!("Unexpected result for write_all");
-            }
-        }
-        r.set_position(0);
+        let compressed = {
+            let mut e = write::GzEncoder::new(Vec::new(), Compression::default());
+            e.write(expected.as_ref()).unwrap();
+            let mut b = e.finish().unwrap();
+            b.push(b'x');
+            b
+        };
 
-        // First read : successful for one byte
-        let mut reader = Buffer::new(&mut part, &mut r);
-        out.resize(1, 0);
-        match reader.read_and_forget(&mut out) {
-            Ok(1) => {}
-            _ => {
-                panic!("Unexpected result for read_and_forget with data");
-            }
-        }
+        let mut output = Vec::new();
+        let mut decoder = GzDecoder::new(compressed.as_slice());
+        let decoded_bytes = decoder.read_to_end(&mut output).unwrap();
+        assert_eq!(decoded_bytes, output.len());
+        let actual = std::str::from_utf8(&output).expect("String parsing error");
+        assert_eq!(
+            actual, expected,
+            "after decompression we obtain the original input"
+        );
 
-        // Second read : incomplete for 7 bytes (we have only 2)
-        out.resize(7, 0);
-        match reader.read_and_forget(&mut out) {
-            Err(ref err) => {
-                assert_eq!(io::ErrorKind::WouldBlock, err.kind());
-            }
-            _ => {
-                panic!("Unexpected result for read_and_forget with incomplete");
-            }
-        }
-
-        // 3 more data bytes have arrived
-        let pos = r.position();
-        let data2 = vec![4, 5, 6];
-        match r.write_all(&data2) {
-            Ok(()) => {}
-            _ => {
-                panic!("Unexpected result for write_all");
-            }
-        }
-        r.set_position(pos);
-
-        // Third read : still incomplete for 7 bytes (we have 5)
-        let mut reader2 = Buffer::new(&mut part, &mut r);
-        match reader2.read_and_forget(&mut out) {
-            Err(ref err) => {
-                assert_eq!(io::ErrorKind::WouldBlock, err.kind());
-            }
-            _ => {
-                panic!("Unexpected result for read_and_forget with more incomplete");
-            }
-        }
-
-        // 3 more data bytes have arrived again
-        let pos2 = r.position();
-        let data3 = vec![7, 8, 9];
-        match r.write_all(&data3) {
-            Ok(()) => {}
-            _ => {
-                panic!("Unexpected result for write_all");
-            }
-        }
-        r.set_position(pos2);
-
-        // Fourth read : now successful for 7 bytes
-        let mut reader3 = Buffer::new(&mut part, &mut r);
-        match reader3.read_and_forget(&mut out) {
-            Ok(7) => {
-                assert_eq!(out[0], 2);
-                assert_eq!(out[6], 8);
-            }
-            _ => {
-                panic!("Unexpected result for read_and_forget with data");
-            }
-        }
-
-        // Fifth read : successful for one more byte
-        out.resize(1, 0);
-        match reader3.read_and_forget(&mut out) {
-            Ok(1) => {
-                assert_eq!(out[0], 9);
-            }
-            _ => {
-                panic!("Unexpected result for read_and_forget with data");
-            }
-        }
+        output.clear();
+        assert_eq!(
+            decoder.read(&mut output).unwrap(),
+            0,
+            "subsequent read of decoder returns 0, but inner reader can return additional data"
+        );
+        let mut reader = decoder.into_inner();
+        assert_eq!(
+            reader.read_to_end(&mut output).unwrap(),
+            1,
+            "extra data is accessible in underlying buf-read"
+        );
+        assert_eq!(output, b"x");
     }
 }

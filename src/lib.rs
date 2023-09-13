@@ -65,12 +65,30 @@
 //! `Write` trait if `T: Write`. That is, the "dual trait" is forwarded directly
 //! to the underlying object if available.
 //!
+//! # About multi-member Gzip files
+//!
+//! While most `gzip` files one encounters will have a single *member* that can be read
+//! with the [`GzDecoder`], there may be some files which have multiple members.
+//!
+//! A [`GzDecoder`] will only read the first member of gzip data, which may unexpectedly
+//! provide partial results when a multi-member gzip file is encountered. `GzDecoder` is appropriate
+//! for data that is designed to be read as single members from a multi-member file. `bufread::GzDecoder`
+//! and `write::GzDecoder` also allow non-gzip data following gzip data to be handled.
+//!
+//! The [`MultiGzDecoder`] on the other hand will decode all members of a `gzip` file
+//! into one consecutive stream of bytes, which hides the underlying *members* entirely.
+//! If a file contains contains non-gzip data after the gzip data, MultiGzDecoder will
+//! emit an error after decoding the gzip data. This behavior matches the `gzip`,
+//! `gunzip`, and `zcat` command line tools.
+//!
 //! [`read`]: read/index.html
 //! [`bufread`]: bufread/index.html
 //! [`write`]: write/index.html
 //! [read]: https://doc.rust-lang.org/std/io/trait.Read.html
 //! [write]: https://doc.rust-lang.org/std/io/trait.Write.html
 //! [bufread]: https://doc.rust-lang.org/std/io/trait.BufRead.html
+//! [`GzDecoder`]: read/struct.GzDecoder.html
+//! [`MultiGzDecoder`]: read/struct.MultiGzDecoder.html
 #![doc(html_root_url = "https://docs.rs/flate2/0.2")]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
@@ -99,7 +117,14 @@ mod zlib;
 /// Types which operate over [`Read`] streams, both encoders and decoders for
 /// various formats.
 ///
+/// Note that the `read` decoder types may read past the end of the compressed
+/// data while decoding. If the caller requires subsequent reads to start
+/// immediately following the compressed data  wrap the `Read` type in a
+/// [`BufReader`] and use the `BufReader` with the equivalent decoder from the
+/// `bufread` module and also for the subsequent reads.
+///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+/// [`BufReader`]: https://doc.rust-lang.org/std/io/struct.BufReader.html
 pub mod read {
     pub use crate::deflate::read::DeflateDecoder;
     pub use crate::deflate::read::DeflateEncoder;

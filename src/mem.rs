@@ -1,7 +1,6 @@
 use std::error::Error;
 use std::fmt;
 use std::io;
-use std::slice;
 
 use crate::ffi::{self, Backend, Deflate, DeflateBackend, ErrorMessage, Inflate, InflateBackend};
 use crate::Compression;
@@ -342,19 +341,12 @@ impl Compress {
         output: &mut Vec<u8>,
         flush: FlushCompress,
     ) -> Result<Status, CompressError> {
-        let cap = output.capacity();
-        let len = output.len();
-
-        unsafe {
+        write_to_spare_capacity_of_vec(output, |out| {
             let before = self.total_out();
-            let ret = {
-                let ptr = output.as_mut_ptr().add(len);
-                let out = slice::from_raw_parts_mut(ptr, cap - len);
-                self.compress(input, out, flush)
-            };
-            output.set_len((self.total_out() - before) as usize + len);
-            ret
-        }
+            let ret = self.compress(input, out, flush);
+            let bytes_written = self.total_out() - before;
+            (bytes_written as usize, ret)
+        })
     }
 }
 
@@ -473,19 +465,12 @@ impl Decompress {
         output: &mut Vec<u8>,
         flush: FlushDecompress,
     ) -> Result<Status, DecompressError> {
-        let cap = output.capacity();
-        let len = output.len();
-
-        unsafe {
+        write_to_spare_capacity_of_vec(output, |out| {
             let before = self.total_out();
-            let ret = {
-                let ptr = output.as_mut_ptr().add(len);
-                let out = slice::from_raw_parts_mut(ptr, cap - len);
-                self.decompress(input, out, flush)
-            };
-            output.set_len((self.total_out() - before) as usize + len);
-            ret
-        }
+            let ret = self.decompress(input, out, flush);
+            let bytes_written = self.total_out() - before;
+            (bytes_written as usize, ret)
+        })
     }
 
     /// Specifies the decompression dictionary to use.
@@ -572,6 +557,29 @@ impl fmt::Display for CompressError {
             None => write!(f, "deflate compression error"),
         }
     }
+}
+
+/// Allows `writer` to write data into the spare capacity of the `output` vector.
+/// This will not reallocate the vector provided or attempt to grow it, so space
+/// for the `output` must be reserved by the caller before calling this
+/// function.
+///
+/// `writer` needs to return the number of bytes written (and can also return
+/// another arbitrary return value).
+fn write_to_spare_capacity_of_vec<T>(
+    output: &mut Vec<u8>,
+    writer: impl FnOnce(&mut [u8]) -> (usize, T),
+) -> T {
+    let cap = output.capacity();
+    let len = output.len();
+
+    output.resize(output.capacity(), 0);
+    let (bytes_written, ret) = writer(&mut output[len..]);
+
+    let new_len = core::cmp::min(len + bytes_written, cap); // Sanitizes `bytes_written`.
+    output.resize(new_len, 0 /* unused */);
+
+    ret
 }
 
 #[cfg(test)]
