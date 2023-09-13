@@ -222,6 +222,12 @@ impl<R> ZlibDecoder<R> {
         self.inner.get_mut().reset(r)
     }
 
+    /// Resets the stream for another, without wiping the bufreader.
+    /// Use this when your 2nd stream is dependant on previous' streams.
+    pub fn continue_read(&mut self, r: R) -> R {
+        self.inner.get_mut().reset(r)
+    }
+
     /// Acquires a reference to the underlying stream
     pub fn get_ref(&self) -> &R {
         self.inner.get_ref().get_ref()
