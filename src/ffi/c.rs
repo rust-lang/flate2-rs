@@ -226,6 +226,12 @@ impl InflateBackend for Inflate {
         self.inner.total_in += (raw.next_in as usize - input.as_ptr() as usize) as u64;
         self.inner.total_out += (raw.next_out as usize - output.as_ptr() as usize) as u64;
 
+        // reset these pointers so we don't accidentally read them later
+        raw.next_in = ptr::null_mut();
+        raw.avail_in = 0;
+        raw.next_out = ptr::null_mut();
+        raw.avail_out = 0;
+
         match rc {
             MZ_DATA_ERROR | MZ_STREAM_ERROR => mem::decompress_failed(self.inner.msg()),
             MZ_OK => Ok(Status::Ok),
@@ -313,6 +319,12 @@ impl DeflateBackend for Deflate {
         // 32 bits wide and overflow while processing large amounts of data.
         self.inner.total_in += (raw.next_in as usize - input.as_ptr() as usize) as u64;
         self.inner.total_out += (raw.next_out as usize - output.as_ptr() as usize) as u64;
+
+        // reset these pointers so we don't accidentally read them later
+        raw.next_in = ptr::null_mut();
+        raw.avail_in = 0;
+        raw.next_out = ptr::null_mut();
+        raw.avail_out = 0;
 
         match rc {
             MZ_OK => Ok(Status::Ok),
