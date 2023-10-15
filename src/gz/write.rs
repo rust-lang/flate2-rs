@@ -134,6 +134,22 @@ impl<W: Write> GzEncoder<W> {
         }
         Ok(())
     }
+
+    /// Returns the number of bytes that have been written to this compressor.
+    ///
+    /// Note that not all bytes written to this object may be accounted for,
+    /// there may still be some active buffering.
+    pub fn total_in(&self) -> u64 {
+        self.inner.data.total_in()
+    }
+
+    /// Returns the number of bytes that the compressor has produced.
+    ///
+    /// Note that not all bytes may have been written yet, some may still be
+    /// buffered.
+    pub fn total_out(&self) -> u64 {
+        self.inner.data.total_out()
+    }
 }
 
 impl<W: Write> Write for GzEncoder<W> {
