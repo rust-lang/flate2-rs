@@ -359,6 +359,7 @@ pub use self::c_backend::*;
 
 /// For backwards compatibility, we provide symbols as `mz_` to mimic the miniz API
 #[allow(bad_style)]
+#[allow(unused_imports)]
 mod c_backend {
     use std::mem;
     use std::os::raw::{c_char, c_int};
