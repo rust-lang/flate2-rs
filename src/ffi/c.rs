@@ -8,7 +8,7 @@ use std::os::raw::{c_int, c_uint, c_void};
 use std::ptr;
 
 use super::*;
-use crate::mem::{self, FlushDecompress, Status};
+use crate::mem;
 
 #[derive(Default)]
 pub struct ErrorMessage(Option<&'static str>);
