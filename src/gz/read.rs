@@ -180,6 +180,19 @@ impl<R> GzDecoder<R> {
     pub fn into_inner(self) -> R {
         self.inner.into_inner().into_inner()
     }
+
+    /// Returns the number of bytes that the decompressor has consumed.
+    ///
+    /// Note that this will likely be smaller than what the decompressor
+    /// actually read from the underlying stream due to buffering.
+    pub fn total_in(&self) -> u64 {
+        self.inner.total_in()
+    }
+
+    /// Returns the number of bytes that the decompressor has produced.
+    pub fn total_out(&self) -> u64 {
+        self.inner.total_out()
+    }
 }
 
 impl<R: Read> Read for GzDecoder<R> {
@@ -277,6 +290,19 @@ impl<R> MultiGzDecoder<R> {
     /// Consumes this decoder, returning the underlying reader.
     pub fn into_inner(self) -> R {
         self.inner.into_inner().into_inner()
+    }
+
+    /// Returns the number of bytes that the decompressor has consumed.
+    ///
+    /// Note that this will likely be smaller than what the decompressor
+    /// actually read from the underlying stream due to buffering.
+    pub fn total_in(&self) -> u64 {
+        self.inner.total_in()
+    }
+
+    /// Returns the number of bytes that the decompressor has produced.
+    pub fn total_out(&self) -> u64 {
+        self.inner.total_out()
     }
 }
 
