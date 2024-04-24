@@ -1,10 +1,8 @@
 //! Implementation for C backends.
-use std::alloc::{self, Layout};
 use std::cmp;
-use std::convert::TryFrom;
 use std::fmt;
 use std::marker;
-use std::os::raw::{c_int, c_uint, c_void};
+use std::os::raw::{c_int, c_uint};
 use std::ptr;
 
 use super::*;
@@ -52,14 +50,28 @@ impl Default for StreamWrapper {
                 reserved: 0,
                 opaque: ptr::null_mut(),
                 state: ptr::null_mut(),
-                #[cfg(all(feature = "any_zlib", not(feature = "cloudflare-zlib-sys")))]
-                zalloc,
-                #[cfg(all(feature = "any_zlib", not(feature = "cloudflare-zlib-sys")))]
-                zfree,
-                #[cfg(not(all(feature = "any_zlib", not(feature = "cloudflare-zlib-sys"))))]
-                zalloc: Some(zalloc),
-                #[cfg(not(all(feature = "any_zlib", not(feature = "cloudflare-zlib-sys"))))]
-                zfree: Some(zfree),
+                #[cfg(all(
+                    feature = "any_zlib",
+                    not(any(feature = "cloudflare-zlib-sys", feature = "libz-rs-sys"))
+                ))]
+                zalloc: allocator::zalloc,
+                #[cfg(all(
+                    feature = "any_zlib",
+                    not(any(feature = "cloudflare-zlib-sys", feature = "libz-rs-sys"))
+                ))]
+                zfree: allocator::zfree,
+
+                #[cfg(all(feature = "any_zlib", feature = "cloudflare-zlib-sys"))]
+                zalloc: Some(allocator::zalloc),
+                #[cfg(all(feature = "any_zlib", feature = "cloudflare-zlib-sys"))]
+                zfree: Some(allocator::zfree),
+
+                // for zlib-rs, it is most efficient to have it provide the allocator.
+                // The libz-rs-sys dependency is configured to use the rust system allocator
+                #[cfg(all(feature = "any_zlib", feature = "libz-rs-sys"))]
+                zalloc: None,
+                #[cfg(all(feature = "any_zlib", feature = "libz-rs-sys"))]
+                zfree: None,
             })),
         }
     }
@@ -75,54 +87,63 @@ impl Drop for StreamWrapper {
     }
 }
 
-const ALIGN: usize = std::mem::align_of::<usize>();
+#[cfg(all(feature = "any_zlib", not(feature = "libz-rs-sys")))]
+mod allocator {
+    use super::*;
 
-fn align_up(size: usize, align: usize) -> usize {
-    (size + align - 1) & !(align - 1)
-}
+    use std::alloc::{self, Layout};
+    use std::convert::TryFrom;
+    use std::os::raw::c_void;
 
-extern "C" fn zalloc(_ptr: *mut c_void, items: AllocSize, item_size: AllocSize) -> *mut c_void {
-    // We need to multiply `items` and `item_size` to get the actual desired
-    // allocation size. Since `zfree` doesn't receive a size argument we
-    // also need to allocate space for a `usize` as a header so we can store
-    // how large the allocation is to deallocate later.
-    let size = match items
-        .checked_mul(item_size)
-        .and_then(|i| usize::try_from(i).ok())
-        .map(|size| align_up(size, ALIGN))
-        .and_then(|i| i.checked_add(std::mem::size_of::<usize>()))
-    {
-        Some(i) => i,
-        None => return ptr::null_mut(),
-    };
+    const ALIGN: usize = std::mem::align_of::<usize>();
 
-    // Make sure the `size` isn't too big to fail `Layout`'s restrictions
-    let layout = match Layout::from_size_align(size, ALIGN) {
-        Ok(layout) => layout,
-        Err(_) => return ptr::null_mut(),
-    };
-
-    unsafe {
-        // Allocate the data, and if successful store the size we allocated
-        // at the beginning and then return an offset pointer.
-        let ptr = alloc::alloc(layout) as *mut usize;
-        if ptr.is_null() {
-            return ptr as *mut c_void;
-        }
-        *ptr = size;
-        ptr.add(1) as *mut c_void
+    fn align_up(size: usize, align: usize) -> usize {
+        (size + align - 1) & !(align - 1)
     }
-}
 
-extern "C" fn zfree(_ptr: *mut c_void, address: *mut c_void) {
-    unsafe {
-        // Move our address being freed back one pointer, read the size we
-        // stored in `zalloc`, and then free it using the standard Rust
-        // allocator.
-        let ptr = (address as *mut usize).offset(-1);
-        let size = *ptr;
-        let layout = Layout::from_size_align_unchecked(size, ALIGN);
-        alloc::dealloc(ptr as *mut u8, layout)
+    pub extern "C" fn zalloc(_ptr: *mut c_void, items: uInt, item_size: uInt) -> *mut c_void {
+        // We need to multiply `items` and `item_size` to get the actual desired
+        // allocation size. Since `zfree` doesn't receive a size argument we
+        // also need to allocate space for a `usize` as a header so we can store
+        // how large the allocation is to deallocate later.
+        let size = match items
+            .checked_mul(item_size)
+            .and_then(|i| usize::try_from(i).ok())
+            .map(|size| align_up(size, ALIGN))
+            .and_then(|i| i.checked_add(std::mem::size_of::<usize>()))
+        {
+            Some(i) => i,
+            None => return ptr::null_mut(),
+        };
+
+        // Make sure the `size` isn't too big to fail `Layout`'s restrictions
+        let layout = match Layout::from_size_align(size, ALIGN) {
+            Ok(layout) => layout,
+            Err(_) => return ptr::null_mut(),
+        };
+
+        unsafe {
+            // Allocate the data, and if successful store the size we allocated
+            // at the beginning and then return an offset pointer.
+            let ptr = alloc::alloc(layout) as *mut usize;
+            if ptr.is_null() {
+                return ptr as *mut c_void;
+            }
+            *ptr = size;
+            ptr.add(1) as *mut c_void
+        }
+    }
+
+    pub extern "C" fn zfree(_ptr: *mut c_void, address: *mut c_void) {
+        unsafe {
+            // Move our address being freed back one pointer, read the size we
+            // stored in `zalloc`, and then free it using the standard Rust
+            // allocator.
+            let ptr = (address as *mut usize).offset(-1);
+            let size = *ptr;
+            let layout = Layout::from_size_align_unchecked(size, ALIGN);
+            alloc::dealloc(ptr as *mut u8, layout)
+        }
     }
 }
 
@@ -382,10 +403,17 @@ mod c_backend {
     #[cfg(feature = "zlib-ng")]
     use libz_ng_sys as libz;
 
+    #[cfg(feature = "zlib-rs")]
+    use libz_rs_sys as libz;
+
     #[cfg(all(not(feature = "zlib-ng"), feature = "cloudflare_zlib"))]
     use cloudflare_zlib_sys as libz;
 
-    #[cfg(all(not(feature = "cloudflare_zlib"), not(feature = "zlib-ng")))]
+    #[cfg(all(
+        not(feature = "cloudflare_zlib"),
+        not(feature = "zlib-ng"),
+        not(feature = "zlib-rs")
+    ))]
     use libz_sys as libz;
 
     pub use libz::deflate as mz_deflate;
@@ -410,13 +438,14 @@ mod c_backend {
     pub use libz::Z_STREAM_END as MZ_STREAM_END;
     pub use libz::Z_STREAM_ERROR as MZ_STREAM_ERROR;
     pub use libz::Z_SYNC_FLUSH as MZ_SYNC_FLUSH;
-    pub type AllocSize = libz::uInt;
 
     pub const MZ_DEFAULT_WINDOW_BITS: c_int = 15;
 
     #[cfg(feature = "zlib-ng")]
     const ZLIB_VERSION: &'static str = "2.1.0.devel\0";
-    #[cfg(not(feature = "zlib-ng"))]
+    #[cfg(feature = "zlib-rs")]
+    const ZLIB_VERSION: &'static str = "0.1.0\0";
+    #[cfg(not(any(feature = "zlib-ng", feature = "zlib-rs")))]
     const ZLIB_VERSION: &'static str = "1.2.8\0";
 
     pub unsafe extern "C" fn mz_deflateInit2(
