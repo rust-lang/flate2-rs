@@ -208,7 +208,7 @@ impl<R: Read + Write> Write for GzDecoder<R> {
 /// MultiGzDecoder decodes all members of a file and returns Ok(0) once the
 /// underlying reader does.
 ///
-/// To handle members seperately, see [GzDecoder] or read more
+/// To handle members separately, see [GzDecoder] or read more
 /// [in the introduction](../index.html#about-multi-member-gzip-files).
 ///
 /// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
