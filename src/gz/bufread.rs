@@ -359,7 +359,7 @@ impl<R: BufRead + Write> Write for GzDecoder<R> {
 /// MultiGzDecoder decodes all members from the data and only returns Ok(0) when the
 /// underlying reader does. For a file, this reads to the end of the file.
 ///
-/// To handle members seperately, see [GzDecoder] or read more
+/// To handle members separately, see [GzDecoder] or read more
 /// [in the introduction](../index.html#about-multi-member-gzip-files).
 ///
 /// [gzip file]: https://www.rfc-editor.org/rfc/rfc1952#page-5
