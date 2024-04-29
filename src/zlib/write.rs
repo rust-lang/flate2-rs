@@ -180,6 +180,10 @@ impl<W: Read + Write> Read for ZlibEncoder<W> {
 /// This structure implements a [`Write`] and will emit a stream of decompressed
 /// data when fed a stream of compressed data.
 ///
+/// After decoding a single member of the ZLIB data this writer will return the number of bytes up to
+/// to the end of the ZLIB member and subsequent writes will return Ok(0) allowing the caller to
+/// handle any data following the ZLIB member.
+///
 /// [`Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 ///
 /// # Examples

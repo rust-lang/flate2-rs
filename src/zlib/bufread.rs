@@ -132,6 +132,11 @@ impl<R: BufRead + Write> Write for ZlibEncoder<R> {
 /// This structure implements a [`Read`] interface. When read from, it reads
 /// compressed data from the underlying [`BufRead`] and provides the uncompressed data.
 ///
+/// After reading a single member of the ZLIB data this reader will return
+/// Ok(0) even if there are more bytes available in the underlying reader.
+/// If you need the following bytes, call `into_inner()` after Ok(0) to
+/// recover the underlying reader.
+///
 /// [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
 /// [`BufRead`]: https://doc.rust-lang.org/std/io/trait.BufRead.html
 ///
