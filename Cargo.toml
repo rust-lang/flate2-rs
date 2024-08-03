@@ -15,6 +15,7 @@ DEFLATE compression and decompression exposed as Read/BufRead/Write streams.
 Supports miniz_oxide and multiple zlib implementations. Supports zlib, gzip,
 and raw deflate streams.
 """
+exclude = [".*"]
 
 [dependencies]
 libz-sys = { version = "1.1.8", optional = true, default-features = false }
