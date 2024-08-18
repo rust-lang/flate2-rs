@@ -5,6 +5,7 @@ version = "1.0.31"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
+rust-version = "1.56.1"
 keywords = ["gzip", "deflate", "zlib", "zlib-ng", "encoding"]
 categories = ["compression", "api-bindings"]
 repository = "https://github.com/rust-lang/flate2-rs"
