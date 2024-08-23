@@ -77,7 +77,10 @@ jobs:
 
   minimum:
     name: Minimum Rust compiler
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-2022, macos-latest, ubuntu-latest]
     env:
       # If this is changed to pass tests, then set `rust-version` in `Cargo.toml` to the same version.
       version: 1.56.1
