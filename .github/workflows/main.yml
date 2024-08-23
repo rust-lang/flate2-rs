@@ -93,3 +93,10 @@ jobs:
           cargo +nightly update -Zminimal-versions
         shell: bash
       - run: cargo build
+      - run: cargo build --features zlib
+      - run: cargo build --features zlib --no-default-features
+      - run: cargo build --features zlib-default --no-default-features
+      - run: cargo build --features zlib-ng-compat --no-default-features
+      - run: cargo build --features zlib-ng --no-default-features
+      - run: cargo build --features zlib-rs --no-default-features
+      - run: cargo build --features cloudflare_zlib --no-default-features
