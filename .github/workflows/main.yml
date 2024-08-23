@@ -83,7 +83,7 @@ jobs:
         os: [windows-2022, macos-latest, ubuntu-latest]
     env:
       # If this is changed to pass tests, then set `rust-version` in `Cargo.toml` to the same version.
-      version: 1.56.1
+      version: 1.63.0
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust (rustup)
