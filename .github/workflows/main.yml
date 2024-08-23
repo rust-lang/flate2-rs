@@ -84,6 +84,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust (rustup)
-        run: rustup update ${version} --no-self-update && rustup default ${version}
+        run: |
+          rustup toolchain install ${version} nightly --profile minimal --no-self-update
+          rustup default ${version}
+          cargo +nightly update -Zminimal-versions
         shell: bash
       - run: cargo build
