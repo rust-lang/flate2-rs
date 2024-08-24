@@ -77,13 +77,25 @@ jobs:
 
   minimum:
     name: Minimum Rust compiler
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-2022, macos-latest, ubuntu-latest]
     env:
       # If this is changed to pass tests, then set `rust-version` in `Cargo.toml` to the same version.
-      version: 1.56.1
+      version: 1.63.0
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust (rustup)
-        run: rustup update ${version} --no-self-update && rustup default ${version}
+        run: |
+          rustup toolchain install ${version} nightly --profile minimal --no-self-update
+          rustup default ${version}
+          cargo +nightly update -Zminimal-versions
         shell: bash
       - run: cargo build
+      - run: cargo build --features zlib
+      - run: cargo build --features zlib --no-default-features
+      - run: cargo build --features zlib-default --no-default-features
+      - run: cargo build --features zlib-ng-compat --no-default-features
+      - run: cargo build --features zlib-ng --no-default-features
+      - run: cargo build --features cloudflare_zlib --no-default-features
