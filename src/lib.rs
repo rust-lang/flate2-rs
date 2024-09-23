@@ -192,6 +192,10 @@ impl Compression {
     ///
     /// The integer here is typically on a scale of 0-9 where 0 means "no
     /// compression" and 9 means "take as long as you'd like".
+    ///
+    /// It is worth noting that `flate2` supports both `zlib` and `miniz`
+    /// backends for compression, where `miniz` also provides a level `10` of
+    /// compression.
     pub const fn new(level: u32) -> Compression {
         Compression(level)
     }
@@ -213,7 +217,7 @@ impl Compression {
     }
 
     /// Returns an integer representing the compression level, typically on a
-    /// scale of 0-9
+    /// scale of 0-9. With `miniz` backend, level 10 is also possible.
     pub fn level(&self) -> u32 {
         self.0
     }
