@@ -197,8 +197,8 @@ impl Compression {
     ///
     /// The [`miniz_oxide`](https://crates.io/crates/miniz_oxide) backend for flate2
     /// does not support level 0 or `Compression::none()`. Instead it interprets them
-    /// as the default compression level. Using `Compression::fast()` is recommended instead
-    /// when using the `miniz_oxide` backend.
+    /// as the default compression level, which is quite slow.
+    /// `Compression::fast()` should be used instead.
     ///
     /// `miniz_oxide` also supports a non-compliant compression level 10.
     /// It is even slower and may result in higher compression, but
