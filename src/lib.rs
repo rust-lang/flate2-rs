@@ -193,9 +193,17 @@ impl Compression {
     /// The integer here is typically on a scale of 0-9 where 0 means "no
     /// compression" and 9 means "take as long as you'd like".
     ///
-    /// It is worth noting that `flate2` supports both `zlib` and `miniz`
-    /// backends for compression, where `miniz` also provides a level `10` of
-    /// compression.
+    /// ### Backend differences
+    ///
+    /// The [`miniz_oxide`](https://crates.io/crates/miniz_oxide) backend for flate2
+    /// does not support level 0 or `Compression::none()`. Instead it interprets them
+    /// as the default compression level. Using `Compression::fast()` is recommended instead
+    /// when using the `miniz_oxide` backend.
+    ///
+    /// `miniz_oxide` also supports a non-compliant compression level 10.
+    /// It is even slower and may result in higher compression, but
+    /// **only miniz_oxide will be able to read the data** compressed with level 10.
+    /// Do **not** use level 10 if you need other software to be able to read it!
     pub const fn new(level: u32) -> Compression {
         Compression(level)
     }
@@ -217,7 +225,7 @@ impl Compression {
     }
 
     /// Returns an integer representing the compression level, typically on a
-    /// scale of 0-9. With `miniz` backend, level 10 is also possible.
+    /// scale of 0-9. See [`new`](Self::new) for details about compression levels.
     pub fn level(&self) -> u32 {
         self.0
     }
