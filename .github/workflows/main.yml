@@ -34,6 +34,7 @@ jobs:
       shell: bash
     - run: cargo build
     - run: rustdoc --test README.md -L target/debug/deps --extern flate2=target/debug/libflate2.rlib --edition=2018
+    - run: cargo test
     - run: cargo test --features zlib
     - run: cargo test --features zlib --no-default-features
     - run: cargo test --features zlib-default --no-default-features
@@ -45,7 +46,6 @@ jobs:
       if: matrix.build != 'mingw'
     - run: cargo test --features cloudflare_zlib --no-default-features
       if: matrix.build != 'mingw'
-    - run: cargo test
     - run: |
         if ! cargo check --no-default-features 2>&1 | grep "You need to choose"; then
           echo "expected message stating a zlib backend must be chosen"
