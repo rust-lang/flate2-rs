@@ -21,7 +21,11 @@ fn deflate_decoder_partial() {
     loop {
         let prev_out = decompress.total_out();
         let status = decompress
-            .decompress(&input[decompress.total_in() as usize..], &mut output_buf, flush_decompress)
+            .decompress(
+                &input[decompress.total_in() as usize..],
+                &mut output_buf,
+                flush_decompress,
+            )
             .unwrap();
         let output_len = decompress.total_out() - prev_out;
         output.extend_from_slice(&output_buf[..output_len as usize]);
