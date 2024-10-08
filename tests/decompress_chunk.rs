@@ -25,7 +25,6 @@ fn deflate_decoder_partial() {
             .unwrap();
         let output_len = decompress.total_out() - prev_out;
         output.extend_from_slice(&output_buf[..output_len as usize]);
-        eprintln!("{}", output.len());
 
         // IMAP stream never ends.
         assert_ne!(status, flate2::Status::StreamEnd);
