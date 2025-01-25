@@ -17,7 +17,7 @@ use super::*;
 use crate::mem;
 
 // miniz_oxide doesn't provide any error messages (yet?)
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct ErrorMessage;
 
 impl ErrorMessage {
