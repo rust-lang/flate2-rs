@@ -8,7 +8,7 @@ use std::ptr;
 use super::*;
 use crate::mem;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct ErrorMessage(Option<&'static str>);
 
 impl ErrorMessage {

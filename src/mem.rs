@@ -109,7 +109,7 @@ pub enum FlushDecompress {
 }
 
 /// The inner state for an error when decompressing
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum DecompressErrorInner {
     General { msg: ErrorMessage },
     NeedsDictionary(u32),
@@ -117,7 +117,7 @@ pub(crate) enum DecompressErrorInner {
 
 /// Error returned when a decompression object finds that the input stream of
 /// bytes was not a valid input stream of bytes.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DecompressError(pub(crate) DecompressErrorInner);
 
 impl DecompressError {
@@ -147,7 +147,7 @@ pub(crate) fn decompress_need_dict<T>(adler: u32) -> Result<T, DecompressError> 
 
 /// Error returned when a compression object is used incorrectly or otherwise
 /// generates an error.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct CompressError {
     pub(crate) msg: ErrorMessage,
 }
