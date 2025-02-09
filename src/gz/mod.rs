@@ -163,7 +163,7 @@ impl GzHeaderParser {
                         if let Some(crc) = crc {
                             crc.update(buffer);
                         }
-                        let xlen = parse_le_u16(&buffer);
+                        let xlen = parse_le_u16(buffer);
                         self.header.extra = Some(vec![0; xlen as usize]);
                         self.state = GzHeaderState::Extra(crc.take(), 0);
                     } else {
@@ -209,7 +209,7 @@ impl GzHeaderParser {
                         while (*count as usize) < buffer.len() {
                             *count += read_into(r, &mut buffer[*count as usize..])? as u8;
                         }
-                        let stored_crc = parse_le_u16(&buffer);
+                        let stored_crc = parse_le_u16(buffer);
                         let calced_crc = crc.sum() as u16;
                         if stored_crc != calced_crc {
                             return Err(corrupt());
@@ -277,7 +277,7 @@ fn read_to_nul<R: Read>(r: &mut R, buffer: &mut Vec<u8>) -> Result<()> {
 }
 
 fn parse_le_u16(buffer: &[u8; 2]) -> u16 {
-    (buffer[0] as u16) | ((buffer[1] as u16) << 8)
+    u16::from_le_bytes(*buffer)
 }
 
 fn bad_header() -> Error {
