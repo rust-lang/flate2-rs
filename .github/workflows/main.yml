@@ -45,8 +45,7 @@ jobs:
     - run: cargo test --features zlib-rs --no-default-features
       if: matrix.build != 'mingw'
     - run: cargo test --features cloudflare_zlib --no-default-features
-      # cloudflare doesn't seem to work on CI anymore for some reason, it's not reproducible locally.
-      if: matrix.build != 'mingw' && matrix.os != 'ubuntu-latest' && matrix.os != 'windows-2022'
+      if: matrix.build != 'mingw'
     - run: |
         if ! cargo check --no-default-features 2>&1 | grep "You need to choose"; then
           echo "expected message stating a zlib backend must be chosen"
