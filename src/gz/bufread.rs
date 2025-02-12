@@ -82,12 +82,12 @@ impl<R: BufRead> GzEncoder<R> {
             return Ok(0);
         }
         let crc = self.inner.get_ref().crc();
-        let calced_crc = crc.sum().to_le_bytes();
+        let calced_crc_bytes = crc.sum().to_le_bytes();
         let arr = [
-            calced_crc[0],
-            calced_crc[1],
-            calced_crc[2],
-            calced_crc[3],
+            calced_crc_bytes[0],
+            calced_crc_bytes[1],
+            calced_crc_bytes[2],
+            calced_crc_bytes[3],
             (crc.amount() >> 0) as u8,
             (crc.amount() >> 8) as u8,
             (crc.amount() >> 16) as u8,
