@@ -324,13 +324,7 @@ pub struct GzBuilder {
 impl GzBuilder {
     /// Create a new blank builder with no header by default.
     pub fn new() -> GzBuilder {
-        GzBuilder {
-            extra: None,
-            filename: None,
-            comment: None,
-            operating_system: None,
-            mtime: 0,
-        }
+        Self::default()
     }
 
     /// Configure the `mtime` field in the gzip header.

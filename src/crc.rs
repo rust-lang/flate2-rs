@@ -25,11 +25,8 @@ pub struct CrcReader<R> {
 
 impl Crc {
     /// Create a new CRC.
-    pub fn new() -> Crc {
-        Crc {
-            amt: 0,
-            hasher: Hasher::new(),
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Returns the current crc32 checksum.
