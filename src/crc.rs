@@ -8,7 +8,7 @@ use crc32fast::Hasher;
 /// The CRC calculated by a [`CrcReader`].
 ///
 /// [`CrcReader`]: struct.CrcReader.html
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Crc {
     amt: u32,
     hasher: Hasher,
@@ -21,12 +21,6 @@ pub struct Crc {
 pub struct CrcReader<R> {
     inner: R,
     crc: Crc,
-}
-
-impl Default for Crc {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl Crc {
