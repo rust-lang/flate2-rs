@@ -120,7 +120,7 @@ impl GzHeaderParser {
         }
     }
 
-    fn parse<'a, R: Read>(&mut self, r: &'a mut R) -> Result<()> {
+    fn parse<'a, R: BufRead>(&mut self, r: &'a mut R) -> Result<()> {
         loop {
             match &mut self.state {
                 GzHeaderState::Start(count, buffer) => {
@@ -253,7 +253,7 @@ fn read_into<R: Read>(r: &mut R, buffer: &mut [u8]) -> Result<usize> {
 }
 
 // Read `r` up to the first nul byte, pushing non-nul bytes to `buffer`.
-fn read_to_nul<R: Read>(r: &mut R, buffer: &mut Vec<u8>) -> Result<()> {
+fn read_to_nul<R: BufRead>(r: &mut R, buffer: &mut Vec<u8>) -> Result<()> {
     let mut bytes = r.bytes();
     loop {
         match bytes.next().transpose()? {
