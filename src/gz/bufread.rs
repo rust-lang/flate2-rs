@@ -82,11 +82,12 @@ impl<R: BufRead> GzEncoder<R> {
             return Ok(0);
         }
         let crc = self.inner.get_ref().crc();
+        let calced_crc = crc.sum();
         let ref arr = [
-            (crc.sum() >> 0) as u8,
-            (crc.sum() >> 8) as u8,
-            (crc.sum() >> 16) as u8,
-            (crc.sum() >> 24) as u8,
+            (calced_crc >> 0) as u8,
+            (calced_crc >> 8) as u8,
+            (calced_crc >> 16) as u8,
+            (calced_crc >> 24) as u8,
             (crc.amount() >> 0) as u8,
             (crc.amount() >> 8) as u8,
             (crc.amount() >> 16) as u8,
