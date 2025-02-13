@@ -280,7 +280,7 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
             }
         }
 
-        self.obj.as_mut().map(Write::flush).unwrap_or(Ok(()))
+        self.obj.as_mut().unwrap().flush()
     }
 }
 
