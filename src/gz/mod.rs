@@ -87,7 +87,7 @@ impl GzHeader {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub enum GzHeaderState {
     Start(u8, [u8; 10]),
     Xlen(Option<Box<Crc>>, u8, [u8; 2]),
@@ -95,13 +95,8 @@ pub enum GzHeaderState {
     Filename(Option<Box<Crc>>),
     Comment(Option<Box<Crc>>),
     Crc(Option<Box<Crc>>, u8, [u8; 2]),
+    #[default]
     Complete,
-}
-
-impl Default for GzHeaderState {
-    fn default() -> Self {
-        Self::Complete
-    }
 }
 
 #[derive(Debug, Default)]
@@ -317,7 +312,7 @@ fn corrupt() -> Error {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct GzBuilder {
     extra: Option<Vec<u8>>,
     filename: Option<CString>,
@@ -326,22 +321,10 @@ pub struct GzBuilder {
     mtime: u32,
 }
 
-impl Default for GzBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl GzBuilder {
     /// Create a new blank builder with no header by default.
     pub fn new() -> GzBuilder {
-        GzBuilder {
-            extra: None,
-            filename: None,
-            comment: None,
-            operating_system: None,
-            mtime: 0,
-        }
+        Self::default()
     }
 
     /// Configure the `mtime` field in the gzip header.
