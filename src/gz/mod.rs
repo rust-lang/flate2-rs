@@ -351,7 +351,7 @@ impl GzBuilder {
     ///
     /// Panics if the `filename` slice contains a zero.
     pub fn filename<T: Into<Vec<u8>>>(mut self, filename: T) -> Result<GzBuilder> {
-        self.filename = Some(CString::new(filename.into())?);
+        self.filename = Some(CString::new(filename)?);
         Ok(self)
     }
 
@@ -361,7 +361,7 @@ impl GzBuilder {
     ///
     /// Panics if the `comment` slice contains a zero.
     pub fn comment<T: Into<Vec<u8>>>(mut self, comment: T) -> Result<GzBuilder> {
-        self.comment = Some(CString::new(comment.into())?);
+        self.comment = Some(CString::new(comment)?);
         Ok(self)
     }
 
