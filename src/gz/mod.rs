@@ -549,8 +549,10 @@ mod tests {
         let mut header = GzBuilder::new()
             .mtime(1234)
             .operating_system(57)
-            .filename("filename").unwrap()
-            .comment("comment").unwrap()
+            .filename("filename")
+            .unwrap()
+            .comment("comment")
+            .unwrap()
             .into_header(Compression::fast());
 
         // Add a CRC to the header
@@ -579,8 +581,10 @@ mod tests {
     fn fields() {
         let r = vec![0, 2, 4, 6];
         let e = GzBuilder::new()
-            .filename("foo.rs").unwrap()
-            .comment("bar").unwrap()
+            .filename("foo.rs")
+            .unwrap()
+            .comment("bar")
+            .unwrap()
             .extra(vec![0, 1, 2, 3])
             .read(&r[..], Compression::default());
         let mut d = read::GzDecoder::new(e);
