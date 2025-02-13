@@ -512,7 +512,7 @@ mod tests {
     fn decode_writer_partial_header_filename() {
         let filename = "test.txt";
         let mut e = GzBuilder::new()
-            .filename(filename)
+            .filename(filename).unwrap()
             .read(STR.as_bytes(), Compression::default());
         let mut bytes = Vec::new();
         e.read_to_end(&mut bytes).unwrap();
@@ -537,7 +537,7 @@ mod tests {
     fn decode_writer_partial_header_comment() {
         let comment = "test comment";
         let mut e = GzBuilder::new()
-            .comment(comment)
+            .comment(comment).unwrap()
             .read(STR.as_bytes(), Compression::default());
         let mut bytes = Vec::new();
         e.read_to_end(&mut bytes).unwrap();

@@ -304,8 +304,8 @@ fn corrupt() -> Error {
 /// # fn sample_builder() -> Result<(), io::Error> {
 /// let f = File::create("examples/hello_world.gz")?;
 /// let mut gz = GzBuilder::new()
-///                 .filename("hello_world.txt")
-///                 .comment("test file, please delete")
+///                 .filename("hello_world.txt")?
+///                 .comment("test file, please delete")?
 ///                 .write(f, Compression::default());
 /// gz.write_all(b"hello world")?;
 /// gz.finish()?;
@@ -350,9 +350,9 @@ impl GzBuilder {
     /// # Panics
     ///
     /// Panics if the `filename` slice contains a zero.
-    pub fn filename<T: Into<Vec<u8>>>(mut self, filename: T) -> GzBuilder {
-        self.filename = Some(CString::new(filename.into()).unwrap());
-        self
+    pub fn filename<T: Into<Vec<u8>>>(mut self, filename: T) -> Result<GzBuilder> {
+        self.filename = Some(CString::new(filename.into())?);
+        Ok(self)
     }
 
     /// Configure the `comment` field in the gzip header.
@@ -360,9 +360,9 @@ impl GzBuilder {
     /// # Panics
     ///
     /// Panics if the `comment` slice contains a zero.
-    pub fn comment<T: Into<Vec<u8>>>(mut self, comment: T) -> GzBuilder {
-        self.comment = Some(CString::new(comment.into()).unwrap());
-        self
+    pub fn comment<T: Into<Vec<u8>>>(mut self, comment: T) -> Result<GzBuilder> {
+        self.comment = Some(CString::new(comment.into())?);
+        Ok(self)
     }
 
     /// Consume this builder, creating a writer encoder in the process.
@@ -549,8 +549,8 @@ mod tests {
         let mut header = GzBuilder::new()
             .mtime(1234)
             .operating_system(57)
-            .filename("filename")
-            .comment("comment")
+            .filename("filename").unwrap()
+            .comment("comment").unwrap()
             .into_header(Compression::fast());
 
         // Add a CRC to the header
@@ -579,8 +579,8 @@ mod tests {
     fn fields() {
         let r = vec![0, 2, 4, 6];
         let e = GzBuilder::new()
-            .filename("foo.rs")
-            .comment("bar")
+            .filename("foo.rs").unwrap()
+            .comment("bar").unwrap()
             .extra(vec![0, 1, 2, 3])
             .read(&r[..], Compression::default());
         let mut d = read::GzDecoder::new(e);
