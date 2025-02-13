@@ -2,7 +2,9 @@ use std::io;
 use std::io::prelude::*;
 use std::mem;
 
-use crate::{Compress, CompressError, Decompress, DecompressError, FlushCompress, FlushDecompress, Status};
+use crate::{
+    Compress, CompressError, Decompress, DecompressError, FlushCompress, FlushDecompress, Status,
+};
 
 #[derive(Debug)]
 pub struct Writer<W: Write, D: Ops> {
@@ -173,7 +175,9 @@ impl<W: Write, D: Ops> Writer<W, D> {
             self.dump()?;
 
             let before = self.data.total_out();
-            self.data.run_vec(&[], &mut self.buf, Flush::finish()).map_err(Into::into)?;
+            self.data
+                .run_vec(&[], &mut self.buf, Flush::finish())
+                .map_err(Into::into)?;
             if before == self.data.total_out() {
                 return Ok(());
             }
@@ -255,10 +259,10 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
         self.write_with_status(buf).map(|res| res.0)
     }
 
-    fn flush(&mut self) -> io::Result<()>
-    {
+    fn flush(&mut self) -> io::Result<()> {
         self.data
-            .run_vec(&[], &mut self.buf, Flush::sync()).map_err(Into::into)?;
+            .run_vec(&[], &mut self.buf, Flush::sync())
+            .map_err(Into::into)?;
 
         // Unfortunately miniz doesn't actually tell us when we're done with
         // pulling out all the data from the internal stream. To remedy this we
@@ -269,7 +273,8 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
             self.dump()?;
             let before = self.data.total_out();
             self.data
-                .run_vec(&[], &mut self.buf, Flush::none()).map_err(Into::into)?;
+                .run_vec(&[], &mut self.buf, Flush::none())
+                .map_err(Into::into)?;
             if before == self.data.total_out() {
                 break;
             }
