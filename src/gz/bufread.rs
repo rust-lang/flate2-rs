@@ -10,9 +10,7 @@ use crate::Compression;
 
 fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
     let min = cmp::min(into.len(), from.len() - *pos);
-    for (slot, val) in into.iter_mut().zip(from[*pos..*pos + min].iter()) {
-        *slot = *val;
-    }
+    into[..min].copy_from_slice(&from[*pos..*pos + min]);
     *pos += min;
     min
 }
