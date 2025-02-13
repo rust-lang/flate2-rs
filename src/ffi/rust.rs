@@ -50,6 +50,14 @@ impl fmt::Debug for Inflate {
     }
 }
 
+fn flush_decompress_into_mzflush(flush: FlushDecompress) -> MZFlush {
+    match flush {
+        FlushDecompress::None => MZFlush::None,
+        FlushDecompress::Sync => MZFlush::Sync,
+        FlushDecompress::Finish => MZFlush::Finish,
+    }
+}
+
 impl InflateBackend for Inflate {
     fn make(zlib_header: bool, _window_bits: u8) -> Self {
         let format = format_from_bool(zlib_header);
@@ -67,8 +75,7 @@ impl InflateBackend for Inflate {
         output: &mut [u8],
         flush: FlushDecompress,
     ) -> Result<Status, DecompressError> {
-        let flush = MZFlush::new(flush as i32).unwrap();
-
+        let flush = flush_decompress_into_mzflush(flush);
         let res = inflate::stream::inflate(&mut self.inner, input, output, flush);
         self.total_in += res.bytes_consumed as u64;
         self.total_out += res.bytes_written as u64;
@@ -123,6 +130,15 @@ impl fmt::Debug for Deflate {
     }
 }
 
+fn flush_compress_into_mzflush(flush: FlushCompress) -> MZFlush {
+    match flush {
+        FlushCompress::None => MZFlush::None,
+        FlushCompress::Sync | FlushCompress::Partial => MZFlush::Sync,
+        FlushCompress::Full => MZFlush::Full,
+        FlushCompress::Finish => MZFlush::Finish,
+    }
+}
+
 impl DeflateBackend for Deflate {
     fn make(level: Compression, zlib_header: bool, _window_bits: u8) -> Self {
         // Check in case the integer value changes at some point.
@@ -145,7 +161,7 @@ impl DeflateBackend for Deflate {
         output: &mut [u8],
         flush: FlushCompress,
     ) -> Result<Status, CompressError> {
-        let flush = MZFlush::new(flush as i32).unwrap();
+        let flush = flush_compress_into_mzflush(flush);
         let res = deflate::stream::deflate(&mut self.inner, input, output, flush);
         self.total_in += res.bytes_consumed as u64;
         self.total_out += res.bytes_written as u64;
