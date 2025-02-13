@@ -1,19 +1,18 @@
 use std::io;
 use std::io::prelude::*;
-use std::marker::PhantomData;
 use std::mem;
 
 use crate::{Compress, CompressError, Decompress, DecompressError, FlushCompress, FlushDecompress, Status};
 
 #[derive(Debug)]
-pub struct Writer<W: Write, DE: Into<io::Error>, D: Ops<DE>> where io::Error: From<DE> {
+pub struct Writer<W: Write, D: Ops> {
     obj: Option<W>,
     pub data: D,
     buf: Vec<u8>,
-    _writer_error: PhantomData<DE>,
 }
 
-pub trait Ops<Error> {
+pub trait Ops {
+    type Error: Into<io::Error>;
     type Flush: Flush;
     fn total_in(&self) -> u64;
     fn total_out(&self) -> u64;
@@ -22,16 +21,17 @@ pub trait Ops<Error> {
         input: &[u8],
         output: &mut [u8],
         flush: Self::Flush,
-    ) -> Result<Status, Error>;
+    ) -> Result<Status, Self::Error>;
     fn run_vec(
         &mut self,
         input: &[u8],
         output: &mut Vec<u8>,
         flush: Self::Flush,
-    ) -> Result<Status, Error>;
+    ) -> Result<Status, Self::Error>;
 }
 
-impl Ops<CompressError> for Compress {
+impl Ops for Compress {
+    type Error = CompressError;
     type Flush = FlushCompress;
     fn total_in(&self) -> u64 {
         self.total_in()
@@ -57,7 +57,8 @@ impl Ops<CompressError> for Compress {
     }
 }
 
-impl Ops<DecompressError> for Decompress {
+impl Ops for Decompress {
+    type Error = DecompressError;
     type Flush = FlushDecompress;
     fn total_in(&self) -> u64 {
         self.total_in()
@@ -117,10 +118,10 @@ impl Flush for FlushDecompress {
     }
 }
 
-pub fn read<R, DE, D>(obj: &mut R, data: &mut D, dst: &mut [u8]) -> io::Result<usize>
+pub fn read<R, D>(obj: &mut R, data: &mut D, dst: &mut [u8]) -> io::Result<usize>
 where
     R: BufRead,
-    D: Ops<DE>,
+    D: Ops,
 {
     loop {
         let (read, consumed, ret, eof);
@@ -158,13 +159,12 @@ where
     }
 }
 
-impl<W: Write, DE: Into<io::Error>, D: Ops<DE>> Writer<W, DE, D> where io::Error: From<DE> {
-    pub fn new(w: W, d: D) -> Writer<W, DE, D> {
+impl<W: Write, D: Ops> Writer<W, D> {
+    pub fn new(w: W, d: D) -> Writer<W, D> {
         Writer {
             obj: Some(w),
             data: d,
             buf: Vec::with_capacity(32 * 1024),
-            _writer_error: PhantomData,
         }
     }
 
@@ -173,7 +173,7 @@ impl<W: Write, DE: Into<io::Error>, D: Ops<DE>> Writer<W, DE, D> where io::Error
             self.dump()?;
 
             let before = self.data.total_out();
-            self.data.run_vec(&[], &mut self.buf, D::Flush::finish())?;
+            self.data.run_vec(&[], &mut self.buf, Flush::finish()).map_err(Into::into)?;
             if before == self.data.total_out() {
                 return Ok(());
             }
@@ -250,14 +250,15 @@ impl<W: Write, DE: Into<io::Error>, D: Ops<DE>> Writer<W, DE, D> where io::Error
     }
 }
 
-impl<W: Write, DE: Into<io::Error>, D: Ops<DE>> Write for Writer<W, DE, D> where io::Error: From<DE> {
+impl<W: Write, D: Ops> Write for Writer<W, D> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.write_with_status(buf).map(|res| res.0)
     }
 
-    fn flush(&mut self) -> io::Result<()> {
+    fn flush(&mut self) -> io::Result<()>
+    {
         self.data
-            .run_vec(&[], &mut self.buf, D::Flush::sync())?;
+            .run_vec(&[], &mut self.buf, Flush::sync()).map_err(Into::into)?;
 
         // Unfortunately miniz doesn't actually tell us when we're done with
         // pulling out all the data from the internal stream. To remedy this we
@@ -268,7 +269,7 @@ impl<W: Write, DE: Into<io::Error>, D: Ops<DE>> Write for Writer<W, DE, D> where
             self.dump()?;
             let before = self.data.total_out();
             self.data
-                .run_vec(&[], &mut self.buf, D::Flush::none())?;
+                .run_vec(&[], &mut self.buf, Flush::none()).map_err(Into::into)?;
             if before == self.data.total_out() {
                 break;
             }
@@ -278,7 +279,7 @@ impl<W: Write, DE: Into<io::Error>, D: Ops<DE>> Write for Writer<W, DE, D> where
     }
 }
 
-impl<W: Write, DE: Into<io::Error>, D: Ops<DE>> Drop for Writer<W, DE, D> where io::Error: From<DE> {
+impl<W: Write, D: Ops> Drop for Writer<W, D> {
     fn drop(&mut self) {
         if self.obj.is_some() {
             let _ = self.finish();

@@ -4,7 +4,7 @@ use std::io::prelude::*;
 
 use super::{corrupt, GzBuilder, GzHeader, GzHeaderParser};
 use crate::crc::{Crc, CrcWriter};
-use crate::{zio, CompressError, DecompressError};
+use crate::zio;
 use crate::{Compress, Compression, Decompress, Status};
 
 /// A gzip streaming encoder
@@ -31,7 +31,7 @@ use crate::{Compress, Compression, Decompress, Status};
 /// ```
 #[derive(Debug)]
 pub struct GzEncoder<W: Write> {
-    inner: zio::Writer<W, CompressError, Compress>,
+    inner: zio::Writer<W, Compress>,
     crc: Crc,
     crc_bytes_written: usize,
     header: Vec<u8>,
@@ -209,7 +209,7 @@ impl<W: Write> Drop for GzEncoder<W> {
 /// ```
 #[derive(Debug)]
 pub struct GzDecoder<W: Write> {
-    inner: zio::Writer<CrcWriter<W>, DecompressError, Decompress>,
+    inner: zio::Writer<CrcWriter<W>, Decompress>,
     crc_bytes: Vec<u8>,
     header_parser: GzHeaderParser,
 }
