@@ -1,7 +1,7 @@
 use std::io;
 use std::io::prelude::*;
 
-use crate::zio;
+use crate::{zio, CompressError, DecompressError};
 use crate::{Compress, Decompress};
 
 /// A DEFLATE encoder, or compressor.
@@ -28,7 +28,7 @@ use crate::{Compress, Decompress};
 /// ```
 #[derive(Debug)]
 pub struct DeflateEncoder<W: Write> {
-    inner: zio::Writer<W, Compress>,
+    inner: zio::Writer<W, CompressError, Compress>,
 }
 
 impl<W: Write> DeflateEncoder<W> {
@@ -206,7 +206,7 @@ impl<W: Read + Write> Read for DeflateEncoder<W> {
 /// ```
 #[derive(Debug)]
 pub struct DeflateDecoder<W: Write> {
-    inner: zio::Writer<W, Decompress>,
+    inner: zio::Writer<W, DecompressError, Decompress>,
 }
 
 impl<W: Write> DeflateDecoder<W> {

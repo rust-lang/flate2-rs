@@ -1,7 +1,7 @@
 use std::io;
 use std::io::prelude::*;
 
-use crate::zio;
+use crate::{zio, CompressError, DecompressError};
 use crate::{Compress, Decompress};
 
 /// A ZLIB encoder, or compressor.
@@ -29,7 +29,7 @@ use crate::{Compress, Decompress};
 /// ```
 #[derive(Debug)]
 pub struct ZlibEncoder<W: Write> {
-    inner: zio::Writer<W, Compress>,
+    inner: zio::Writer<W, CompressError, Compress>,
 }
 
 impl<W: Write> ZlibEncoder<W> {
@@ -216,7 +216,7 @@ impl<W: Read + Write> Read for ZlibEncoder<W> {
 /// ```
 #[derive(Debug)]
 pub struct ZlibDecoder<W: Write> {
-    inner: zio::Writer<W, Decompress>,
+    inner: zio::Writer<W, DecompressError, Decompress>,
 }
 
 impl<W: Write> ZlibDecoder<W> {
