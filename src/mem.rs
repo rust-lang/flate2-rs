@@ -52,9 +52,9 @@ pub enum FlushCompress {
     /// All pending output is flushed to the output buffer, but the output is
     /// not aligned to a byte boundary.
     ///
-    /// All of the input data so far will be available to the decompressor (as
-    /// with `Flush::Sync`. This completes the current deflate block and follows
-    /// it with an empty fixed codes block that is 10 bites long, and it assures
+    /// All input data so far will be available to the decompressor (as with
+    /// `Flush::Sync`). This completes the current deflate block and follows it
+    /// with an empty fixed codes block that is 10 bites long, and it assures
     /// that enough bytes are output in order for the decompressor to finish the
     /// block before the empty fixed code block.
     Partial = ffi::MZ_PARTIAL_FLUSH as isize,
