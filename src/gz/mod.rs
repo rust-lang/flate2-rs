@@ -115,7 +115,7 @@ impl GzHeaderParser {
         }
     }
 
-    fn parse<'a, R: BufRead>(&mut self, r: &'a mut R) -> Result<()> {
+    fn parse<R: BufRead>(&mut self, r: &mut R) -> Result<()> {
         loop {
             match &mut self.state {
                 GzHeaderState::Start(count, buffer) => {
