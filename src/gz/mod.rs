@@ -252,9 +252,7 @@ fn read_to_nul<R: BufRead>(r: &mut R, buffer: &mut Vec<u8>) -> Result<()> {
     let mut bytes = r.bytes();
     loop {
         match bytes.next().transpose()? {
-            Some(byte) if byte == 0 => {
-                return Ok(());
-            }
+            Some(0) => return Ok(()),
             Some(_) if buffer.len() == MAX_HEADER_BUF => {
                 return Err(Error::new(
                     ErrorKind::InvalidInput,
