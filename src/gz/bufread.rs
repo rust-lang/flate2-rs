@@ -48,7 +48,7 @@ fn copy(into: &mut [u8], from: &[u8], pos: &mut usize) -> usize {
 #[derive(Debug)]
 pub struct GzEncoder<R> {
     inner: deflate::bufread::DeflateEncoder<CrcReader<R>>,
-    header: Vec<u8>,
+    header: Box<[u8]>,
     pos: usize,
     eof: bool,
 }
@@ -57,7 +57,7 @@ pub fn gz_encoder<R: BufRead>(header: Vec<u8>, r: R, lvl: Compression) -> GzEnco
     let crc = CrcReader::new(r);
     GzEncoder {
         inner: deflate::bufread::DeflateEncoder::new(crc, lvl),
-        header,
+        header: header.into_boxed_slice(),
         pos: 0,
         eof: false,
     }
