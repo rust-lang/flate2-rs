@@ -20,6 +20,10 @@
 //!   crate which is a port of `miniz.c` (below) to Rust. This feature does not
 //!   require a C compiler and only requires Rust code.
 //!
+//! * `zlib-rs` - this implementation utilizes the `zlib-rs` crate, a pure rust rewrite of zlib.
+//!   This backend is faster than both `rust_backend` and `zlib`. However, we did not set it as the
+//!   default choice to prevent compatibility issues.
+//!
 //! * `zlib` - this feature will enable linking against the `libz` library, typically found on most
 //!   Linux systems by default. If the library isn't found to already be on the system it will be
 //!   compiled from source (this is a C library).
