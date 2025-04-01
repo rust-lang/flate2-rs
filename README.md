@@ -1,7 +1,7 @@
 # flate2
 
 [![Crates.io](https://img.shields.io/crates/v/flate2.svg?maxAge=2592000)](https://crates.io/crates/flate2)
-[![Documentation](https://docs.rs/flate2/badge.svg)](https://docs.rs/flate2)
+[![Documentation](https://img.shields.io/docsrs/flate2/latest)](https://docs.rs/flate2)
 
 A streaming compression/decompression library DEFLATE-based streams in Rust.
 
