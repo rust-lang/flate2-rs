@@ -24,7 +24,7 @@
 //!   This backend is the fastest, at the cost of some `unsafe` Rust code.
 //!
 //! Several backends implemented in C are also available.
-//! These are useful in the rare cases where you were already using a C implementation
+//! These are useful in case you are already using a specific C implementation
 //! and need the result of compression to be bit-identical.
 //! See the crate's README for details on the available C backends.
 //!
