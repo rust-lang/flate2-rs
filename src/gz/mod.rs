@@ -402,8 +402,7 @@ impl GzBuilder {
         let mut header = vec![0u8; 10];
         if let Some(v) = extra {
             flg |= FEXTRA;
-            header.push((v.len() >> 0) as u8);
-            header.push((v.len() >> 8) as u8);
+            header.extend((v.len() as u16).to_le_bytes());
             header.extend(v);
         }
         if let Some(filename) = filename {

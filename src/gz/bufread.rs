@@ -303,7 +303,7 @@ impl<R: BufRead> Read for GzDecoder<R> {
                     if *pos < buf.len() {
                         *pos += read_into(self.reader.get_mut().get_mut(), &mut buf[*pos..])?;
                     } else {
-                        let (crc, amt) = finish(&buf);
+                        let (crc, amt) = finish(buf);
 
                         if crc != self.reader.crc().sum() || amt != self.reader.crc().amount() {
                             self.state = GzState::End(Some(mem::take(header)));
