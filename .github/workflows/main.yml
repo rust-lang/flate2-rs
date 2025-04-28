@@ -53,7 +53,7 @@ jobs:
         fi
       if: matrix.build == 'stable'
 
-  fmt_docs_clippy:
+  rustfmt_docs_clippy:
     name: Rustfmt, Docs and Clippy
     runs-on: ubuntu-latest
     steps:
