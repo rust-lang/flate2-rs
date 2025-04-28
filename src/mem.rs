@@ -43,11 +43,12 @@ pub struct Decompress {
 /// in-memory data.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 #[non_exhaustive]
+#[allow(clippy::unnecessary_cast)]
 pub enum FlushCompress {
     /// A typical parameter for passing to compression/decompression functions,
     /// this indicates that the underlying stream to decide how much data to
     /// accumulate before producing output in order to maximize compression.
-    None = ffi::MZ_NO_FLUSH,
+    None = ffi::MZ_NO_FLUSH as isize,
 
     /// All pending output is flushed to the output buffer, but the output is
     /// not aligned to a byte boundary.
@@ -57,7 +58,7 @@ pub enum FlushCompress {
     /// with an empty fixed codes block that is 10 bytes long, and it assures
     /// that enough bytes are output in order for the decompressor to finish the
     /// block before the empty fixed code block.
-    Partial = ffi::MZ_PARTIAL_FLUSH,
+    Partial = ffi::MZ_PARTIAL_FLUSH as isize,
 
     /// All pending output is flushed to the output buffer and the output is
     /// aligned on a byte boundary so that the decompressor can get all input
@@ -66,31 +67,32 @@ pub enum FlushCompress {
     /// Flushing may degrade compression for some compression algorithms and so
     /// it should only be used when necessary. This will complete the current
     /// deflate block and follow it with an empty stored block.
-    Sync = ffi::MZ_SYNC_FLUSH,
+    Sync = ffi::MZ_SYNC_FLUSH as isize,
 
     /// All output is flushed as with `Flush::Sync` and the compression state is
     /// reset so decompression can restart from this point if previous
     /// compressed data has been damaged or if random access is desired.
     ///
     /// Using this option too often can seriously degrade compression.
-    Full = ffi::MZ_FULL_FLUSH,
+    Full = ffi::MZ_FULL_FLUSH as isize,
 
     /// Pending input is processed and pending output is flushed.
     ///
     /// The return value may indicate that the stream is not yet done and more
     /// data has yet to be processed.
-    Finish = ffi::MZ_FINISH,
+    Finish = ffi::MZ_FINISH as isize,
 }
 
 /// Values which indicate the form of flushing to be used when
 /// decompressing in-memory data.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 #[non_exhaustive]
+#[allow(clippy::unnecessary_cast)]
 pub enum FlushDecompress {
     /// A typical parameter for passing to compression/decompression functions,
     /// this indicates that the underlying stream to decide how much data to
     /// accumulate before producing output in order to maximize compression.
-    None = ffi::MZ_NO_FLUSH,
+    None = ffi::MZ_NO_FLUSH as isize,
 
     /// All pending output is flushed to the output buffer and the output is
     /// aligned on a byte boundary so that the decompressor can get all input
@@ -99,13 +101,13 @@ pub enum FlushDecompress {
     /// Flushing may degrade compression for some compression algorithms and so
     /// it should only be used when necessary. This will complete the current
     /// deflate block and follow it with an empty stored block.
-    Sync = ffi::MZ_SYNC_FLUSH,
+    Sync = ffi::MZ_SYNC_FLUSH as isize,
 
     /// Pending input is processed and pending output is flushed.
     ///
     /// The return value may indicate that the stream is not yet done and more
     /// data has yet to be processed.
-    Finish = ffi::MZ_FINISH,
+    Finish = ffi::MZ_FINISH as isize,
 }
 
 /// The inner state for an error when decompressing
