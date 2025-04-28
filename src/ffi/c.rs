@@ -287,7 +287,8 @@ impl InflateBackend for Inflate {
                 MZ_OK => Ok(Status::Ok),
                 MZ_BUF_ERROR => Ok(Status::BufError),
                 MZ_STREAM_END => Ok(Status::StreamEnd),
-                MZ_NEED_DICT => mem::decompress_need_dict((*raw).adler),
+                #[allow(clippy::unnecessary_cast)]
+                MZ_NEED_DICT => mem::decompress_need_dict((*raw).adler as u32),
                 c => panic!("unknown return code: {}", c),
             }
         }

@@ -279,7 +279,8 @@ impl Compress {
 
         match rc {
             ffi::MZ_STREAM_ERROR => compress_failed(self.inner.inner.msg()),
-            ffi::MZ_OK => Ok(unsafe { (*stream).adler }),
+            #[allow(clippy::unnecessary_cast)]
+            ffi::MZ_OK => Ok(unsafe { (*stream).adler } as u32),
             c => panic!("unknown return code: {}", c),
         }
     }
@@ -495,10 +496,11 @@ impl Decompress {
             ffi::inflateSetDictionary(stream, dictionary.as_ptr(), dictionary.len() as ffi::uInt)
         };
 
+        #[allow(clippy::unnecessary_cast)]
         match rc {
             ffi::MZ_STREAM_ERROR => decompress_failed(self.inner.inner.msg()),
-            ffi::MZ_DATA_ERROR => decompress_need_dict(unsafe { (*stream).adler }),
-            ffi::MZ_OK => Ok(unsafe { (*stream).adler }),
+            ffi::MZ_DATA_ERROR => decompress_need_dict(unsafe { (*stream).adler } as u32),
+            ffi::MZ_OK => Ok(unsafe { (*stream).adler } as u32),
             c => panic!("unknown return code: {}", c),
         }
     }
