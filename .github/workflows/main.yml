@@ -53,15 +53,16 @@ jobs:
         fi
       if: matrix.build == 'stable'
 
-  rustfmt:
-    name: Rustfmt & Docs
+  rustfmt_docs_clippy:
+    name: Rustfmt, Docs and Clippy
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     - name: Install Rust
-      run: rustup update stable && rustup default stable && rustup component add rustfmt
+      run: rustup update stable && rustup default stable && rustup component add rustfmt && rustup component add clippy
     - run: cargo fmt -- --check
     - run: cargo doc --all-features
+    - run: cargo clippy --all-features -- -D warnings
 
   wasm:
     name: WebAssembly
