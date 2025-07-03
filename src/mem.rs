@@ -543,7 +543,7 @@ impl fmt::Display for DecompressError {
             DecompressErrorInner::NeedsDictionary { .. } => Some("requires a dictionary"),
         };
         match msg {
-            Some(msg) => write!(f, "deflate decompression error: {}", msg),
+            Some(msg) => write!(f, "deflate decompression error: {msg}"),
             None => write!(f, "deflate decompression error"),
         }
     }
@@ -567,7 +567,7 @@ impl From<CompressError> for io::Error {
 impl fmt::Display for CompressError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.msg.get() {
-            Some(msg) => write!(f, "deflate compression error: {}", msg),
+            Some(msg) => write!(f, "deflate compression error: {msg}"),
             None => write!(f, "deflate compression error"),
         }
     }
@@ -608,7 +608,7 @@ mod tests {
 
     #[test]
     fn issue51() {
-        let data = vec![
+        let data = [
             0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xb3, 0xc9, 0x28, 0xc9,
             0xcd, 0xb1, 0xe3, 0xe5, 0xb2, 0xc9, 0x48, 0x4d, 0x4c, 0xb1, 0xb3, 0x29, 0xc9, 0x2c,
             0xc9, 0x49, 0xb5, 0x33, 0x31, 0x30, 0x51, 0xf0, 0xcb, 0x2f, 0x51, 0x70, 0xcb, 0x2f,
