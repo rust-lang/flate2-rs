@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt;
 use std::io;
+use std::mem::MaybeUninit;
 
 use crate::ffi::{self, Backend, Deflate, DeflateBackend, ErrorMessage, Inflate, InflateBackend};
 use crate::Compression;
@@ -337,6 +338,20 @@ impl Compress {
         self.inner.compress(input, output, flush)
     }
 
+    /// Similar to [`Self::compress`] but accepts uninitialized buffer.
+    ///
+    /// If you want to avoid the overhead of zero initializing the
+    /// buffer and you don't want to use a [`Vec`], then please use
+    /// this API.
+    pub fn compress_uninit(
+        &mut self,
+        input: &[u8],
+        output: &mut [MaybeUninit<u8>],
+        flush: FlushCompress,
+    ) -> Result<Status, CompressError> {
+        self.inner.compress_uninit(input, output, flush)
+    }
+
     /// Compresses the input data into the extra space of the output, consuming
     /// only as much input as needed and writing as much output as possible.
     ///
@@ -351,12 +366,15 @@ impl Compress {
         output: &mut Vec<u8>,
         flush: FlushCompress,
     ) -> Result<Status, CompressError> {
-        write_to_spare_capacity_of_vec(output, |out| {
-            let before = self.total_out();
-            let ret = self.compress(input, out, flush);
-            let bytes_written = self.total_out() - before;
-            (bytes_written as usize, ret)
-        })
+        // SAFETY: bytes_written is the number of bytes written into `out`
+        unsafe {
+            write_to_spare_capacity_of_vec(output, |out| {
+                let before = self.total_out();
+                let ret = self.compress_uninit(input, out, flush);
+                let bytes_written = self.total_out() - before;
+                (bytes_written as usize, ret)
+            })
+        }
     }
 }
 
@@ -455,6 +473,20 @@ impl Decompress {
         self.inner.decompress(input, output, flush)
     }
 
+    /// Similar to [`Self::decompress`] but accepts uninitialized buffer
+    ///
+    /// If you want to avoid the overhead of zero initializing the
+    /// buffer and you don't want to use a [`Vec`], then please use
+    /// this API.
+    pub fn decompress_uninit(
+        &mut self,
+        input: &[u8],
+        output: &mut [MaybeUninit<u8>],
+        flush: FlushDecompress,
+    ) -> Result<Status, DecompressError> {
+        self.inner.decompress_uninit(input, output, flush)
+    }
+
     /// Decompresses the input data into the extra space in the output vector
     /// specified by `output`.
     ///
@@ -475,12 +507,15 @@ impl Decompress {
         output: &mut Vec<u8>,
         flush: FlushDecompress,
     ) -> Result<Status, DecompressError> {
-        write_to_spare_capacity_of_vec(output, |out| {
-            let before = self.total_out();
-            let ret = self.decompress(input, out, flush);
-            let bytes_written = self.total_out() - before;
-            (bytes_written as usize, ret)
-        })
+        // SAFETY: bytes_written is the number of bytes written into `out`
+        unsafe {
+            write_to_spare_capacity_of_vec(output, |out| {
+                let before = self.total_out();
+                let ret = self.decompress_uninit(input, out, flush);
+                let bytes_written = self.total_out() - before;
+                (bytes_written as usize, ret)
+            })
+        }
     }
 
     /// Specifies the decompression dictionary to use.
@@ -580,18 +615,20 @@ impl fmt::Display for CompressError {
 ///
 /// `writer` needs to return the number of bytes written (and can also return
 /// another arbitrary return value).
-fn write_to_spare_capacity_of_vec<T>(
+///
+/// # Safety:
+///
+/// The length returned by the `writer` must be equal to actual number of bytes written
+/// to the uninitialized slice passed in and initialized.
+unsafe fn write_to_spare_capacity_of_vec<T>(
     output: &mut Vec<u8>,
-    writer: impl FnOnce(&mut [u8]) -> (usize, T),
+    writer: impl FnOnce(&mut [MaybeUninit<u8>]) -> (usize, T),
 ) -> T {
     let cap = output.capacity();
     let len = output.len();
 
-    output.resize(output.capacity(), 0);
-    let (bytes_written, ret) = writer(&mut output[len..]);
-
-    let new_len = core::cmp::min(len + bytes_written, cap); // Sanitizes `bytes_written`.
-    output.resize(new_len, 0 /* unused */);
+    let (bytes_written, ret) = writer(output.spare_capacity_mut());
+    output.set_len(cap.min(len + bytes_written)); // Sanitizes `bytes_written`.
 
     ret
 }
