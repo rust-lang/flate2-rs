@@ -32,35 +32,46 @@
 //!
 //! # Organization
 //!
-//! This crate consists mainly of three modules, [`read`], [`write`], and
-//! [`bufread`]. Each module contains a number of types used to encode and
-//! decode various streams of data.
+//! This crate consists of three main modules: `bufread`, `read`, and `write`. Each module
+//! implements DEFLATE, zlib, and gzip for [`std::io::BufRead`] input types, [`std::io::Read`] input
+//! types, and [`std::io::Write`] output types respectively.
 //!
-//! All types in the [`write`] module work on instances of [`Write`][write],
-//! whereas all types in the [`read`] module work on instances of
-//! [`Read`][read] and [`bufread`] works with [`BufRead`][bufread]. If you
-//! are decoding directly from a `&[u8]`, use the [`bufread`] types.
+//! Use the [`mod@bufread`] implementations if you can provide a `BufRead` type for the input.
+//! The `&[u8]` slice type implements the `BufRead` trait.
+//!
+//! The [`mod@read`] implementations conveniently wrap a `Read` type in a `BufRead` implementation.
+//! However, the `read` implementations may
+//! [read past the end of the input data](https://github.com/rust-lang/flate2-rs/issues/338),
+//! making the `Read` type useless for subsequent reads of the input. If you need to re-use the
+//! `Read` type, wrap it in a [`std::io::BufReader`], use the `bufread` implementations,
+//! and perform subsequent reads on the `BufReader`.
+//!
+//! The [`mod@write`] implementations are most useful when there is no way to create a `BufRead`
+//! type, notably when reading async iterators (streams).
 //!
 //! ```
-//! use flate2::write::GzEncoder;
-//! use flate2::Compression;
-//! use std::io;
-//! use std::io::prelude::*;
+//! use futures::{Stream, StreamExt};
+//! use std::io::{Result, Write as _};
 //!
-//! # fn main() { let _ = run(); }
-//! # fn run() -> io::Result<()> {
-//! let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-//! encoder.write_all(b"Example")?;
-//! # Ok(())
-//! # }
+//! async fn decompress_gzip_stream<S, I>(stream: S) -> Result<Vec<u8>>
+//! where
+//!     S: Stream<Item = I>,
+//!     I: AsRef<[u8]>
+//! {
+//!     let mut stream = std::pin::pin!(stream);
+//!     let mut w = Vec::<u8>::new();
+//!     let mut decoder = flate2::write::GzDecoder::new(w);
+//!     while let Some(input) = stream.next().await {
+//!         decoder.write_all(input.as_ref())?;
+//!     }
+//!     decoder.finish()
+//! }
 //! ```
 //!
 //!
-//! Other various types are provided at the top-level of the crate for
-//! management and dealing with encoders/decoders. Also note that types which
-//! operate over a specific trait often implement the mirroring trait as well.
-//! For example a `flate2::read::DeflateDecoder<T>` *also* implements the
-//! `Write` trait if `T: Write`. That is, the "dual trait" is forwarded directly
+//! Note that types which operate over a specific trait often implement the mirroring trait as well.
+//! For example a `bufread::DeflateDecoder<T>` *also* implements the
+//! [`Write`] trait if `T: Write`. That is, the "dual trait" is forwarded directly
 //! to the underlying object if available.
 //!
 //! # About multi-member Gzip files
@@ -79,14 +90,12 @@
 //! emit an error after decoding the gzip data. This behavior matches the `gzip`,
 //! `gunzip`, and `zcat` command line tools.
 //!
-//! [`read`]: read/index.html
-//! [`bufread`]: bufread/index.html
-//! [`write`]: write/index.html
-//! [read]: https://doc.rust-lang.org/std/io/trait.Read.html
-//! [write]: https://doc.rust-lang.org/std/io/trait.Write.html
-//! [bufread]: https://doc.rust-lang.org/std/io/trait.BufRead.html
-//! [`GzDecoder`]: read/struct.GzDecoder.html
-//! [`MultiGzDecoder`]: read/struct.MultiGzDecoder.html
+//! [`Bufread`]: std::io::BufRead
+//! [`BufReader`]: std::io::BufReader
+//! [`Read`]: std::io::Read
+//! [`Write`]: std::io::Write
+//! [`GzDecoder`]: bufread::GzDecoder
+//! [`MultiGzDecoder`]: bufread::MultiGzDecoder
 #![doc(html_root_url = "https://docs.rs/flate2/0.2")]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]

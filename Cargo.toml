@@ -31,6 +31,7 @@ crc32fast = "1.2.0"
 miniz_oxide = { version = "0.8.5", default-features = false, features = ["with-alloc", "simd"] }
 
 [dev-dependencies]
+futures = { version = "0.3", default-features = false }
 rand = "0.9"
 quickcheck = { version = "1.0", default-features = false }
 
