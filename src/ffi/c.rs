@@ -9,7 +9,7 @@ use super::*;
 use crate::mem;
 
 #[derive(Clone, Default)]
-pub struct ErrorMessage(Option<&'static str>);
+pub struct ErrorMessage(pub(crate) Option<&'static str>);
 
 impl ErrorMessage {
     pub fn get(&self) -> Option<&str> {
@@ -55,34 +55,27 @@ impl Default for StreamWrapper {
                     // zlib-ng
                     feature = "zlib-ng",
                     // libz-sys
-                    all(not(feature = "cloudflare_zlib"), not(feature = "zlib-ng"), not(feature = "zlib-rs"))
+                    all(not(feature = "cloudflare_zlib"), not(feature = "zlib-ng"))
                 ))]
                 zalloc: allocator::zalloc,
                 #[cfg(any(
                     // zlib-ng
                     feature = "zlib-ng",
                     // libz-sys
-                    all(not(feature = "cloudflare_zlib"), not(feature = "zlib-ng"), not(feature = "zlib-rs"))
+                    all(not(feature = "cloudflare_zlib"), not(feature = "zlib-ng"))
                 ))]
                 zfree: allocator::zfree,
 
                 #[cfg(
                     // cloudflare-zlib
-                    all(feature = "cloudflare_zlib", not(feature = "zlib-rs"), not(feature = "zlib-ng")),
+                    all(feature = "cloudflare_zlib", not(feature = "zlib-ng")),
                 )]
                 zalloc: Some(allocator::zalloc),
                 #[cfg(
                     // cloudflare-zlib
-                    all(feature = "cloudflare_zlib", not(feature = "zlib-rs"), not(feature = "zlib-ng")),
+                    all(feature = "cloudflare_zlib", not(feature = "zlib-ng")),
                 )]
                 zfree: Some(allocator::zfree),
-
-                // for zlib-rs, it is most efficient to have it provide the allocator.
-                // The libz-rs-sys dependency is configured to use the rust system allocator
-                #[cfg(all(feature = "zlib-rs", not(feature = "zlib-ng")))]
-                zalloc: None,
-                #[cfg(all(feature = "zlib-rs", not(feature = "zlib-ng")))]
-                zfree: None,
             })),
         }
     }
@@ -102,9 +95,9 @@ impl Drop for StreamWrapper {
     // zlib-ng
     feature = "zlib-ng",
     // cloudflare-zlib
-    all(feature = "cloudflare_zlib", not(feature = "zlib-rs"), not(feature = "zlib-ng")),
+    all(feature = "cloudflare_zlib", not(feature = "zlib-ng")),
     // libz-sys
-    all(not(feature = "cloudflare_zlib"), not(feature = "zlib-ng"), not(feature = "zlib-rs")),
+    all(not(feature = "cloudflare_zlib"), not(feature = "zlib-ng")),
 ))]
 mod allocator {
     use super::*;
@@ -462,18 +455,15 @@ mod c_backend {
     #[cfg(feature = "zlib-ng")]
     use libz_ng_sys as libz;
 
-    #[cfg(all(feature = "zlib-rs", not(feature = "zlib-ng")))]
-    use libz_rs_sys as libz;
-
     #[cfg(
         // cloudflare-zlib
-        all(feature = "cloudflare_zlib", not(feature = "zlib-rs"), not(feature = "zlib-ng")),
+        all(feature = "cloudflare_zlib", not(feature = "zlib-ng")),
     )]
     use cloudflare_zlib_sys as libz;
 
     #[cfg(
         // libz-sys
-        all(not(feature = "cloudflare_zlib"), not(feature = "zlib-ng"), not(feature = "zlib-rs")),
+        all(not(feature = "cloudflare_zlib"), not(feature = "zlib-ng")),
     )]
     use libz_sys as libz;
 
