@@ -65,10 +65,15 @@ mod c;
 #[cfg(feature = "any_zlib")]
 pub use self::c::*;
 
+#[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
+mod zlib_rs;
+#[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
+pub use self::zlib_rs::*;
+
 #[cfg(all(not(feature = "any_zlib"), feature = "miniz_oxide"))]
-mod rust;
+mod miniz_oxide;
 #[cfg(all(not(feature = "any_zlib"), feature = "miniz_oxide"))]
-pub use self::rust::*;
+pub use self::miniz_oxide::*;
 
 impl std::fmt::Debug for ErrorMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
