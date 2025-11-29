@@ -166,7 +166,7 @@ pub struct DeflateDecoder<R> {
 }
 
 pub fn reset_decoder_data<R>(zlib: &mut DeflateDecoder<R>) {
-    zlib.data = Decompress::new(false);
+    zlib.data.reset(false);
 }
 
 impl<R: BufRead> DeflateDecoder<R> {
