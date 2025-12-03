@@ -145,8 +145,9 @@ impl From<FlushCompress> for MZFlush {
 
 impl DeflateBackend for Deflate {
     fn make(level: Compression, zlib_header: bool, _window_bits: u8) -> Self {
-        // Check in case the integer value changes at some point.
-        debug_assert!(level.level() <= 9);
+        // Check in case the integer value changes at some point. Unlike the other zlib
+        // implementations, miniz_oxide actually has a compression level 10.
+        debug_assert!(level.level() <= 10);
 
         let mut inner: Box<CompressorOxide> = Box::default();
         let format = format_from_bool(zlib_header);
