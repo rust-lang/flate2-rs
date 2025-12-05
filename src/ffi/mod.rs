@@ -65,15 +65,33 @@ mod c;
 #[cfg(feature = "any_zlib")]
 pub use self::c::*;
 
+// Prefer zlib-rs when both Rust backends are enabled to avoid duplicate exports.
 #[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
 mod zlib_rs;
 #[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
 pub use self::zlib_rs::*;
 
-#[cfg(all(not(feature = "any_zlib"), feature = "miniz_oxide"))]
+// Fallback to miniz_oxide when zlib-rs is not selected.
+#[cfg(all(
+    not(feature = "any_zlib"),
+    not(feature = "zlib-rs"),
+    feature = "miniz_oxide"
+))]
 mod miniz_oxide;
-#[cfg(all(not(feature = "any_zlib"), feature = "miniz_oxide"))]
+#[cfg(all(
+    not(feature = "any_zlib"),
+    not(feature = "zlib-rs"),
+    feature = "miniz_oxide"
+))]
 pub use self::miniz_oxide::*;
+
+// If no backend is enabled, fail fast with a clear error message.
+#[cfg(all(
+    not(feature = "any_zlib"),
+    not(feature = "zlib-rs"),
+    not(feature = "miniz_oxide")
+))]
+compile_error!("No compression backend selected; enable one of `zlib`, `zlib-ng`, `zlib-rs`, or the default `rust_backend` feature.");
 
 impl std::fmt::Debug for ErrorMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
