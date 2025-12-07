@@ -213,7 +213,7 @@ impl Compress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_impl")]
     pub fn new_with_window_bits(
         level: Compression,
         zlib_header: bool,
@@ -240,7 +240,7 @@ impl Compress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_impl")]
     pub fn new_gzip(level: Compression, window_bits: u8) -> Compress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -399,7 +399,7 @@ impl Decompress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_impl")]
     pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -419,7 +419,7 @@ impl Decompress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_impl")]
     pub fn new_gzip(window_bits: u8) -> Decompress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -640,7 +640,7 @@ mod tests {
     use crate::write;
     use crate::{Compression, Decompress, FlushDecompress};
 
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_impl")]
     use crate::{Compress, FlushCompress};
 
     #[test]
@@ -780,7 +780,7 @@ mod tests {
         assert_eq!(&decoded[..decoder.total_out() as usize], string);
     }
 
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_impl")]
     #[test]
     fn test_gzip_flate() {
         let string = "hello, hello!".as_bytes();
@@ -818,5 +818,92 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(err.message(), Some("invalid stored block lengths"));
+    }
+
+    // Tests specific to functions that work with both any_zlib and zlib-rs (any_impl)
+    #[cfg(feature = "any_impl")]
+    #[test]
+    fn test_compress_new_with_window_bits() {
+        let string = "hello world".as_bytes();
+        
+        // Test with window_bits = 9 (minimum)
+        let mut encoded = Vec::with_capacity(1024);
+        let mut encoder = Compress::new_with_window_bits(Compression::default(), true, 9);
+        encoder
+            .compress_vec(string, &mut encoded, FlushCompress::Finish)
+            .unwrap();
+        assert!(encoded.len() > 0);
+
+        let mut decoder = Decompress::new_with_window_bits(true, 9);
+        let mut decoded = [0; 1024];
+        decoder
+            .decompress(&encoded, &mut decoded, FlushDecompress::Finish)
+            .unwrap();
+        assert_eq!(&decoded[..string.len()], string);
+
+        // Test with window_bits = 15 (maximum)
+        let mut encoded = Vec::with_capacity(1024);
+        let mut encoder = Compress::new_with_window_bits(Compression::default(), false, 15);
+        encoder
+            .compress_vec(string, &mut encoded, FlushCompress::Finish)
+            .unwrap();
+        assert!(encoded.len() > 0);
+
+        let mut decoder = Decompress::new_with_window_bits(false, 15);
+        let mut decoded = [0; 1024];
+        decoder
+            .decompress(&encoded, &mut decoded, FlushDecompress::Finish)
+            .unwrap();
+        assert_eq!(&decoded[..string.len()], string);
+    }
+
+    #[cfg(feature = "any_impl")]
+    #[test]
+    fn test_decompress_new_gzip_window_bits() {
+        let string = "hello world".as_bytes();
+        
+        // Test with different window_bits values
+        for window_bits in [9, 12, 15] {
+            let mut encoded = Vec::with_capacity(1024);
+            let mut encoder = Compress::new_gzip(Compression::default(), window_bits);
+            encoder
+                .compress_vec(string, &mut encoded, FlushCompress::Finish)
+                .unwrap();
+
+            let mut decoder = Decompress::new_gzip(window_bits);
+            let mut decoded = [0; 1024];
+            decoder
+                .decompress(&encoded, &mut decoded, FlushDecompress::Finish)
+                .unwrap();
+            assert_eq!(&decoded[..string.len()], string, "Failed with window_bits={}", window_bits);
+        }
+    }
+
+    #[cfg(feature = "any_impl")]
+    #[test]
+    #[should_panic(expected = "window_bits must be within 9 ..= 15")]
+    fn test_compress_new_with_window_bits_invalid_low() {
+        let _ = Compress::new_with_window_bits(Compression::default(), true, 8);
+    }
+
+    #[cfg(feature = "any_impl")]
+    #[test]
+    #[should_panic(expected = "window_bits must be within 9 ..= 15")]
+    fn test_compress_new_with_window_bits_invalid_high() {
+        let _ = Compress::new_with_window_bits(Compression::default(), true, 16);
+    }
+
+    #[cfg(feature = "any_impl")]
+    #[test]
+    #[should_panic(expected = "window_bits must be within 9 ..= 15")]
+    fn test_compress_new_gzip_invalid_low() {
+        let _ = Compress::new_gzip(Compression::default(), 8);
+    }
+
+    #[cfg(feature = "any_impl")]
+    #[test]
+    #[should_panic(expected = "window_bits must be within 9 ..= 15")]
+    fn test_compress_new_gzip_invalid_high() {
+        let _ = Compress::new_gzip(Compression::default(), 16);
     }
 }
