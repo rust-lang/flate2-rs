@@ -213,7 +213,7 @@ impl Compress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_impl")]
     pub fn new_with_window_bits(
         level: Compression,
         zlib_header: bool,
@@ -240,7 +240,7 @@ impl Compress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_impl")]
     pub fn new_gzip(level: Compression, window_bits: u8) -> Compress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -399,7 +399,7 @@ impl Decompress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_impl")]
     pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -419,7 +419,7 @@ impl Decompress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// `new_with_window_bits` will panic.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_impl")]
     pub fn new_gzip(window_bits: u8) -> Decompress {
         assert!(
             window_bits > 8 && window_bits < 16,
