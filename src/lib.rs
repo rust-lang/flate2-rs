@@ -14,11 +14,14 @@
 //! # Implementation
 //!
 //! In addition to supporting three formats, this crate supports several different
-//! backends, controlled through this crate's features:
+//! backends, controlled through this crate's *features flags*:
 //!
-//! * `default`, or `rust_backend` - this implementation uses the `miniz_oxide`
+//! * `default`, or `rust_backend` - this implementation currently uses the `miniz_oxide`
 //!   crate which is a port of `miniz.c` to Rust. This feature does not
 //!   require a C compiler, and only uses safe Rust code.
+//!
+//!   Note that the `rust_backend` feature may at some point be switched to use `zlib-rs`,
+//!   and that `miniz_oxide` should be used explicitly if this is not desired.
 //!
 //! * `zlib-rs` - this implementation utilizes the `zlib-rs` crate, a Rust rewrite of zlib.
 //!   This backend is the fastest, at the cost of some `unsafe` Rust code.
@@ -31,7 +34,21 @@
 //! The `zlib-rs` backend typically outperforms all the C implementations.
 //!
 //! # Feature Flags
-#![doc = document_features::document_features!()]
+#![cfg_attr(
+    not(feature = "document-features"),
+    doc = "Activate the `document-features` cargo feature to see feature docs here"
+)]
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
+//! ## Ambiguous feature selection
+//!
+//! As Cargo features are additive, while backends are not, there is an order in which backends
+//! become active if multiple are selected.
+//!
+//! * zlib-ng
+//! * zlib-rs
+//! * cloudflare_zlib
+//! * miniz_oxide
 //!
 //! # Organization
 //!
