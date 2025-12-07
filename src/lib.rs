@@ -30,6 +30,9 @@
 //!
 //! The `zlib-rs` backend typically outperforms all the C implementations.
 //!
+//! # Feature Flags
+#![doc = document_features::document_features!()]
+//!
 //! # Organization
 //!
 //! This crate consists of three main modules: `bufread`, `read`, and `write`. Each module

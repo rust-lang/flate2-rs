@@ -26,6 +26,7 @@ zlib-rs = { version = "0.5.3", optional = true, default-features = false, featur
 cloudflare-zlib-sys = { version = "0.3.6", optional = true }
 miniz_oxide = { version = "0.8.5", optional = true, default-features = false, features = ["with-alloc", "simd"] }
 crc32fast = "1.2.0"
+document-features = "0.2"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))'.dependencies]
 miniz_oxide = { version = "0.8.5", default-features = false, features = ["with-alloc", "simd"] }
@@ -36,17 +37,66 @@ rand = "0.9"
 quickcheck = { version = "1.0", default-features = false }
 
 [features]
+## The default backend using pure Rust implementation via miniz_oxide.
+## This provides a safe, portable compression implementation without requiring a C compiler.
 default = ["rust_backend"]
-any_zlib = ["any_impl"] # note: this is not a real user-facing feature
-any_impl = [] # note: this is not a real user-facing feature
+
+#! ### Internal Features
+#! These features are used internally for backend selection and should not be enabled directly by users.
+
+## **Internal:** Marker feature indicating that any zlib-based C backend is enabled.
+## This is automatically enabled by `zlib`, `zlib-ng`, `zlib-ng-compat`, or `cloudflare_zlib`.
+## Do not enable this feature directly; instead, choose a specific backend feature.
+any_zlib = ["any_impl"]
+
+## **Internal:** Marker feature indicating that any compression backend is enabled.
+## This is automatically enabled by all backend features to ensure at least one implementation is available.
+## Do not enable this feature directly; instead, choose a specific backend feature.
+any_impl = []
+
+#! ### User-Facing Backend Features
+#! Choose one of these features to select the compression backend.
+#! Only one backend should be enabled at a time.
+
+## Use the system's installed zlib library.
+## This is useful when you need compatibility with other C code that uses zlib,
+## or when you want to use the system-provided zlib for consistency.
 zlib = ["any_zlib", "libz-sys"]
+
+## Use the system's installed zlib library with default features enabled.
+## Similar to `zlib` but enables additional features from libz-sys.
 zlib-default = ["any_zlib", "libz-sys/default"]
+
+## Use zlib-ng in zlib-compat mode via libz-sys.
+## This provides zlib-ng's performance improvements while maintaining compatibility.
+## Note: If any crate in your dependency graph uses stock zlib, you'll get stock zlib instead.
+## For guaranteed zlib-ng, use the `zlib-ng` feature.
 zlib-ng-compat = ["zlib", "libz-sys/zlib-ng"]
+
+## Use the high-performance zlib-ng library directly.
+## This typically provides better performance than stock zlib and works even when
+## other dependencies use zlib. Requires a C compiler.
 zlib-ng = ["any_zlib", "libz-ng-sys"]
+
+## Use the zlib-rs backend, a pure Rust rewrite of zlib.
+## This is the fastest backend overall, providing excellent performance with some `unsafe` code.
+## It does not require a C compiler but uses `unsafe` Rust for optimization.
 zlib-rs = ["any_impl", "dep:zlib-rs"]
+
+## Use Cloudflare's optimized zlib implementation.
+## This provides better performance than stock zlib on x86-64 (with SSE 4.2) and ARM64 (with NEON & CRC).
+## ⚠️ Does not support 32-bit CPUs and is incompatible with mingw.
+## ⚠️ May cause conflicts if other crates use different zlib versions.
 cloudflare_zlib = ["any_zlib", "cloudflare-zlib-sys"]
+
+## Use the pure Rust miniz_oxide backend (default).
+## This implementation uses only safe Rust code and doesn't require a C compiler.
+## It provides good performance for most use cases while being completely portable.
 rust_backend = ["miniz_oxide", "any_impl"]
-miniz-sys = ["rust_backend"] # For backwards compatibility
+
+## Deprecated alias for `rust_backend`, provided for backwards compatibility.
+## Use `rust_backend` instead.
+miniz-sys = ["rust_backend"]
 
 [package.metadata.docs.rs]
 all-features = true
