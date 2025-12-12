@@ -286,6 +286,14 @@ impl Compress {
         }
     }
 
+    /// Specifies the compression dictionary to use.
+    ///
+    /// Returns the Adler-32 checksum of the dictionary.
+    #[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
+    pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, CompressError> {
+        self.inner.set_dictionary(dictionary)
+    }
+
     /// Quickly resets this compressor without having to reallocate anything.
     ///
     /// This is equivalent to dropping this object and then creating a new one.
@@ -303,22 +311,31 @@ impl Compress {
     /// the compression of the available input data before changing the
     /// compression level. Flushing the stream before calling this method
     /// ensures that the function will succeed on the first call.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     pub fn set_level(&mut self, level: Compression) -> Result<(), CompressError> {
-        use std::os::raw::c_int;
-        // SAFETY: The field `inner` must always be accessed as a raw pointer,
-        // since it points to a cyclic structure. No copies of `inner` can be
-        // retained for longer than the lifetime of `self.inner.inner.stream_wrapper`.
-        let stream = self.inner.inner.stream_wrapper.inner;
-        unsafe {
-            (*stream).msg = std::ptr::null_mut();
+        #[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
+        {
+            self.inner.set_level(level)
         }
-        let rc = unsafe { ffi::deflateParams(stream, level.0 as c_int, ffi::MZ_DEFAULT_STRATEGY) };
 
-        match rc {
-            ffi::MZ_OK => Ok(()),
-            ffi::MZ_BUF_ERROR => compress_failed(self.inner.inner.msg()),
-            c => panic!("unknown return code: {}", c),
+        #[cfg(feature = "any_zlib")]
+        {
+            use std::os::raw::c_int;
+            // SAFETY: The field `inner` must always be accessed as a raw pointer,
+            // since it points to a cyclic structure. No copies of `inner` can be
+            // retained for longer than the lifetime of `self.inner.inner.stream_wrapper`.
+            let stream = self.inner.inner.stream_wrapper.inner;
+            unsafe {
+                (*stream).msg = std::ptr::null_mut();
+            }
+            let rc =
+                unsafe { ffi::deflateParams(stream, level.0 as c_int, ffi::MZ_DEFAULT_STRATEGY) };
+
+            match rc {
+                ffi::MZ_OK => Ok(()),
+                ffi::MZ_BUF_ERROR => compress_failed(self.inner.inner.msg()),
+                c => panic!("unknown return code: {}", c),
+            }
         }
     }
 
@@ -538,6 +555,12 @@ impl Decompress {
             ffi::MZ_OK => Ok(unsafe { (*stream).adler } as u32),
             c => panic!("unknown return code: {}", c),
         }
+    }
+
+    /// Specifies the decompression dictionary to use.
+    #[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
+    pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, DecompressError> {
+        self.inner.set_dictionary(dictionary)
     }
 
     /// Performs the equivalent of replacing this decompression state with a
@@ -806,7 +829,7 @@ mod tests {
         assert_eq!(&decoded[..decoder.total_out() as usize], string);
     }
 
-    #[cfg(feature = "any_zlib")]
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     #[test]
     fn test_error_message() {
         let mut decoder = Decompress::new(false);
