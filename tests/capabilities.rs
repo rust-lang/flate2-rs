@@ -87,6 +87,8 @@ fn compress_new_gzip_invalid_high() {
 }
 
 #[test]
+// Unsupported for `miniz_oxide`.
+#[cfg(not(feature = "miniz_oxide"))]
 fn set_dictionary_is_present() {
     let dictionary = "hello".as_bytes();
 
@@ -98,6 +100,8 @@ fn set_dictionary_is_present() {
 }
 
 #[test]
+// Unsupported for `miniz_oxide`.
+#[cfg(not(feature = "miniz_oxide"))]
 fn set_level_is_present() {
     let mut encoder = Compress::new(Compression::default(), true);
     encoder.set_level(Compression::fast()).unwrap();

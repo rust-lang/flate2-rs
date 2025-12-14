@@ -18,10 +18,6 @@ and raw deflate streams.
 """
 exclude = [".*"]
 
-[[test]]
-name = "zlib-rs-capabilities"
-required-features = ["zlib-rs"]
-
 [dependencies]
 libz-sys = { version = "1.1.20", optional = true, default-features = false }
 libz-ng-sys = { version = "1.1.16", optional = true }
