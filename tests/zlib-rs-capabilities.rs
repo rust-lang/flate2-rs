@@ -2,7 +2,7 @@
 use flate2::{Compress, Compression, Decompress, FlushCompress, FlushDecompress};
 
 #[test]
-fn test_compress_new_with_window_bits() {
+fn compress_new_with_window_bits_is_present_and_works() {
     let string = "hello world".as_bytes();
 
     // Test with window_bits = 9 (minimum)
@@ -37,7 +37,7 @@ fn test_compress_new_with_window_bits() {
 }
 
 #[test]
-fn test_decompress_new_gzip_window_bits() {
+fn decompress_new_gzip_window_bits_is_present_and_works() {
     let string = "hello world".as_bytes();
 
     // Test with different window_bits values
@@ -64,24 +64,43 @@ fn test_decompress_new_gzip_window_bits() {
 
 #[test]
 #[should_panic(expected = "window_bits must be within 9 ..= 15")]
-fn test_compress_new_with_window_bits_invalid_low() {
+fn compress_new_with_window_bits_invalid_low() {
     let _ = Compress::new_with_window_bits(Compression::default(), true, 8);
 }
 
 #[test]
 #[should_panic(expected = "window_bits must be within 9 ..= 15")]
-fn test_compress_new_with_window_bits_invalid_high() {
+fn compress_new_with_window_bits_invalid_high() {
     let _ = Compress::new_with_window_bits(Compression::default(), true, 16);
 }
 
 #[test]
 #[should_panic(expected = "window_bits must be within 9 ..= 15")]
-fn test_compress_new_gzip_invalid_low() {
+fn compress_new_gzip_invalid_low() {
     let _ = Compress::new_gzip(Compression::default(), 8);
 }
 
 #[test]
 #[should_panic(expected = "window_bits must be within 9 ..= 15")]
-fn test_compress_new_gzip_invalid_high() {
+fn compress_new_gzip_invalid_high() {
     let _ = Compress::new_gzip(Compression::default(), 16);
+}
+
+#[test]
+fn set_dictionary_is_present() {
+    let dictionary = "hello".as_bytes();
+
+    let mut encoder = Compress::new(Compression::default(), false);
+    encoder.set_dictionary(&dictionary).unwrap();
+
+    let mut decoder = Decompress::new(false);
+    decoder.set_dictionary(&dictionary).unwrap();
+}
+
+#[test]
+fn set_level_is_present() {
+    let mut encoder = Compress::new(Compression::default(), true);
+    encoder.set_level(Compression::fast()).unwrap();
+    encoder.set_level(Compression::best()).unwrap();
+    encoder.set_level(Compression::none()).unwrap();
 }
