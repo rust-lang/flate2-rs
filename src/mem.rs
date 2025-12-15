@@ -213,7 +213,7 @@ impl Compress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// this function will panic.
-    #[cfg(feature = "any_impl")]
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     pub fn new_with_window_bits(
         level: Compression,
         zlib_header: bool,
@@ -240,7 +240,7 @@ impl Compress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// this function will panic.
-    #[cfg(feature = "any_impl")]
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     pub fn new_gzip(level: Compression, window_bits: u8) -> Compress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -416,7 +416,7 @@ impl Decompress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// this function will panic.
-    #[cfg(feature = "any_impl")]
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -436,7 +436,7 @@ impl Decompress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// this function will panic.
-    #[cfg(feature = "any_impl")]
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     pub fn new_gzip(window_bits: u8) -> Decompress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -663,7 +663,7 @@ mod tests {
     use crate::write;
     use crate::{Compression, Decompress, FlushDecompress};
 
-    #[cfg(feature = "any_impl")]
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     use crate::{Compress, FlushCompress};
 
     #[test]
@@ -723,7 +723,7 @@ mod tests {
         assert!(dst.starts_with(string));
     }
 
-    #[cfg(feature = "any_impl")]
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     #[test]
     fn test_gzip_flate() {
         let string = "hello, hello!".as_bytes();

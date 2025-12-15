@@ -1,6 +1,9 @@
 //! Validate that certain feature-gated functionality is still available.
+#[cfg(not(feature = "miniz_oxide"))]
 use flate2::{Compress, Compression, Decompress, FlushCompress, FlushDecompress};
 
+// Unsupported for `miniz_oxide`.
+#[cfg(not(feature = "miniz_oxide"))]
 #[test]
 fn compress_new_with_window_bits_is_present_and_works() {
     let string = "hello world".as_bytes();
@@ -36,6 +39,8 @@ fn compress_new_with_window_bits_is_present_and_works() {
     assert_eq!(&decoded[..string.len()], string);
 }
 
+// Unsupported for `miniz_oxide`.
+#[cfg(not(feature = "miniz_oxide"))]
 #[test]
 fn decompress_new_gzip_window_bits_is_present_and_works() {
     let string = "hello world".as_bytes();
@@ -62,24 +67,32 @@ fn decompress_new_gzip_window_bits_is_present_and_works() {
     }
 }
 
+// Unsupported for `miniz_oxide`.
+#[cfg(not(feature = "miniz_oxide"))]
 #[test]
 #[should_panic(expected = "window_bits must be within 9 ..= 15")]
 fn compress_new_with_window_bits_invalid_low() {
     let _ = Compress::new_with_window_bits(Compression::default(), true, 8);
 }
 
+// Unsupported for `miniz_oxide`.
+#[cfg(not(feature = "miniz_oxide"))]
 #[test]
 #[should_panic(expected = "window_bits must be within 9 ..= 15")]
 fn compress_new_with_window_bits_invalid_high() {
     let _ = Compress::new_with_window_bits(Compression::default(), true, 16);
 }
 
+// Unsupported for `miniz_oxide`.
+#[cfg(not(feature = "miniz_oxide"))]
 #[test]
 #[should_panic(expected = "window_bits must be within 9 ..= 15")]
 fn compress_new_gzip_invalid_low() {
     let _ = Compress::new_gzip(Compression::default(), 8);
 }
 
+// Unsupported for `miniz_oxide`.
+#[cfg(not(feature = "miniz_oxide"))]
 #[test]
 #[should_panic(expected = "window_bits must be within 9 ..= 15")]
 fn compress_new_gzip_invalid_high() {
