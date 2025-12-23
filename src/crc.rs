@@ -3,15 +3,14 @@
 use std::io;
 use std::io::prelude::*;
 
-use crc32fast::Hasher;
+use crc_fast::{CrcAlgorithm, Digest};
 
 /// The CRC calculated by a [`CrcReader`].
 ///
 /// [`CrcReader`]: struct.CrcReader.html
-#[derive(Debug, Default)]
+#[derive(Debug, Clone)]
 pub struct Crc {
-    amt: u32,
-    hasher: Hasher,
+    digest: Digest,
 }
 
 /// A wrapper around a [`Read`] that calculates the CRC.
@@ -23,39 +22,44 @@ pub struct CrcReader<R> {
     crc: Crc,
 }
 
+impl Default for Crc {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Crc {
     /// Create a new CRC.
     pub fn new() -> Self {
-        Self::default()
+        Crc {
+            digest: Digest::new(CrcAlgorithm::Crc32IsoHdlc),
+        }
     }
 
     /// Returns the current crc32 checksum.
     pub fn sum(&self) -> u32 {
-        self.hasher.clone().finalize()
+        self.digest.finalize() as u32
     }
 
     /// The number of bytes that have been used to calculate the CRC.
     /// This value is only accurate if the amount is lower than 2<sup>32</sup>.
     pub fn amount(&self) -> u32 {
-        self.amt
+        self.digest.get_amount() as u32
     }
 
     /// Update the CRC with the bytes in `data`.
     pub fn update(&mut self, data: &[u8]) {
-        self.amt = self.amt.wrapping_add(data.len() as u32);
-        self.hasher.update(data);
+        self.digest.update(data);
     }
 
     /// Reset the CRC.
     pub fn reset(&mut self) {
-        self.amt = 0;
-        self.hasher.reset();
+        self.digest.reset();
     }
 
     /// Combine the CRC with the CRC for the subsequent block of bytes.
     pub fn combine(&mut self, additional_crc: &Crc) {
-        self.amt = self.amt.wrapping_add(additional_crc.amt);
-        self.hasher.combine(&additional_crc.hasher);
+        self.digest.combine(&additional_crc.digest);
     }
 }
 
