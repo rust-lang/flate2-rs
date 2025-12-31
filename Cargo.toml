@@ -28,7 +28,7 @@ cloudflare-zlib-sys = { version = "0.3.6", optional = true }
 ## It provides good performance for most use cases while being completely portable.
 miniz_oxide = { version = "0.8.5", optional = true, default-features = false, features = ["with-alloc", "simd"] }
 document-features = { version = "0.2", optional = true }
-crc-fast = "1.9"
+crc-fast = "1.10.0"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))'.dependencies]
 miniz_oxide = { version = "0.8.5", default-features = false, features = ["with-alloc", "simd"] }
