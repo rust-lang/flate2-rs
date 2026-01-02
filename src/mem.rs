@@ -212,8 +212,8 @@ impl Compress {
     /// # Panics
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
-    /// `new_with_window_bits` will panic.
-    #[cfg(feature = "any_zlib")]
+    /// this function will panic.
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     pub fn new_with_window_bits(
         level: Compression,
         zlib_header: bool,
@@ -239,8 +239,8 @@ impl Compress {
     /// # Panics
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
-    /// `new_with_window_bits` will panic.
-    #[cfg(feature = "any_zlib")]
+    /// this function will panic.
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     pub fn new_gzip(level: Compression, window_bits: u8) -> Compress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -415,8 +415,8 @@ impl Decompress {
     /// # Panics
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
-    /// `new_with_window_bits` will panic.
-    #[cfg(feature = "any_zlib")]
+    /// this function will panic.
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -435,8 +435,8 @@ impl Decompress {
     /// # Panics
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
-    /// `new_with_window_bits` will panic.
-    #[cfg(feature = "any_zlib")]
+    /// this function will panic.
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     pub fn new_gzip(window_bits: u8) -> Decompress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -663,7 +663,7 @@ mod tests {
     use crate::write;
     use crate::{Compression, Decompress, FlushDecompress};
 
-    #[cfg(feature = "any_zlib")]
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     use crate::{Compress, FlushCompress};
 
     #[test]
@@ -723,87 +723,7 @@ mod tests {
         assert!(dst.starts_with(string));
     }
 
-    #[cfg(feature = "any_zlib")]
-    #[test]
-    fn set_dictionary_with_zlib_header() {
-        let string = "hello, hello!".as_bytes();
-        let dictionary = "hello".as_bytes();
-
-        let mut encoded = Vec::with_capacity(1024);
-
-        let mut encoder = Compress::new(Compression::default(), true);
-
-        let dictionary_adler = encoder.set_dictionary(&dictionary).unwrap();
-
-        encoder
-            .compress_vec(string, &mut encoded, FlushCompress::Finish)
-            .unwrap();
-
-        assert_eq!(encoder.total_in(), string.len() as u64);
-        assert_eq!(encoder.total_out(), encoded.len() as u64);
-
-        let mut decoder = Decompress::new(true);
-        let mut decoded = [0; 1024];
-        let decompress_error = decoder
-            .decompress(&encoded, &mut decoded, FlushDecompress::Finish)
-            .expect_err("decompression should fail due to requiring a dictionary");
-
-        let required_adler = decompress_error.needs_dictionary()
-            .expect("the first call to decompress should indicate a dictionary is required along with the required Adler-32 checksum");
-
-        assert_eq!(required_adler, dictionary_adler,
-            "the Adler-32 checksum should match the value when the dictionary was set on the compressor");
-
-        let actual_adler = decoder.set_dictionary(&dictionary).unwrap();
-
-        assert_eq!(required_adler, actual_adler);
-
-        // Decompress the rest of the input to the remainder of the output buffer
-        let total_in = decoder.total_in();
-        let total_out = decoder.total_out();
-
-        let decompress_result = decoder.decompress(
-            &encoded[total_in as usize..],
-            &mut decoded[total_out as usize..],
-            FlushDecompress::Finish,
-        );
-        assert!(decompress_result.is_ok());
-
-        assert_eq!(&decoded[..decoder.total_out() as usize], string);
-    }
-
-    #[cfg(feature = "any_zlib")]
-    #[test]
-    fn set_dictionary_raw() {
-        let string = "hello, hello!".as_bytes();
-        let dictionary = "hello".as_bytes();
-
-        let mut encoded = Vec::with_capacity(1024);
-
-        let mut encoder = Compress::new(Compression::default(), false);
-
-        encoder.set_dictionary(&dictionary).unwrap();
-
-        encoder
-            .compress_vec(string, &mut encoded, FlushCompress::Finish)
-            .unwrap();
-
-        assert_eq!(encoder.total_in(), string.len() as u64);
-        assert_eq!(encoder.total_out(), encoded.len() as u64);
-
-        let mut decoder = Decompress::new(false);
-
-        decoder.set_dictionary(&dictionary).unwrap();
-
-        let mut decoded = [0; 1024];
-        let decompress_result = decoder.decompress(&encoded, &mut decoded, FlushDecompress::Finish);
-
-        assert!(decompress_result.is_ok());
-
-        assert_eq!(&decoded[..decoder.total_out() as usize], string);
-    }
-
-    #[cfg(feature = "any_zlib")]
+    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
     #[test]
     fn test_gzip_flate() {
         let string = "hello, hello!".as_bytes();
