@@ -242,12 +242,11 @@ impl Deflate {
         match self.inner.set_level(level.level() as i32) {
             Ok(status) => match status {
                 Status::Ok => Ok(()),
-
                 Status::BufError => compress_failed(ErrorMessage(Some("insufficient space"))),
-
-                Status::StreamEnd => unreachable!(),
+                Status::StreamEnd => {
+                    unreachable!("zlib-rs is known to never return the StreamEnd status")
+                }
             },
-
             Err(_) => self.compress_error(),
         }
     }
