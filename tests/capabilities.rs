@@ -1,9 +1,9 @@
 //! Validate that certain feature-gated functionality is still available.
-#[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+#[cfg(feature = "any_zlib")]
 use flate2::{Compress, Compression, Decompress, FlushCompress, FlushDecompress};
 
 // Unsupported for `miniz_oxide`.
-#[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+#[cfg(feature = "any_zlib")]
 #[test]
 fn compress_new_with_window_bits_is_present_and_works() {
     let string = "hello world".as_bytes();
@@ -40,7 +40,7 @@ fn compress_new_with_window_bits_is_present_and_works() {
 }
 
 // Unsupported for `miniz_oxide`.
-#[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+#[cfg(feature = "any_zlib")]
 #[test]
 fn decompress_new_gzip_window_bits_is_present_and_works() {
     let string = "hello world".as_bytes();
@@ -68,7 +68,7 @@ fn decompress_new_gzip_window_bits_is_present_and_works() {
 }
 
 // Unsupported for `miniz_oxide`.
-#[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+#[cfg(feature = "any_zlib")]
 #[test]
 #[should_panic(expected = "window_bits must be within 9 ..= 15")]
 fn compress_new_with_window_bits_invalid_low() {
@@ -76,7 +76,7 @@ fn compress_new_with_window_bits_invalid_low() {
 }
 
 // Unsupported for `miniz_oxide`.
-#[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+#[cfg(feature = "any_zlib")]
 #[test]
 #[should_panic(expected = "window_bits must be within 9 ..= 15")]
 fn compress_new_with_window_bits_invalid_high() {
@@ -84,7 +84,7 @@ fn compress_new_with_window_bits_invalid_high() {
 }
 
 // Unsupported for `miniz_oxide`.
-#[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+#[cfg(feature = "any_zlib")]
 #[test]
 #[should_panic(expected = "window_bits must be within 9 ..= 15")]
 fn compress_new_gzip_invalid_low() {
@@ -92,7 +92,7 @@ fn compress_new_gzip_invalid_low() {
 }
 
 // Unsupported for `miniz_oxide`.
-#[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+#[cfg(feature = "any_zlib")]
 #[test]
 #[should_panic(expected = "window_bits must be within 9 ..= 15")]
 fn compress_new_gzip_invalid_high() {
@@ -100,7 +100,7 @@ fn compress_new_gzip_invalid_high() {
 }
 
 // Unsupported for `miniz_oxide`.
-#[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+#[cfg(feature = "any_zlib")]
 #[test]
 fn set_dictionary_with_zlib_header() {
     let string = "hello, hello!".as_bytes();
@@ -110,7 +110,7 @@ fn set_dictionary_with_zlib_header() {
 
     let mut encoder = Compress::new(Compression::default(), true);
 
-    let dictionary_adler = encoder.set_dictionary(&dictionary).unwrap();
+    let dictionary_adler = encoder.set_dictionary(dictionary).unwrap();
 
     encoder
         .compress_vec(string, &mut encoded, FlushCompress::Finish)
@@ -131,7 +131,7 @@ fn set_dictionary_with_zlib_header() {
     assert_eq!(required_adler, dictionary_adler,
                "the Adler-32 checksum should match the value when the dictionary was set on the compressor");
 
-    let actual_adler = decoder.set_dictionary(&dictionary).unwrap();
+    let actual_adler = decoder.set_dictionary(dictionary).unwrap();
 
     assert_eq!(required_adler, actual_adler);
 
@@ -150,7 +150,7 @@ fn set_dictionary_with_zlib_header() {
 }
 
 // Unsupported for `miniz_oxide`.
-#[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+#[cfg(feature = "any_zlib")]
 #[test]
 fn set_dictionary_raw() {
     let string = "hello, hello!".as_bytes();
@@ -160,7 +160,7 @@ fn set_dictionary_raw() {
 
     let mut encoder = Compress::new(Compression::default(), false);
 
-    encoder.set_dictionary(&dictionary).unwrap();
+    encoder.set_dictionary(dictionary).unwrap();
 
     encoder
         .compress_vec(string, &mut encoded, FlushCompress::Finish)
@@ -171,7 +171,7 @@ fn set_dictionary_raw() {
 
     let mut decoder = Decompress::new(false);
 
-    decoder.set_dictionary(&dictionary).unwrap();
+    decoder.set_dictionary(dictionary).unwrap();
 
     let mut decoded = [0; 1024];
     let decompress_result = decoder.decompress(&encoded, &mut decoded, FlushDecompress::Finish);
@@ -182,7 +182,7 @@ fn set_dictionary_raw() {
 }
 
 // Unsupported for `miniz_oxide`.
-#[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+#[cfg(feature = "any_zlib")]
 #[test]
 fn compression_levels_are_effective() {
     let input = b"hello hello hello hello hello hello hello hello";
@@ -208,7 +208,7 @@ fn compression_levels_are_effective() {
 }
 
 // Unsupported for `miniz_oxide`.
-#[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+#[cfg(feature = "any_zlib")]
 #[test]
 fn set_level_is_effective() {
     let input = b"hello hello hello hello hello hello hello hello";

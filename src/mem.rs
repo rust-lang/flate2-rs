@@ -213,7 +213,7 @@ impl Compress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// this function will panic.
-    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+    #[cfg(feature = "any_zlib")]
     pub fn new_with_window_bits(
         level: Compression,
         zlib_header: bool,
@@ -240,7 +240,7 @@ impl Compress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// this function will panic.
-    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+    #[cfg(feature = "any_zlib")]
     pub fn new_gzip(level: Compression, window_bits: u8) -> Compress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -266,7 +266,7 @@ impl Compress {
     /// Specifies the compression dictionary to use.
     ///
     /// Returns the Adler-32 checksum of the dictionary.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_c_zlib")]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, CompressError> {
         // SAFETY: The field `inner` must always be accessed as a raw pointer,
         // since it points to a cyclic structure. No copies of `inner` can be
@@ -289,7 +289,7 @@ impl Compress {
     /// Specifies the compression dictionary to use.
     ///
     /// Returns the Adler-32 checksum of the dictionary.
-    #[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
+    #[cfg(all(not(feature = "any_c_zlib"), feature = "zlib-rs"))]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, CompressError> {
         self.inner.set_dictionary(dictionary)
     }
@@ -311,14 +311,14 @@ impl Compress {
     /// the compression of the available input data before changing the
     /// compression level. Flushing the stream before calling this method
     /// ensures that the function will succeed on the first call.
-    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+    #[cfg(feature = "any_zlib")]
     pub fn set_level(&mut self, level: Compression) -> Result<(), CompressError> {
-        #[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
+        #[cfg(all(not(feature = "any_c_zlib"), feature = "zlib-rs"))]
         {
             self.inner.set_level(level)
         }
 
-        #[cfg(feature = "any_zlib")]
+        #[cfg(feature = "any_c_zlib")]
         {
             use std::os::raw::c_int;
             // SAFETY: The field `inner` must always be accessed as a raw pointer,
@@ -416,7 +416,7 @@ impl Decompress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// this function will panic.
-    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+    #[cfg(feature = "any_zlib")]
     pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -436,7 +436,7 @@ impl Decompress {
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
     /// this function will panic.
-    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+    #[cfg(feature = "any_zlib")]
     pub fn new_gzip(window_bits: u8) -> Decompress {
         assert!(
             window_bits > 8 && window_bits < 16,
@@ -536,7 +536,7 @@ impl Decompress {
     }
 
     /// Specifies the decompression dictionary to use.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_c_zlib")]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, DecompressError> {
         // SAFETY: The field `inner` must always be accessed as a raw pointer,
         // since it points to a cyclic structure. No copies of `inner` can be
@@ -558,7 +558,7 @@ impl Decompress {
     }
 
     /// Specifies the decompression dictionary to use.
-    #[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
+    #[cfg(all(not(feature = "any_c_zlib"), feature = "zlib-rs"))]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, DecompressError> {
         self.inner.set_dictionary(dictionary)
     }
@@ -663,7 +663,7 @@ mod tests {
     use crate::write;
     use crate::{Compression, Decompress, FlushDecompress};
 
-    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+    #[cfg(feature = "any_zlib")]
     use crate::{Compress, FlushCompress};
 
     #[test]
@@ -723,7 +723,7 @@ mod tests {
         assert!(dst.starts_with(string));
     }
 
-    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+    #[cfg(feature = "any_zlib")]
     #[test]
     fn test_gzip_flate() {
         let string = "hello, hello!".as_bytes();
@@ -749,7 +749,7 @@ mod tests {
         assert_eq!(&decoded[..decoder.total_out() as usize], string);
     }
 
-    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+    #[cfg(feature = "any_zlib")]
     #[test]
     fn test_error_message() {
         let mut decoder = Decompress::new(false);
@@ -757,7 +757,7 @@ mod tests {
         let garbage = b"xbvxzi";
 
         let err = decoder
-            .decompress(&*garbage, &mut decoded, FlushDecompress::Finish)
+            .decompress(garbage, &mut decoded, FlushDecompress::Finish)
             .unwrap_err();
 
         assert_eq!(err.message(), Some("invalid stored block lengths"));
