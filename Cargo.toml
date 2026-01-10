@@ -112,3 +112,6 @@ any_impl = []
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[patch.crates-io]
+miniz_oxide = { git = "https://github.com/Frommi/miniz_oxide", branch = "master" }
