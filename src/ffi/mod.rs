@@ -65,13 +65,13 @@ mod c;
 #[cfg(feature = "any_c_zlib")]
 pub use self::c::*;
 
-// Prefer C backes when both Rust backends are enabled to avoid duplicate exports.
+// Only bring in `zlib-rs` if there is no C-based backend.
 #[cfg(all(not(feature = "any_c_zlib"), feature = "zlib-rs"))]
 mod zlib_rs;
 #[cfg(all(not(feature = "any_c_zlib"), feature = "zlib-rs"))]
 pub use self::zlib_rs::*;
 
-// Use to miniz_oxide when no fully compliant zlib is selected.
+// Use miniz_oxide when no fully compliant zlib is selected.
 #[cfg(all(not(feature = "any_zlib"), feature = "miniz_oxide"))]
 mod miniz_oxide;
 #[cfg(all(not(feature = "any_zlib"), feature = "miniz_oxide"))]
