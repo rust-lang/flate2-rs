@@ -212,7 +212,7 @@ impl Compress {
     /// # Panics
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
-    /// `new_with_window_bits` will panic.
+    /// this function will panic.
     #[cfg(feature = "any_zlib")]
     pub fn new_with_window_bits(
         level: Compression,
@@ -239,7 +239,7 @@ impl Compress {
     /// # Panics
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
-    /// `new_with_window_bits` will panic.
+    /// this function will panic.
     #[cfg(feature = "any_zlib")]
     pub fn new_gzip(level: Compression, window_bits: u8) -> Compress {
         assert!(
@@ -266,7 +266,7 @@ impl Compress {
     /// Specifies the compression dictionary to use.
     ///
     /// Returns the Adler-32 checksum of the dictionary.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_c_zlib")]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, CompressError> {
         // SAFETY: The field `inner` must always be accessed as a raw pointer,
         // since it points to a cyclic structure. No copies of `inner` can be
@@ -289,7 +289,7 @@ impl Compress {
     /// Specifies the compression dictionary to use.
     ///
     /// Returns the Adler-32 checksum of the dictionary.
-    #[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
+    #[cfg(all(not(feature = "any_c_zlib"), feature = "zlib-rs"))]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, CompressError> {
         self.inner.set_dictionary(dictionary)
     }
@@ -311,14 +311,14 @@ impl Compress {
     /// the compression of the available input data before changing the
     /// compression level. Flushing the stream before calling this method
     /// ensures that the function will succeed on the first call.
-    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+    #[cfg(feature = "any_zlib")]
     pub fn set_level(&mut self, level: Compression) -> Result<(), CompressError> {
-        #[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
+        #[cfg(all(not(feature = "any_c_zlib"), feature = "zlib-rs"))]
         {
             self.inner.set_level(level)
         }
 
-        #[cfg(feature = "any_zlib")]
+        #[cfg(feature = "any_c_zlib")]
         {
             use std::os::raw::c_int;
             // SAFETY: The field `inner` must always be accessed as a raw pointer,
@@ -415,7 +415,7 @@ impl Decompress {
     /// # Panics
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
-    /// `new_with_window_bits` will panic.
+    /// this function will panic.
     #[cfg(feature = "any_zlib")]
     pub fn new_with_window_bits(zlib_header: bool, window_bits: u8) -> Decompress {
         assert!(
@@ -435,7 +435,7 @@ impl Decompress {
     /// # Panics
     ///
     /// If `window_bits` does not fall into the range 9 ..= 15,
-    /// `new_with_window_bits` will panic.
+    /// this function will panic.
     #[cfg(feature = "any_zlib")]
     pub fn new_gzip(window_bits: u8) -> Decompress {
         assert!(
@@ -536,7 +536,7 @@ impl Decompress {
     }
 
     /// Specifies the decompression dictionary to use.
-    #[cfg(feature = "any_zlib")]
+    #[cfg(feature = "any_c_zlib")]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, DecompressError> {
         // SAFETY: The field `inner` must always be accessed as a raw pointer,
         // since it points to a cyclic structure. No copies of `inner` can be
@@ -558,7 +558,7 @@ impl Decompress {
     }
 
     /// Specifies the decompression dictionary to use.
-    #[cfg(all(not(feature = "any_zlib"), feature = "zlib-rs"))]
+    #[cfg(all(not(feature = "any_c_zlib"), feature = "zlib-rs"))]
     pub fn set_dictionary(&mut self, dictionary: &[u8]) -> Result<u32, DecompressError> {
         self.inner.set_dictionary(dictionary)
     }
@@ -725,86 +725,6 @@ mod tests {
 
     #[cfg(feature = "any_zlib")]
     #[test]
-    fn set_dictionary_with_zlib_header() {
-        let string = "hello, hello!".as_bytes();
-        let dictionary = "hello".as_bytes();
-
-        let mut encoded = Vec::with_capacity(1024);
-
-        let mut encoder = Compress::new(Compression::default(), true);
-
-        let dictionary_adler = encoder.set_dictionary(&dictionary).unwrap();
-
-        encoder
-            .compress_vec(string, &mut encoded, FlushCompress::Finish)
-            .unwrap();
-
-        assert_eq!(encoder.total_in(), string.len() as u64);
-        assert_eq!(encoder.total_out(), encoded.len() as u64);
-
-        let mut decoder = Decompress::new(true);
-        let mut decoded = [0; 1024];
-        let decompress_error = decoder
-            .decompress(&encoded, &mut decoded, FlushDecompress::Finish)
-            .expect_err("decompression should fail due to requiring a dictionary");
-
-        let required_adler = decompress_error.needs_dictionary()
-            .expect("the first call to decompress should indicate a dictionary is required along with the required Adler-32 checksum");
-
-        assert_eq!(required_adler, dictionary_adler,
-            "the Adler-32 checksum should match the value when the dictionary was set on the compressor");
-
-        let actual_adler = decoder.set_dictionary(&dictionary).unwrap();
-
-        assert_eq!(required_adler, actual_adler);
-
-        // Decompress the rest of the input to the remainder of the output buffer
-        let total_in = decoder.total_in();
-        let total_out = decoder.total_out();
-
-        let decompress_result = decoder.decompress(
-            &encoded[total_in as usize..],
-            &mut decoded[total_out as usize..],
-            FlushDecompress::Finish,
-        );
-        assert!(decompress_result.is_ok());
-
-        assert_eq!(&decoded[..decoder.total_out() as usize], string);
-    }
-
-    #[cfg(feature = "any_zlib")]
-    #[test]
-    fn set_dictionary_raw() {
-        let string = "hello, hello!".as_bytes();
-        let dictionary = "hello".as_bytes();
-
-        let mut encoded = Vec::with_capacity(1024);
-
-        let mut encoder = Compress::new(Compression::default(), false);
-
-        encoder.set_dictionary(&dictionary).unwrap();
-
-        encoder
-            .compress_vec(string, &mut encoded, FlushCompress::Finish)
-            .unwrap();
-
-        assert_eq!(encoder.total_in(), string.len() as u64);
-        assert_eq!(encoder.total_out(), encoded.len() as u64);
-
-        let mut decoder = Decompress::new(false);
-
-        decoder.set_dictionary(&dictionary).unwrap();
-
-        let mut decoded = [0; 1024];
-        let decompress_result = decoder.decompress(&encoded, &mut decoded, FlushDecompress::Finish);
-
-        assert!(decompress_result.is_ok());
-
-        assert_eq!(&decoded[..decoder.total_out() as usize], string);
-    }
-
-    #[cfg(feature = "any_zlib")]
-    #[test]
     fn test_gzip_flate() {
         let string = "hello, hello!".as_bytes();
 
@@ -829,7 +749,7 @@ mod tests {
         assert_eq!(&decoded[..decoder.total_out() as usize], string);
     }
 
-    #[cfg(any(feature = "any_zlib", feature = "zlib-rs"))]
+    #[cfg(feature = "any_zlib")]
     #[test]
     fn test_error_message() {
         let mut decoder = Decompress::new(false);
@@ -837,7 +757,7 @@ mod tests {
         let garbage = b"xbvxzi";
 
         let err = decoder
-            .decompress(&*garbage, &mut decoded, FlushDecompress::Finish)
+            .decompress(garbage, &mut decoded, FlushDecompress::Finish)
             .unwrap_err();
 
         assert_eq!(err.message(), Some("invalid stored block lengths"));

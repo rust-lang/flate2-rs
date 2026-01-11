@@ -1,7 +1,7 @@
 [package]
 name = "flate2"
 authors = ["Alex Crichton <alex@alexcrichton.com>", "Josh Triplett <josh@joshtriplett.org>"]
-version = "1.1.7"
+version = "1.1.8"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -51,7 +51,7 @@ default = ["rust_backend"]
 ## Use the zlib-rs backend, a pure Rust rewrite of zlib.
 ## This is the fastest backend overall, providing excellent performance with some `unsafe` code.
 ## It does not require a C compiler but uses `unsafe` Rust for optimization.
-zlib-rs = ["any_impl", "dep:zlib-rs"]
+zlib-rs = ["any_zlib", "dep:zlib-rs"]
 
 ## Use the pure Rust `miniz_oxide` backend (default).
 ## This implementation uses only safe Rust code and doesn't require a C compiler.
@@ -63,11 +63,11 @@ rust_backend = ["miniz_oxide", "any_impl"]
 ## Use the system's installed zlib library.
 ## This is useful when you need compatibility with other C code that uses zlib,
 ## or when you want to use the system-provided zlib for consistency.
-zlib = ["any_zlib", "libz-sys"]
+zlib = ["any_c_zlib", "libz-sys"]
 
 ## Use the system's installed zlib library with default features enabled.
 ## Similar to `zlib` but enables additional features from libz-sys.
-zlib-default = ["any_zlib", "libz-sys/default"]
+zlib-default = ["any_c_zlib", "libz-sys/default"]
 
 ## Use zlib-ng in zlib-compat mode via libz-sys.
 ## This provides zlib-ng's performance improvements while maintaining compatibility.
@@ -83,13 +83,13 @@ zlib-ng-compat = ["zlib", "libz-sys/zlib-ng"]
 ## Use the high-performance zlib-ng library directly.
 ## This typically provides better performance than stock zlib and works even when
 ## other dependencies use zlib. Requires a C compiler.
-zlib-ng = ["any_zlib", "libz-ng-sys"]
+zlib-ng = ["any_c_zlib", "libz-ng-sys"]
 
 ## Use Cloudflare's optimized zlib implementation.
 ## This provides better performance than stock zlib on x86-64 (with SSE 4.2) and ARM64 (with NEON & CRC).
 ## * ⚠ Does not support 32-bit CPUs and is incompatible with mingw.
 ## * ⚠ May cause conflicts if other crates use different zlib versions.
-cloudflare_zlib = ["any_zlib", "cloudflare-zlib-sys"]
+cloudflare_zlib = ["any_c_zlib", "cloudflare-zlib-sys"]
 
 ## Deprecated alias for `rust_backend`, provided for backwards compatibility.
 ## Use `rust_backend` instead.
@@ -100,9 +100,14 @@ miniz-sys = ["rust_backend"]
 #! They are documented here to aid with maintenance.
 
 ## **Internal:** Marker feature indicating that any zlib-based C backend is enabled.
-## This is automatically enabled by `zlib`, `zlib-ng`, `zlib-ng-compat`, or `cloudflare_zlib`.
+## This is automatically enabled by `zlib-rs`, `zlib`, `zlib-ng`, `zlib-ng-compat`, and `cloudflare_zlib`.
 ## Do not enable this feature directly; instead, choose a specific backend feature.
 any_zlib = ["any_impl"]
+
+## **Internal:** Marker feature indicating that any C based fully zlib compatible backend is enabled.
+## This is automatically enabled by `zlib`, `zlib-ng`, `zlib-ng-compat`, and `cloudflare_zlib`.
+## Do not enable this feature directly; instead, choose a specific backend feature.
+any_c_zlib = ["any_zlib"]
 
 ## **Internal:** Marker feature indicating that any compression backend is enabled.
 ## This is automatically enabled by all backend features to ensure at least one implementation is available.
