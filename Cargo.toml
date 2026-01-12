@@ -5,7 +5,7 @@ version = "1.1.8"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-rust-version = "1.67.0"
+rust-version = "1.89.0"
 keywords = ["gzip", "deflate", "zlib", "zlib-ng", "encoding"]
 categories = ["compression", "api-bindings"]
 repository = "https://github.com/rust-lang/flate2-rs"
@@ -27,8 +27,8 @@ cloudflare-zlib-sys = { version = "0.3.6", optional = true }
 ## This implementation uses only safe Rust code and doesn't require a C compiler.
 ## It provides good performance for most use cases while being completely portable.
 miniz_oxide = { version = "0.8.5", optional = true, default-features = false, features = ["with-alloc", "simd"] }
-crc32fast = "1.2.0"
 document-features = { version = "0.2", optional = true }
+crc-fast = "1.10.0"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))'.dependencies]
 miniz_oxide = { version = "0.8.5", default-features = false, features = ["with-alloc", "simd"] }
