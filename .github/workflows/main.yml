@@ -62,6 +62,11 @@ jobs:
     - run: cargo fmt -- --check
     - run: cargo doc --all-features
     - run: cargo clippy --all-features -- -D warnings
+    - run: | 
+        if cargo tree --features zlib-rs --no-default-features | grep -q crc32fast; then
+          echo "zlib-rs uses its own crc implementation, and should not build crc32fast"
+          exit 1
+        fi
 
   audit:
     name: Security Audit
