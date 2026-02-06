@@ -193,7 +193,7 @@ impl<R: BufRead> ZlibDecoder<R> {
 }
 
 pub fn reset_decoder_data<R>(zlib: &mut ZlibDecoder<R>) {
-    zlib.data = Decompress::new(true);
+    zlib.data.reset(true);
 }
 
 impl<R> ZlibDecoder<R> {
