@@ -205,12 +205,12 @@ impl<D: Direction> Drop for Stream<D> {
 
 impl Direction for DirCompress {
     unsafe fn destroy(stream: *mut mz_stream) -> c_int {
-        mz_deflateEnd(stream)
+        unsafe { mz_deflateEnd(stream) }
     }
 }
 impl Direction for DirDecompress {
     unsafe fn destroy(stream: *mut mz_stream) -> c_int {
-        mz_inflateEnd(stream)
+        unsafe { mz_inflateEnd(stream) }
     }
 }
 
@@ -501,23 +501,27 @@ mod c_backend {
         mem_level: c_int,
         strategy: c_int,
     ) -> c_int {
-        libz::deflateInit2_(
-            stream,
-            level,
-            method,
-            window_bits,
-            mem_level,
-            strategy,
-            zlibVersion(),
-            mem::size_of::<mz_stream>() as c_int,
-        )
+        unsafe {
+            libz::deflateInit2_(
+                stream,
+                level,
+                method,
+                window_bits,
+                mem_level,
+                strategy,
+                zlibVersion(),
+                mem::size_of::<mz_stream>() as c_int,
+            )
+        }
     }
     pub unsafe extern "C" fn mz_inflateInit2(stream: *mut mz_stream, window_bits: c_int) -> c_int {
-        libz::inflateInit2_(
-            stream,
-            window_bits,
-            zlibVersion(),
-            mem::size_of::<mz_stream>() as c_int,
-        )
+        unsafe {
+            libz::inflateInit2_(
+                stream,
+                window_bits,
+                zlibVersion(),
+                mem::size_of::<mz_stream>() as c_int,
+            )
+        }
     }
 }

@@ -3,8 +3,8 @@ use std::fmt;
 use std::io;
 use std::mem::MaybeUninit;
 
-use crate::ffi::{self, Backend, Deflate, DeflateBackend, ErrorMessage, Inflate, InflateBackend};
 use crate::Compression;
+use crate::ffi::{self, Backend, Deflate, DeflateBackend, ErrorMessage, Inflate, InflateBackend};
 
 /// Raw in-memory compression stream for blocks of data.
 ///
@@ -590,7 +590,7 @@ impl DecompressError {
 
 impl From<DecompressError> for io::Error {
     fn from(data: DecompressError) -> io::Error {
-        io::Error::new(io::ErrorKind::Other, data)
+        io::Error::other(data)
     }
 }
 
@@ -618,7 +618,7 @@ impl CompressError {
 
 impl From<CompressError> for io::Error {
     fn from(data: CompressError) -> io::Error {
-        io::Error::new(io::ErrorKind::Other, data)
+        io::Error::other(data)
     }
 }
 
@@ -651,7 +651,9 @@ unsafe fn write_to_spare_capacity_of_vec<T>(
     let len = output.len();
 
     let (bytes_written, ret) = writer(output.spare_capacity_mut());
-    output.set_len(cap.min(len + bytes_written)); // Sanitizes `bytes_written`.
+    unsafe {
+        output.set_len(cap.min(len + bytes_written)); // Sanitizes `bytes_written`.
+    }
 
     ret
 }
