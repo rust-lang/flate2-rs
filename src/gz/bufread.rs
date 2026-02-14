@@ -222,6 +222,12 @@ enum GzState {
     End(Option<GzHeader>),
 }
 
+pub fn reset_decoder_data<R>(decoder: &mut GzDecoder<R>) {
+    decoder.state = GzState::Header(GzHeaderParser::new());
+    decoder.reader.reset(); // reset CrcReader
+    decoder.reader.get_mut().reset_data(); // reset DeflateDecoder
+}
+
 impl<R: BufRead> GzDecoder<R> {
     /// Creates a new decoder from the given reader, immediately parsing the
     /// gzip header.
@@ -275,6 +281,18 @@ impl<R> GzDecoder<R> {
     /// Consumes this decoder, returning the underlying reader.
     pub fn into_inner(self) -> R {
         self.reader.into_inner().into_inner()
+    }
+
+    /// Resets the state of this decoder entirely, swapping out the input
+    /// stream for another.
+    ///
+    /// This will reset the internal state of this decoder and replace the
+    /// input stream with the one provided, returning the previous input
+    /// stream. Future data read from this decoder will be the decompressed
+    /// version of `r`'s data.
+    pub fn reset(&mut self, r: R) -> R {
+        reset_decoder_data(self);
+        self.reader.get_mut().reset(r)
     }
 }
 
@@ -478,5 +496,56 @@ mod test {
             "extra data is accessible in underlying buf-read"
         );
         assert_eq!(output, b"x");
+    }
+
+    fn compress_data(data: &[u8]) -> Vec<u8> {
+        use crate::write::GzEncoder;
+        use crate::Compression;
+
+        let mut e = GzEncoder::new(Vec::new(), Compression::default());
+        e.write_all(data).unwrap();
+        e.finish().unwrap()
+    }
+
+    #[test]
+    fn decode_with_reset() {
+        let data1 = b"Hello World";
+        let data2 = b"Goodbye World";
+
+        let compressed1 = compress_data(data1);
+        let compressed2 = compress_data(data2);
+
+        let mut output = Vec::new();
+        let mut decoder = GzDecoder::new(compressed1.as_slice());
+        decoder.read_to_end(&mut output).unwrap();
+        assert_eq!(output, data1);
+
+        output.clear();
+        decoder.reset(compressed2.as_slice());
+        decoder.read_to_end(&mut output).unwrap();
+        assert_eq!(output, data2);
+    }
+
+    #[test]
+    fn decode_with_reset_after_corruption() {
+        let valid_data = b"Hello World";
+        let valid_compressed = compress_data(valid_data);
+
+        // Create a corrupted payload (valid gzip header but corrupted body)
+        let mut corrupted = valid_compressed.clone();
+        assert!(corrupted.len() >= 14);
+        corrupted[12] ^= 0xFF;
+        corrupted[13] ^= 0xFF;
+
+        // Try to decode corrupted data
+        let mut decoder = GzDecoder::new(corrupted.as_slice());
+        let mut output = Vec::new();
+        let _ = decoder.read_to_end(&mut output).unwrap_err();
+
+        // Reset with valid payload and decode
+        decoder.reset(valid_compressed.as_slice());
+        output.clear();
+        decoder.read_to_end(&mut output).unwrap();
+        assert_eq!(output, valid_data);
     }
 }
