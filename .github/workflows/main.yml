@@ -35,6 +35,7 @@ jobs:
     - run: cargo build
     - run: rustdoc --test README.md -L target/debug/deps --extern flate2=target/debug/libflate2.rlib --edition=2018
     - run: cargo test
+    - run: cargo test --features miniz_oxide --no-default-features
     - run: cargo test --features zlib
     - run: cargo test --features zlib --no-default-features
     - run: cargo test --features zlib-default --no-default-features
@@ -43,6 +44,7 @@ jobs:
     - run: cargo test --features zlib-ng --no-default-features
       if: matrix.build != 'mingw'
     - run: cargo test --features zlib-rs --no-default-features
+    # The cloudflare_zlib feature flag now forwards to zlib; test that the feature still works.
     - run: cargo test --features cloudflare_zlib --no-default-features
       if: matrix.build != 'mingw'
     - run: |
@@ -101,7 +103,7 @@ jobs:
       matrix:
         os: [windows-2022, macos-latest, ubuntu-latest]
     env:
-      version: 1.67.0
+      version: 1.75.0
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust (rustup)
@@ -119,12 +121,12 @@ jobs:
       - run: cargo build --features cloudflare_zlib --no-default-features
 
   # Minimum Rust compiler to build `flate2` with no optional features
-  minimum-build:
+  minimum-build-zlib-rs:
     name: Minimum Rust compiler
     runs-on: ubuntu-latest
     env:
       # If this is changed to pass tests, then set `rust-version` in `Cargo.toml` to the same version.
-      version: 1.67.0
+      version: 1.75.0
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust (rustup)
