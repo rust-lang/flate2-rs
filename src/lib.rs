@@ -46,8 +46,8 @@
 //! become active if multiple are selected.
 //!
 //! * zlib-ng
-//! * zlib-rs
 //! * miniz_oxide
+//! * zlib-rs
 //!
 //! # Organization
 //!
@@ -250,6 +250,29 @@ impl Default for Compression {
         Compression(6)
     }
 }
+
+// While our MSRV does not have stable `cfg_select`, use this manual implementation
+// to clean up some of the cfg logic.
+macro_rules! cfg_select {
+    ({ $($tt:tt)* }) => {{
+        $crate::cfg_select! { $($tt)* }
+    }};
+    (_ => { $($output:tt)* }) => {
+        $($output)*
+    };
+    (
+        $cfg:meta => $output:tt
+        $($( $rest:tt )+)?
+    ) => {
+        #[cfg($cfg)]
+        $crate::cfg_select! { _ => $output }
+        $(
+            #[cfg(not($cfg))]
+            $crate::cfg_select! { $($rest)+ }
+        )?
+    }
+}
+pub(crate) use cfg_select;
 
 #[cfg(test)]
 fn random_bytes() -> impl Iterator<Item = u8> {

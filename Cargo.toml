@@ -5,7 +5,7 @@ version = "1.1.10"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-rust-version = "1.67.0"
+rust-version = "1.75.0"
 keywords = ["gzip", "deflate", "zlib", "zlib-ng", "encoding"]
 categories = ["compression", "api-bindings"]
 repository = "https://github.com/rust-lang/flate2-rs"
@@ -22,7 +22,7 @@ exclude = [".*"]
 libz-sys = { version = "1.1.20", optional = true, default-features = false }
 libz-ng-sys = { version = "1.1.16", optional = true }
 # this matches the default features, but we don't want to depend on the default features staying the same
-zlib-rs = { version = "0.6.0", optional = true, default-features = false, features = ["std", "rust-allocator"] }
+zlib-rs = { version = "0.6.3", optional = true, default-features = false, features = ["std", "rust-allocator"] }
 ## This implementation uses only safe Rust code and doesn't require a C compiler.
 ## It provides good performance for most use cases while being completely portable.
 miniz_oxide = { version = "0.9.0", optional = true, features = ["simd"] }
@@ -35,8 +35,8 @@ rand = "0.9"
 quickcheck = { version = "1.0", default-features = false }
 
 [features]
-## The default backend using pure Rust implementation via miniz_oxide.
-## This provides a safe, portable compression implementation without requiring a C compiler.
+## The default backend using pure Rust implementation via zlib-rs.
+## This provides a portable compression implementation without requiring a C compiler.
 default = ["rust_backend"]
 
 #! ### User-Facing Backend Features
@@ -44,12 +44,13 @@ default = ["rust_backend"]
 #! Only one backend should be enabled at a time, or else one will see an unstable order which is currently
 #! `zlib-ng`, `zlib-rs`, `miniz_oxide` and which may change at any time.
 
-## Use the pure Rust `miniz_oxide` backend (default).
-## This implementation uses only safe Rust code and doesn't require a C compiler.
-## It provides good performance for most use cases while being completely portable.
+## Use the pure Rust `zlib-rs` backend (default).
 ##
-## Note that this feature at some point may be switched to use `zlib-rs` instead.
-rust_backend = ["miniz_oxide", "any_impl"]
+## This is the fastest backend overall, providing excellent performance with some `unsafe` code.
+## It does not require a C compiler but uses `unsafe` Rust for optimization.
+##
+## Previously this feature used miniz_oxide.
+rust_backend = ["zlib-rs"]
 
 ## Use the zlib-rs backend, a pure Rust rewrite of zlib.
 ## This is the fastest backend overall, providing excellent performance with some `unsafe` code.
