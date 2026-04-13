@@ -19,6 +19,7 @@ and raw deflate streams.
 exclude = [".*"]
 
 [dependencies]
+fdeflate = { git = "https://github.com/Shnatsel/fdeflate.git", branch = "raw-deflate", optional = true }
 libz-sys = { version = "1.1.20", optional = true, default-features = false }
 libz-ng-sys = { version = "1.1.16", optional = true }
 # this matches the default features, but we don't want to depend on the default features staying the same
@@ -87,6 +88,11 @@ zlib-ng = ["any_c_zlib", "libz-ng-sys", "dep:crc32fast"]
 ## Cloudflare-zlib is no longer supported.
 ## Falls back to `libz-sys`, but we recommend switching to `zlib-rs` instead.
 cloudflare_zlib = ["zlib"]
+
+## Use the `fdeflate` backend, a fast pure Rust deflate implementation.
+## This implementation uses only safe Rust code and doesn't require a C compiler.
+## It is optimized for speed and provides good compression performance.
+fdeflate = ["any_impl", "dep:fdeflate", "dep:crc32fast"]
 
 ## Deprecated alias for `rust_backend`, provided for backwards compatibility.
 ## Use `rust_backend` instead.

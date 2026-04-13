@@ -113,6 +113,7 @@ pub enum FlushDecompress {
 
 /// The inner state for an error when decompressing
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub(crate) enum DecompressErrorInner {
     General { msg: ErrorMessage },
     NeedsDictionary(u32),
@@ -142,6 +143,7 @@ pub(crate) fn decompress_failed<T>(msg: ErrorMessage) -> Result<T, DecompressErr
 }
 
 #[inline]
+#[allow(dead_code)]
 pub(crate) fn decompress_need_dict<T>(adler: u32) -> Result<T, DecompressError> {
     Err(DecompressError(DecompressErrorInner::NeedsDictionary(
         adler,
@@ -663,6 +665,7 @@ mod tests {
     use crate::write;
     use crate::{Compression, Decompress, FlushDecompress};
 
+    #[cfg(any(feature = "any_zlib", feature = "miniz_oxide"))]
     use crate::{Compress, FlushCompress};
 
     #[test]
@@ -762,6 +765,7 @@ mod tests {
         assert_eq!(err.message(), Some("invalid stored block lengths"));
     }
 
+    #[cfg(any(feature = "any_zlib", feature = "miniz_oxide"))]
     fn compress_with_flush(flush: FlushCompress) -> Vec<u8> {
         let incompressible = (0..=255).collect::<Vec<u8>>();
         let mut output = vec![0; 1024];
@@ -796,6 +800,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(feature = "any_zlib", feature = "miniz_oxide"))]
     fn test_partial_flush() {
         let output = compress_with_flush(FlushCompress::Partial);
 
@@ -805,6 +810,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(feature = "any_zlib", feature = "miniz_oxide"))]
     fn test_sync_flush() {
         let output = compress_with_flush(FlushCompress::Sync);
 
@@ -813,6 +819,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(feature = "any_zlib", feature = "miniz_oxide"))]
     fn test_full_flush() {
         let output = compress_with_flush(FlushCompress::Full);
         assert_eq!(output.len(), 527);

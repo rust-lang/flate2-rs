@@ -77,6 +77,20 @@ mod miniz_oxide;
 #[cfg(all(not(feature = "any_zlib"), feature = "miniz_oxide"))]
 pub use self::miniz_oxide::*;
 
+// Use fdeflate when no other backend is selected.
+#[cfg(all(
+    not(feature = "any_zlib"),
+    not(feature = "miniz_oxide"),
+    feature = "fdeflate"
+))]
+mod fdeflate;
+#[cfg(all(
+    not(feature = "any_zlib"),
+    not(feature = "miniz_oxide"),
+    feature = "fdeflate"
+))]
+pub use self::fdeflate::*;
+
 // If no backend is enabled, fail fast with a clear error message.
 #[cfg(not(feature = "any_impl"))]
 compile_error!("No compression backend selected; enable one of `zlib`, `zlib-ng`, `zlib-rs`, or the default `rust_backend` feature.");

@@ -178,6 +178,18 @@ mod tests {
     }
 
     #[test]
+    fn debug_single_byte() {
+        let v = vec![0u8];
+        let mut w = write::DeflateEncoder::new(
+            write::DeflateDecoder::new(Vec::new()),
+            Compression::default(),
+        );
+        w.write_all(&v).unwrap();
+        let result = w.finish().unwrap().finish().unwrap();
+        assert_eq!(v, result);
+    }
+
+    #[test]
     fn qc_writer() {
         ::quickcheck::quickcheck(test as fn(_) -> _);
 
