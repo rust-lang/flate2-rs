@@ -164,15 +164,21 @@ impl Backend for Inflate {
 
 /// Wraps fdeflate's Compressor to implement the streaming DeflateBackend interface.
 ///
-/// fdeflate's Compressor takes a `Write` target and has `write_data`/`finish` methods.
-/// We use a `Vec<u8>` as the internal output buffer. Since fdeflate writes compressed
-/// data to the writer during `write_data` and `finish` calls, we buffer that output
-/// and drain it into the caller's output buffer on each `compress` call.
+/// fdeflate's Compressor writes compressed data to its inner `Vec<u8>` writer
+/// incrementally during `write_data()` calls. After each call, we drain the
+/// writer's buffer directly into the caller's output slice, avoiding any
+/// secondary buffering.
+///
+/// After `finish()` is called, any remaining compressed data that didn't fit
+/// in the caller's output is held in `finished_buf` until drained.
 pub struct Deflate {
-    /// Buffered compressed output that hasn't been returned to the caller yet.
-    output_buf: Vec<u8>,
     /// The compressor state. Set to `None` after `finish()` is called.
     inner: Option<::fdeflate::Compressor<Vec<u8>>>,
+    /// Holds leftover compressed data after `finish()` that didn't fit in the
+    /// caller's output. Only populated once the compressor is consumed.
+    finished_buf: Vec<u8>,
+    /// Read position within `finished_buf`.
+    finished_pos: usize,
     total_in: u64,
     total_out: u64,
     level: u8,
@@ -189,6 +195,16 @@ impl fmt::Debug for Deflate {
     }
 }
 
+/// Drain as many bytes as possible from `src[*pos..]` into `output`,
+/// returning the number of bytes copied.
+fn drain_to_output(src: &[u8], pos: &mut usize, output: &mut [u8]) -> usize {
+    let available = src.len() - *pos;
+    let copy_len = available.min(output.len());
+    output[..copy_len].copy_from_slice(&src[*pos..*pos + copy_len]);
+    *pos += copy_len;
+    copy_len
+}
+
 impl DeflateBackend for Deflate {
     fn make(level: Compression, zlib_header: bool, _window_bits: u8) -> Self {
         let level_u8 = level.level().min(9) as u8;
@@ -196,8 +212,9 @@ impl DeflateBackend for Deflate {
             ::fdeflate::Compressor::new(Vec::new(), level_u8, zlib_header).unwrap();
 
         Deflate {
-            output_buf: Vec::new(),
             inner: Some(compressor),
+            finished_buf: Vec::new(),
+            finished_pos: 0,
             total_in: 0,
             total_out: 0,
             level: level_u8,
@@ -211,70 +228,73 @@ impl DeflateBackend for Deflate {
         output: &mut [u8],
         flush: FlushCompress,
     ) -> Result<Status, CompressError> {
-        // If we have buffered output from a previous call, drain that first
-        // before processing new input.
-        if !self.output_buf.is_empty() {
-            let copy_len = self.output_buf.len().min(output.len());
-            output[..copy_len].copy_from_slice(&self.output_buf[..copy_len]);
-            self.output_buf.drain(..copy_len);
-            self.total_out += copy_len as u64;
-
-            if !self.output_buf.is_empty() {
-                // Still more buffered output to drain, don't consume any input
-                return Ok(Status::Ok);
-            }
-
-            // If we already finished and the buffer is now drained, we're done.
-            if self.inner.is_none() {
-                return Ok(Status::StreamEnd);
-            }
-
-            // Buffer drained but no new input and not finishing - signal caller
-            if input.is_empty() && flush == FlushCompress::None {
-                return Ok(Status::Ok);
-            }
-        }
-
-        // If the compressor has already been finished and there's nothing
-        // left to drain, signal completion.
+        // After finish(), drain any remaining compressed data.
         if self.inner.is_none() {
+            if self.finished_pos < self.finished_buf.len() {
+                let n = drain_to_output(&self.finished_buf, &mut self.finished_pos, output);
+                self.total_out += n as u64;
+                if self.finished_pos < self.finished_buf.len() {
+                    return Ok(Status::Ok);
+                }
+            }
             return Ok(Status::StreamEnd);
         }
 
-        // Feed input to the compressor
+        let compressor = self.inner.as_mut().unwrap();
+
+        // Drain any compressed data already sitting in the writer from a
+        // previous write_data() call before feeding new input.
+        let mut out_pos = 0;
+        {
+            let writer = compressor.get_writer_mut();
+            let n = drain_to_output(writer, &mut 0, &mut output[out_pos..]);
+            // Remove the drained bytes from the front of the writer Vec.
+            if n > 0 {
+                writer.drain(..n);
+            }
+            self.total_out += n as u64;
+            out_pos += n;
+        }
+
+        // Feed input to the compressor.
         if !input.is_empty() {
-            let compressor = self.inner.as_mut().unwrap();
             if compressor.write_data(input).is_err() {
                 return mem::compress_failed(ErrorMessage);
             }
             self.total_in += input.len() as u64;
+
+            // Drain newly produced compressed data into the remaining output space.
+            let writer = compressor.get_writer_mut();
+            let n = drain_to_output(writer, &mut 0, &mut output[out_pos..]);
+            if n > 0 {
+                writer.drain(..n);
+            }
+            self.total_out += n as u64;
+            out_pos += n;
         }
 
         if flush == FlushCompress::Finish {
-            // Finalize the compressor and collect all remaining output
+            // Finalize the compressor and collect all remaining output.
             let compressor = self.inner.take().unwrap();
             let compressed = match compressor.finish() {
                 Ok(c) => c,
                 Err(_) => return mem::compress_failed(ErrorMessage),
             };
 
-            let copy_len = compressed.len().min(output.len());
-            output[..copy_len].copy_from_slice(&compressed[..copy_len]);
-            self.total_out += copy_len as u64;
+            let n = drain_to_output(&compressed, &mut 0, &mut output[out_pos..]);
+            self.total_out += n as u64;
 
-            if copy_len < compressed.len() {
-                self.output_buf.extend_from_slice(&compressed[copy_len..]);
+            if n < compressed.len() {
+                // Couldn't fit everything — stash the remainder.
+                self.finished_buf = compressed;
+                self.finished_pos = n;
                 return Ok(Status::Ok);
             }
 
             return Ok(Status::StreamEnd);
         }
 
-        // For non-Finish calls: fdeflate buffers compressed data internally in
-        // the Vec<u8> writer. We can't extract partial output without finishing,
-        // so we just report that input was consumed. The compressed output will
-        // become available when finish() is eventually called.
-        if input.is_empty() {
+        if out_pos == 0 && input.is_empty() {
             Ok(Status::BufError)
         } else {
             Ok(Status::Ok)
@@ -284,7 +304,8 @@ impl DeflateBackend for Deflate {
     fn reset(&mut self) {
         self.total_in = 0;
         self.total_out = 0;
-        self.output_buf.clear();
+        self.finished_buf.clear();
+        self.finished_pos = 0;
         self.inner = Some(
             ::fdeflate::Compressor::new(Vec::new(), self.level, self.zlib_header).unwrap(),
         );
