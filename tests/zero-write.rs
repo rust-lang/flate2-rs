@@ -65,7 +65,7 @@ impl Write for ZeroOnGzipFooterThenError {
             return Ok(0);
         }
 
-        if buf.len() == 8 {
+        if buf == [0; 8] {
             self.footer_writes += 1;
             if self.footer_writes > self.max_zero_footer_writes {
                 Err(io::Error::new(
@@ -103,8 +103,8 @@ fn gzip_header_zero_write_is_error() {
 fn gzip_footer_zero_write_is_error() {
     // GzEncoder also used to spin while writing the 8-byte gzip footer. A
     // writer that accepts the header and deflate payload but returns Ok(0) for
-    // the footer left crc_bytes_written unchanged, so try_finish retried the
-    // same footer slice forever.
+    // the empty-stream footer (CRC32 0, ISIZE 0) left crc_bytes_written
+    // unchanged, so try_finish retried the same footer slice forever.
     let writer = ZeroOnGzipFooterThenError::new(3);
     let mut encoder = flate2::write::GzEncoder::new(writer, flate2::Compression::default());
 
