@@ -7,6 +7,18 @@ use crate::crc::{Crc, CrcWriter};
 use crate::zio;
 use crate::{Compress, Compression, Decompress, Status};
 
+// Non-gzip writer paths flush through zio::Writer::dump, which converts
+// Ok(0) on a non-empty buffer into WriteZero. Gzip writes its header and footer
+// directly, so keep the same progress rule here.
+fn write_nonzero<W: Write>(writer: &mut W, buf: &[u8]) -> io::Result<usize> {
+    let n = writer.write(buf)?;
+    if n == 0 && !buf.is_empty() {
+        Err(io::ErrorKind::WriteZero.into())
+    } else {
+        Ok(n)
+    }
+}
+
 /// A gzip streaming encoder
 ///
 /// This structure exposes a [`Write`] interface that will emit compressed data
@@ -103,7 +115,7 @@ impl<W: Write> GzEncoder<W> {
                 (amt >> 24) as u8,
             ];
             let inner = self.inner.get_mut();
-            let n = inner.write(&buf[self.crc_bytes_written..])?;
+            let n = write_nonzero(inner, &buf[self.crc_bytes_written..])?;
             self.crc_bytes_written += n;
         }
         Ok(())
@@ -129,7 +141,7 @@ impl<W: Write> GzEncoder<W> {
 
     fn write_header(&mut self) -> io::Result<()> {
         while !self.header.is_empty() {
-            let n = self.inner.get_mut().write(&self.header)?;
+            let n = write_nonzero(self.inner.get_mut(), &self.header)?;
             self.header.drain(..n);
         }
         Ok(())
