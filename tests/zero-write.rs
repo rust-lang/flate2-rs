@@ -92,6 +92,10 @@ fn gzip_header_zero_write_is_error() {
     // so the loop retried the same write forever. This bounded writer turns
     // that spin into an ordinary error so the test can catch the missing
     // WriteZero handling without hanging.
+    //
+    // Three zero-length writes is arbitrary but enough to show the old code
+    // was retrying instead of treating Ok(0) on a non-empty buffer as
+    // WriteZero.
     let writer = AlwaysZeroThenError::new(3);
     let mut encoder = flate2::write::GzEncoder::new(writer, flate2::Compression::default());
 
@@ -105,6 +109,9 @@ fn gzip_footer_zero_write_is_error() {
     // writer that accepts the header and deflate payload but returns Ok(0) for
     // the empty-stream footer (CRC32 0, ISIZE 0) left crc_bytes_written
     // unchanged, so try_finish retried the same footer slice forever.
+    //
+    // Three zero-length footer writes is arbitrary but enough to show the old
+    // code was retrying the same footer slice instead of returning WriteZero.
     let writer = ZeroOnGzipFooterThenError::new(3);
     let mut encoder = flate2::write::GzEncoder::new(writer, flate2::Compression::default());
 
