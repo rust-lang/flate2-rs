@@ -1,0 +1,42 @@
+name: Backend performance regression
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  backend-regression:
+    name: Backend regression (${{ matrix.backend.name }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        backend:
+          - name: rust_backend
+            command: cargo test --release --test backend-regression-bench -- --ignored --nocapture
+          - name: zlib-rs
+            command: cargo test --release --test backend-regression-bench --features zlib-rs --no-default-features -- --ignored --nocapture
+          - name: zlib
+            command: cargo test --release --test backend-regression-bench --features zlib --no-default-features -- --ignored --nocapture
+          - name: zlib-ng
+            command: cargo test --release --test backend-regression-bench --features zlib-ng --no-default-features -- --ignored --nocapture
+          - name: zlib-ng-compat
+            command: cargo test --release --test backend-regression-bench --features zlib-ng-compat --no-default-features -- --ignored --nocapture
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Rust
+        run: rustup update stable --no-self-update && rustup default stable
+        shell: bash
+      - name: Run backend regression benchmark
+        run: ${{ matrix.backend.command }}
+      - name: Upload backend benchmark CSV
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-regression-${{ matrix.backend.name }}
+          path: target/backend-bench/${{ matrix.backend.name }}*.csv
