@@ -23,6 +23,11 @@ const FDEFLATE_HISTORY_LEN: usize = 32 * 1024;
 const FDEFLATE_DECODE_TAIL_LEN: usize = 64 * 1024;
 const FDEFLATE_SCRATCH_LEN: usize = FDEFLATE_HISTORY_LEN + FDEFLATE_DECODE_TAIL_LEN;
 
+// fdeflate compresses into its wrapped writer, not directly into flate2's caller-provided output
+// slice. Capping fresh input per call keeps that wrapped Vec from growing with arbitrarily large
+// caller slices while still amortizing fdeflate's block/parser overhead.
+const FDEFLATE_ENCODE_INPUT_CHUNK_LEN: usize = 128 * 1024;
+
 #[derive(Clone, Default)]
 pub struct ErrorMessage(Option<&'static str>);
 
@@ -174,22 +179,31 @@ impl DeflateBackend for Deflate {
             return Ok(Status::StreamEnd);
         }
 
+        let accepted_input_len = input.len().min(FDEFLATE_ENCODE_INPUT_CHUNK_LEN);
+        let accepted_all_input = accepted_input_len == input.len();
+
         if let Some(ref mut inner) = self.inner {
-            if !input.is_empty() {
-                compression_result(inner.write_data(input))?;
-                self.total_in += input.len() as u64;
+            if accepted_input_len != 0 {
+                let accepted_input = &input[..accepted_input_len];
+                compression_result(inner.write_data(accepted_input))?;
+                self.total_in += accepted_input.len() as u64;
             }
 
-            match flush {
-                FlushCompress::None => {}
-                FlushCompress::Partial => compression_result(inner.flush(FlushKind::Partial))?,
-                FlushCompress::Sync => compression_result(inner.flush(FlushKind::Sync))?,
-                FlushCompress::Full => compression_result(inner.flush(FlushKind::Full))?,
-                FlushCompress::Finish => {
-                    let inner = self.inner.take().unwrap();
-                    self.pending = compression_result(inner.finish())?;
-                    self.pending_pos = 0;
-                    self.inner_pending_pos = 0;
+            // A flush describes all input provided to this call. If we only accepted a prefix to
+            // preserve streaming backpressure, defer the flush until the caller comes back with the
+            // remaining input, just like other backends report partial consumption through total_in.
+            if accepted_all_input {
+                match flush {
+                    FlushCompress::None => {}
+                    FlushCompress::Partial => compression_result(inner.flush(FlushKind::Partial))?,
+                    FlushCompress::Sync => compression_result(inner.flush(FlushKind::Sync))?,
+                    FlushCompress::Full => compression_result(inner.flush(FlushKind::Full))?,
+                    FlushCompress::Finish => {
+                        let inner = self.inner.take().unwrap();
+                        self.pending = compression_result(inner.finish())?;
+                        self.pending_pos = 0;
+                        self.inner_pending_pos = 0;
+                    }
                 }
             }
         }

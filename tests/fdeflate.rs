@@ -76,6 +76,27 @@ fn raw_trailing_bytes_remain_unconsumed() {
 }
 
 #[test]
+fn large_no_flush_call_preserves_streaming_backpressure() {
+    let input = vec![0x5a; 2 * 1024 * 1024];
+    let mut output = [0; 1];
+    let mut encoder = Compress::new(Compression::default(), false);
+
+    let status = encoder
+        .compress(&input, &mut output, FlushCompress::None)
+        .unwrap();
+
+    assert_eq!(status, Status::Ok);
+    assert!(
+        encoder.total_in() > 0,
+        "the compressor should still accept some input"
+    );
+    assert!(
+        encoder.total_in() < input.len() as u64,
+        "fdeflate should return to the caller before buffering the whole input"
+    );
+}
+
+#[test]
 fn zlib_trailing_bytes_remain_unconsumed() {
     let input = b"zlib stream with extra data after it";
     let mut encoded = Vec::with_capacity(1024);
