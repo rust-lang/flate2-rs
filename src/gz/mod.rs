@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::ffi::CString;
 use std::io::{BufRead, Error, ErrorKind, Read, Result, Write};
 use std::time;
@@ -411,7 +412,12 @@ impl GzBuilder {
         let mut header = vec![0u8; 10];
         if let Some(v) = extra {
             flg |= FEXTRA;
-            header.extend((v.len() as u16).to_le_bytes());
+            header.extend(
+                (u16::try_from(v.len()).expect(
+                    "`extra` can only be created from `extra()` which would have panicked on len > u16::MAX",
+                ))
+                .to_le_bytes(),
+            );
             header.extend(v);
         }
         if let Some(filename) = filename {
