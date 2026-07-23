@@ -185,7 +185,7 @@ impl<W: Write, D: Ops> Writer<W, D> {
     }
 
     pub fn replace(&mut self, w: W) -> W {
-        self.buf.truncate(0);
+        self.buf.clear();
         mem::replace(self.get_mut(), w)
     }
 

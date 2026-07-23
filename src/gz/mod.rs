@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::ffi::CString;
 use std::io::{BufRead, Error, ErrorKind, Read, Result, Write};
 use std::time;
@@ -338,8 +339,17 @@ impl GzBuilder {
     }
 
     /// Configure the `extra` field in the gzip header.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `extra` is longer than [`u16::MAX`].
     pub fn extra<T: Into<Vec<u8>>>(mut self, extra: T) -> GzBuilder {
-        self.extra = Some(extra.into());
+        let extra = extra.into();
+        assert!(
+            extra.len() <= u16::MAX as usize,
+            "gzip extra field length cannot exceed u16::MAX"
+        );
+        self.extra = Some(extra);
         self
     }
 
@@ -402,7 +412,12 @@ impl GzBuilder {
         let mut header = vec![0u8; 10];
         if let Some(v) = extra {
             flg |= FEXTRA;
-            header.extend((v.len() as u16).to_le_bytes());
+            header.extend(
+                (u16::try_from(v.len()).expect(
+                    "`extra` can only be created from `extra()` which would have panicked on len > u16::MAX",
+                ))
+                .to_le_bytes(),
+            );
             header.extend(v);
         }
         if let Some(filename) = filename {
@@ -746,6 +761,12 @@ mod tests {
         let mut res = Vec::new();
         d.read_to_end(&mut res).unwrap();
         assert_eq!(res, vec![0, 2, 4, 6]);
+    }
+
+    #[test]
+    #[should_panic(expected = "gzip extra field length cannot exceed u16::MAX")]
+    fn extra_too_long() {
+        GzBuilder::new().extra(vec![0; u16::MAX as usize + 1]);
     }
 
     #[test]
