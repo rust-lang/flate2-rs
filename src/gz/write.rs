@@ -77,8 +77,16 @@ impl<W: Write> GzEncoder<W> {
 
     /// Acquires a mutable reference to the underlying writer.
     ///
-    /// Note that mutation of the writer may result in surprising results if
-    /// this encoder is continued to be used.
+    /// The underlying writer may be mutated or replaced as long as this
+    /// preserves the bytes and ordering of the logical output stream.
+    ///
+    /// For streaming output, call [`flush`](Write::flush) before replacing the
+    /// writer, such as with [`std::mem::take`], to retrieve all output produced
+    /// so far. Concatenate output from each writer to reconstruct the complete
+    /// stream.
+    ///
+    /// To start a new stream, call [`finish`](Self::finish) and create a new
+    /// encoder; replacing the writer does not reset it.
     pub fn get_mut(&mut self) -> &mut W {
         self.inner.get_mut()
     }
@@ -253,8 +261,16 @@ impl<W: Write> GzDecoder<W> {
 
     /// Acquires a mutable reference to the underlying writer.
     ///
-    /// Note that mutating the output/input state of the stream may corrupt this
-    /// object, so care must be taken when using this method.
+    /// The underlying writer may be mutated or replaced as long as this
+    /// preserves the bytes and ordering of the logical output stream.
+    ///
+    /// For streaming output, call [`flush`](Write::flush) before replacing the
+    /// writer, such as with [`std::mem::take`], to retrieve all output produced
+    /// so far. Concatenate output from each writer to reconstruct the complete
+    /// stream.
+    ///
+    /// To start a new stream, call [`finish`](Self::finish) and create a new
+    /// decoder; replacing the writer does not reset it.
     pub fn get_mut(&mut self) -> &mut W {
         self.inner.get_mut().get_mut()
     }
@@ -407,8 +423,16 @@ impl<W: Write> MultiGzDecoder<W> {
 
     /// Acquires a mutable reference to the underlying writer.
     ///
-    /// Note that mutating the output/input state of the stream may corrupt this
-    /// object, so care must be taken when using this method.
+    /// The underlying writer may be mutated or replaced as long as this
+    /// preserves the bytes and ordering of the logical output stream.
+    ///
+    /// For streaming output, call [`flush`](Write::flush) before replacing the
+    /// writer, such as with [`std::mem::take`], to retrieve all output produced
+    /// so far. Concatenate output from each writer to reconstruct the complete
+    /// stream.
+    ///
+    /// To start a new stream, call [`finish`](Self::finish) and create a new
+    /// decoder; replacing the writer does not reset it.
     pub fn get_mut(&mut self) -> &mut W {
         self.inner.get_mut()
     }
