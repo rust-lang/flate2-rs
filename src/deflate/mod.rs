@@ -163,6 +163,16 @@ mod tests {
     }
 
     #[test]
+    fn rejects_incomplete_stream() {
+        for input in [b"1".as_slice(), b"12", b"123", b"1234"] {
+            let mut decoder = read::DeflateDecoder::new(input);
+            let error = std::io::copy(&mut decoder, &mut std::io::sink()).unwrap_err();
+            assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof);
+            assert_eq!(error.to_string(), "incomplete deflate stream");
+        }
+    }
+
+    #[test]
     fn qc_reader() {
         ::quickcheck::quickcheck(test as fn(_) -> _);
 

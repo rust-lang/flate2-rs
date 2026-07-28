@@ -738,6 +738,17 @@ mod tests {
     }
 
     #[test]
+    fn read_decoder_rejects_incomplete_deflate_stream() {
+        let mut compressed = gzip_corrupted_crc();
+        compressed.truncate(11);
+        let error = read::GzDecoder::new(&compressed[..])
+            .read_to_end(&mut Vec::new())
+            .unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof);
+        assert_eq!(error.to_string(), "incomplete deflate stream");
+    }
+
+    #[test]
     fn write_decoder_detects_corrupted_crc() {
         let compressed = gzip_corrupted_crc();
         let mut decoder = write::GzDecoder::new(Vec::new());
