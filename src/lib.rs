@@ -258,3 +258,7 @@ fn random_bytes() -> impl Iterator<Item = u8> {
 
     iter::repeat(()).map(|_| rand::rng().random())
 }
+
+#[allow(rustdoc::bare_urls)]
+#[doc = include_str!("../README.md")]
+mod readme {}
