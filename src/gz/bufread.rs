@@ -103,8 +103,11 @@ impl<R> GzEncoder<R> {
 
     /// Acquires a mutable reference to the underlying reader.
     ///
-    /// Note that mutation of the reader may result in surprising results if
-    /// this encoder is continued to be used.
+    /// The underlying reader may be mutated as long as its unread input and
+    /// current position are preserved for subsequent reads by this encoder.
+    ///
+    /// To process a new stream, wait for this encoder to reach EOF and create a
+    /// new encoder; replacing the reader directly does not reset it.
     pub fn get_mut(&mut self) -> &mut R {
         self.inner.get_mut().get_mut()
     }
@@ -272,8 +275,11 @@ impl<R> GzDecoder<R> {
 
     /// Acquires a mutable reference to the underlying stream.
     ///
-    /// Note that mutation of the stream may result in surprising results if
-    /// this decoder is continued to be used.
+    /// The underlying reader may be mutated as long as its unread input and
+    /// current position are preserved for subsequent reads by this decoder.
+    ///
+    /// To process a new stream, wait for this decoder to reach EOF and use
+    /// [`reset`](Self::reset); replacing the reader directly does not reset it.
     pub fn get_mut(&mut self) -> &mut R {
         self.reader.get_mut().get_mut()
     }
@@ -434,8 +440,11 @@ impl<R> MultiGzDecoder<R> {
 
     /// Acquires a mutable reference to the underlying stream.
     ///
-    /// Note that mutation of the stream may result in surprising results if
-    /// this decoder is continued to be used.
+    /// The underlying reader may be mutated as long as its unread input and
+    /// current position are preserved for subsequent reads by this decoder.
+    ///
+    /// To process a new stream, wait for this decoder to reach EOF and create a
+    /// new decoder; replacing the reader directly does not reset it.
     pub fn get_mut(&mut self) -> &mut R {
         self.0.get_mut()
     }

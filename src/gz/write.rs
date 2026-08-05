@@ -77,8 +77,18 @@ impl<W: Write> GzEncoder<W> {
 
     /// Acquires a mutable reference to the underlying writer.
     ///
-    /// Note that mutation of the writer may result in surprising results if
-    /// this encoder is continued to be used.
+    /// The underlying writer may be mutated or replaced as long as this
+    /// preserves the bytes and ordering of the logical output stream.
+    /// Concatenate output from each writer to reconstruct the complete stream.
+    ///
+    /// Replacing the writer does not require [`flush`](Write::flush). Call it
+    /// first when all input accepted so far must be decodable without output
+    /// from later writes. This inserts a sync-flush point and changes the output
+    /// bitstream. This is useful before applying [`std::mem::take`] to
+    /// [`get_mut`](Self::get_mut) when forwarding the stream incrementally.
+    ///
+    /// To start a new stream, call [`finish`](Self::finish) and create a new
+    /// encoder; replacing the writer does not reset it.
     pub fn get_mut(&mut self) -> &mut W {
         self.inner.get_mut()
     }
@@ -253,8 +263,17 @@ impl<W: Write> GzDecoder<W> {
 
     /// Acquires a mutable reference to the underlying writer.
     ///
-    /// Note that mutating the output/input state of the stream may corrupt this
-    /// object, so care must be taken when using this method.
+    /// The underlying writer may be mutated or replaced as long as this
+    /// preserves the bytes and ordering of the logical output stream.
+    /// Concatenate output from each writer to reconstruct the complete stream.
+    ///
+    /// Replacing the writer does not require [`flush`](Write::flush). Call it
+    /// first to write all decompressed output currently available to the
+    /// current writer. This is useful before applying [`std::mem::take`] to
+    /// [`get_mut`](Self::get_mut) when forwarding output incrementally.
+    ///
+    /// To start a new stream, call [`finish`](Self::finish) and create a new
+    /// decoder; replacing the writer does not reset it.
     pub fn get_mut(&mut self) -> &mut W {
         self.inner.get_mut().get_mut()
     }
@@ -407,8 +426,17 @@ impl<W: Write> MultiGzDecoder<W> {
 
     /// Acquires a mutable reference to the underlying writer.
     ///
-    /// Note that mutating the output/input state of the stream may corrupt this
-    /// object, so care must be taken when using this method.
+    /// The underlying writer may be mutated or replaced as long as this
+    /// preserves the bytes and ordering of the logical output stream.
+    /// Concatenate output from each writer to reconstruct the complete stream.
+    ///
+    /// Replacing the writer does not require [`flush`](Write::flush). Call it
+    /// first to write all decompressed output currently available to the
+    /// current writer. This is useful before applying [`std::mem::take`] to
+    /// [`get_mut`](Self::get_mut) when forwarding output incrementally.
+    ///
+    /// To start a new stream, call [`finish`](Self::finish) and create a new
+    /// decoder; replacing the writer does not reset it.
     pub fn get_mut(&mut self) -> &mut W {
         self.inner.get_mut()
     }
