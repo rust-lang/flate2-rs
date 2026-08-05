@@ -26,6 +26,7 @@ zlib-rs = { version = "0.6.0", optional = true, default-features = false, featur
 ## This implementation uses only safe Rust code and doesn't require a C compiler.
 ## It provides good performance for most use cases while being completely portable.
 miniz_oxide = { version = "0.9.0", optional = true, features = ["simd"] }
+fdeflate = { git = "https://github.com/Shnatsel/fdeflate.git", branch = "flate2-api-changes", optional = true }
 crc32fast = { version = "1.2.0", optional = true }
 document-features = { version = "0.2", optional = true }
 
@@ -58,6 +59,9 @@ zlib-rs = ["any_zlib", "dep:zlib-rs"] # zlib-rs uses its own crc32 implementatio
 
 ## Use the pure Rust `miniz_oxide` backend.
 miniz_oxide = ["any_impl", "dep:miniz_oxide", "dep:crc32fast"]
+
+## Use the pure Rust `fdeflate` backend.
+fdeflate = ["any_impl", "dep:fdeflate", "dep:crc32fast"]
 
 ## Use the system's installed zlib library.
 ## This is useful when you need compatibility with other C code that uses zlib,

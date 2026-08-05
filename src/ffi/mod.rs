@@ -71,10 +71,24 @@ mod zlib_rs;
 #[cfg(all(not(feature = "any_c_zlib"), feature = "zlib-rs"))]
 pub use self::zlib_rs::*;
 
+// Use fdeflate when no fully compliant zlib is selected and fdeflate is explicitly requested.
+#[cfg(all(not(feature = "any_zlib"), feature = "fdeflate"))]
+mod fdeflate;
+#[cfg(all(not(feature = "any_zlib"), feature = "fdeflate"))]
+pub use self::fdeflate::*;
+
 // Use miniz_oxide when no fully compliant zlib is selected.
-#[cfg(all(not(feature = "any_zlib"), feature = "miniz_oxide"))]
+#[cfg(all(
+    not(feature = "any_zlib"),
+    not(feature = "fdeflate"),
+    feature = "miniz_oxide"
+))]
 mod miniz_oxide;
-#[cfg(all(not(feature = "any_zlib"), feature = "miniz_oxide"))]
+#[cfg(all(
+    not(feature = "any_zlib"),
+    not(feature = "fdeflate"),
+    feature = "miniz_oxide"
+))]
 pub use self::miniz_oxide::*;
 
 // If no backend is enabled, fail fast with a clear error message.
