@@ -79,11 +79,13 @@ impl<W: Write> GzEncoder<W> {
     ///
     /// The underlying writer may be mutated or replaced as long as this
     /// preserves the bytes and ordering of the logical output stream.
+    /// Concatenate output from each writer to reconstruct the complete stream.
     ///
-    /// For streaming output, call [`flush`](Write::flush) before replacing the
-    /// writer, such as with [`std::mem::take`], to retrieve all output produced
-    /// so far. Concatenate output from each writer to reconstruct the complete
-    /// stream.
+    /// Replacing the writer does not require [`flush`](Write::flush). Call it
+    /// first when all input accepted so far must be decodable without output
+    /// from later writes. This inserts a sync-flush point and changes the output
+    /// bitstream. This is useful before applying [`std::mem::take`] to
+    /// [`get_mut`](Self::get_mut) when forwarding the stream incrementally.
     ///
     /// To start a new stream, call [`finish`](Self::finish) and create a new
     /// encoder; replacing the writer does not reset it.
@@ -263,11 +265,12 @@ impl<W: Write> GzDecoder<W> {
     ///
     /// The underlying writer may be mutated or replaced as long as this
     /// preserves the bytes and ordering of the logical output stream.
+    /// Concatenate output from each writer to reconstruct the complete stream.
     ///
-    /// For streaming output, call [`flush`](Write::flush) before replacing the
-    /// writer, such as with [`std::mem::take`], to retrieve all output produced
-    /// so far. Concatenate output from each writer to reconstruct the complete
-    /// stream.
+    /// Replacing the writer does not require [`flush`](Write::flush). Call it
+    /// first to write all decompressed output currently available to the
+    /// current writer. This is useful before applying [`std::mem::take`] to
+    /// [`get_mut`](Self::get_mut) when forwarding output incrementally.
     ///
     /// To start a new stream, call [`finish`](Self::finish) and create a new
     /// decoder; replacing the writer does not reset it.
@@ -425,11 +428,12 @@ impl<W: Write> MultiGzDecoder<W> {
     ///
     /// The underlying writer may be mutated or replaced as long as this
     /// preserves the bytes and ordering of the logical output stream.
+    /// Concatenate output from each writer to reconstruct the complete stream.
     ///
-    /// For streaming output, call [`flush`](Write::flush) before replacing the
-    /// writer, such as with [`std::mem::take`], to retrieve all output produced
-    /// so far. Concatenate output from each writer to reconstruct the complete
-    /// stream.
+    /// Replacing the writer does not require [`flush`](Write::flush). Call it
+    /// first to write all decompressed output currently available to the
+    /// current writer. This is useful before applying [`std::mem::take`] to
+    /// [`get_mut`](Self::get_mut) when forwarding output incrementally.
     ///
     /// To start a new stream, call [`finish`](Self::finish) and create a new
     /// decoder; replacing the writer does not reset it.
