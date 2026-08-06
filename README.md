@@ -5,9 +5,9 @@
 
 A streaming compression/decompression library DEFLATE-based streams in Rust.
 
-This crate by default uses the `miniz_oxide` crate, a port of `miniz.c` to pure
-Rust. This crate also supports other [backends](#backends), such as the widely
-available zlib library or the high-performance zlib-ng library.
+This crate by default uses the `zlib-rs` crate, a pure rust implementation based on zlib-ng.
+This crate also supports other [backends](#backends), such as the pure rust `miniz_oxide`,
+the widely available zlib C library or the high-performance zlib-ng C library.
 
 Supported formats:
 
@@ -67,15 +67,16 @@ fn main() {
 
 ## Backends
 
-The default `miniz_oxide` backend has the advantage of only using safe Rust.
+The default `zlib-rs` backend brings maximum performance while still benefiting from a Rust
+implementation at the cost of some `unsafe`.
 
-If you want maximum performance while still benefiting from a Rust
-implementation at the cost of some `unsafe`, you can use `zlib-rs`:
+The former default `miniz_oxide` backend has the advantage of only using safe Rust at the cost of some performance.
 
 ```toml
 [dependencies]
-flate2 = { version = "1.0.17", features = ["zlib-rs"], default-features = false }
+flate2 = { version = "1.0.17", features = ["miniz_oxide"], default-features = false }
 ```
+
 
 ### C backends
 
