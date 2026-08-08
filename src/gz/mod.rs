@@ -80,12 +80,20 @@ impl GzHeader {
     /// The time is measured as seconds since 00:00:00 GMT, Jan. 1 1970.
     /// See [`mtime`](#method.mtime) for more detail.
     pub fn mtime_as_datetime(&self) -> Option<std::time::SystemTime> {
+        self.mtime_as_duration().map(|d| std::time::UNIX_EPOCH + d)
+    }
+
+    /// Returns the [`Duration`](time::Duration) between the most recent modification
+    /// time and 00:00:00 GMT, Jan. 1 1970, also known as Unix epoch.
+    /// See [`mtime`](#method.mtime) for more detail.
+    /// Returns `None` if the value of the underlying counter is 0,
+    /// indicating no time stamp is available.
+    pub fn mtime_as_duration(&self) -> Option<time::Duration> {
         if self.mtime == 0 {
             None
         } else {
             let duration = time::Duration::new(u64::from(self.mtime), 0);
-            let datetime = std::time::UNIX_EPOCH + duration;
-            Some(datetime)
+            Some(duration)
         }
     }
 }
