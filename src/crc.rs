@@ -319,8 +319,6 @@ mod tests {
 
         ca.combine(&cb);
 
-        dbg!(&ca);
-
         assert_eq!(ca.amount(), 11);
         assert_eq!(ca.sum(), sum_of(b"hello world"));
     }
