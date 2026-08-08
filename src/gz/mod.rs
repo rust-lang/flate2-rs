@@ -79,6 +79,7 @@ impl GzHeader {
     ///
     /// The time is measured as seconds since 00:00:00 GMT, Jan. 1 1970.
     /// See [`mtime`](#method.mtime) for more detail.
+    #[cfg(not(flate2_unstable_nightly_alloc_io))]
     pub fn mtime_as_datetime(&self) -> Option<std::time::SystemTime> {
         self.mtime_as_duration().map(|d| std::time::UNIX_EPOCH + d)
     }

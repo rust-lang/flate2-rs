@@ -116,3 +116,12 @@ any_impl = []
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+priority = 0
+check-cfg = [
+    ## Enables `no_std` support by using `core::error` and `alloc::io`.
+    ## Requires at least nightly 2026-07-19.
+    "cfg(flate2_unstable_nightly_alloc_io)",
+]
