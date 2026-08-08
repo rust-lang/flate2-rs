@@ -1,5 +1,5 @@
-use std::io;
-use std::io::prelude::*;
+use crate::io;
+use crate::io::{BufRead, Read, Write};
 use core::mem;
 
 use crate::zio;
@@ -260,9 +260,9 @@ impl<R: BufRead + Write> Write for ZlibDecoder<R> {
 #[cfg(test)]
 mod test {
     use crate::bufread::ZlibDecoder;
+    use crate::io::{Read, Write};
     use crate::zlib::write;
     use crate::Compression;
-    use std::io::{Read, Write};
     use alloc::vec::Vec;
 
     // ZlibDecoder consumes one zlib archive and then returns 0 for subsequent reads, allowing any

@@ -1,5 +1,5 @@
-use std::io;
-use std::io::prelude::*;
+use crate::io;
+use crate::io::{BufRead, Read, Write};
 use core::mem;
 
 use crate::zio;
@@ -253,8 +253,8 @@ impl<W: BufRead + Write> Write for DeflateDecoder<W> {
 mod test {
     use crate::bufread::DeflateDecoder;
     use crate::deflate::write;
+    use crate::io::{Read, Write};
     use crate::Compression;
-    use std::io::{Read, Write};
     use alloc::vec::Vec;
 
     // DeflateDecoder consumes one deflate archive and then returns 0 for subsequent reads, allowing any

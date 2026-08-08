@@ -4,8 +4,8 @@ pub mod write;
 
 #[cfg(test)]
 mod tests {
-    use std::io;
-    use std::io::prelude::*;
+    use crate::io;
+    use crate::io::{Read, Write};
     use alloc::string::ToString;
     use alloc::vec::Vec;
 
@@ -140,7 +140,7 @@ mod tests {
 
         for end in compressed.len() - 4..compressed.len() {
             let mut decoder = read::ZlibDecoder::new(&compressed[..end]);
-            let error = std::io::copy(&mut decoder, &mut std::io::sink()).unwrap_err();
+            let error = crate::io::copy(&mut decoder, &mut crate::io::sink()).unwrap_err();
             assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
             assert_eq!(error.to_string(), "incomplete deflate stream");
         }

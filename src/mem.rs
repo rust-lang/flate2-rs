@@ -1,5 +1,5 @@
-use std::error::Error;
-use std::io;
+use crate::error::Error;
+use crate::io;
 use alloc::vec::Vec;
 use core::fmt;
 use core::mem::MaybeUninit;
@@ -659,7 +659,7 @@ unsafe fn write_to_spare_capacity_of_vec<T>(
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
+    use crate::io::Write;
     use alloc::vec::Vec;
 
     use crate::write;

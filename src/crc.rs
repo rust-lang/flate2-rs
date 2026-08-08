@@ -1,7 +1,7 @@
 //! Simple CRC bindings backed by miniz.c
 
-use std::io;
-use std::io::prelude::*;
+use crate::io;
+use crate::io::{BufRead, Read, Write};
 
 /// The CRC calculated by a [`CrcReader`].
 #[derive(Debug, Default)]

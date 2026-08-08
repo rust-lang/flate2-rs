@@ -8,8 +8,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::io;
-use std::io::prelude::*;
+use crate::io;
+use crate::io::{BufRead, Read};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::cmp;

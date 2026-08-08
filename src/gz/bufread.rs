@@ -1,5 +1,5 @@
-use std::io;
-use std::io::prelude::*;
+use crate::io;
+use crate::io::{BufRead, Read, Write};
 use alloc::vec::Vec;
 use core::cmp;
 use core::mem;
@@ -457,8 +457,8 @@ impl<R: BufRead> Read for MultiGzDecoder<R> {
 mod test {
     use crate::bufread::GzDecoder;
     use crate::gz::write;
+    use crate::io::{Read, Write};
     use crate::Compression;
-    use std::io::{Read, Write};
     use alloc::vec::Vec;
 
     // GzDecoder consumes one gzip member and then returns 0 for subsequent reads, allowing any

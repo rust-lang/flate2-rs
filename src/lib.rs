@@ -131,6 +131,8 @@ extern crate std;
 #[macro_use]
 extern crate alloc;
 
+use std::{error, io};
+
 use alloc::vec::Vec;
 
 pub use crate::crc::{Crc, CrcReader, CrcWriter};

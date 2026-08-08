@@ -1,4 +1,4 @@
-use std::io::{BufRead, Error, ErrorKind, Read, Result, Write};
+use crate::io::{BufRead, Error, ErrorKind, Read, Result, Write};
 use alloc::boxed::Box;
 use alloc::ffi::CString;
 use alloc::vec::Vec;
@@ -465,7 +465,7 @@ impl GzBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::io::prelude::*;
+    use crate::io::{Read, Write};
     use alloc::string::{String, ToString};
     use alloc::vec::Vec;
 
@@ -648,7 +648,7 @@ mod tests {
         #[track_caller]
         fn test_crc_for_read(data: &[u8], expected_crc: u32, description: &str) {
             // Compress data using read::GzEncoder
-            let data_reader = std::io::Cursor::new(data);
+            let data_reader = crate::io::Cursor::new(data);
             let mut encoder = read::GzEncoder::new(data_reader, Compression::default());
             let mut compressed = Vec::new();
             encoder.read_to_end(&mut compressed).unwrap();
@@ -746,7 +746,7 @@ mod tests {
         let mut decoder = read::GzDecoder::new(&compressed[..]);
         let mut output = Vec::new();
         let error = decoder.read_to_end(&mut output).unwrap_err();
-        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert_eq!(error.kind(), crate::io::ErrorKind::InvalidInput);
     }
 
     #[test]
@@ -756,7 +756,7 @@ mod tests {
         let error = read::GzDecoder::new(&compressed[..])
             .read_to_end(&mut Vec::new())
             .unwrap_err();
-        assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof);
+        assert_eq!(error.kind(), crate::io::ErrorKind::UnexpectedEof);
         assert_eq!(error.to_string(), "incomplete deflate stream");
     }
 
@@ -766,7 +766,7 @@ mod tests {
         let mut decoder = write::GzDecoder::new(Vec::new());
         decoder.write_all(&compressed).unwrap();
         let error = decoder.finish().unwrap_err();
-        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert_eq!(error.kind(), crate::io::ErrorKind::InvalidInput);
     }
 
     #[test]

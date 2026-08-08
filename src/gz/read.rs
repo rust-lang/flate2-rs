@@ -1,5 +1,5 @@
-use std::io;
-use std::io::prelude::*;
+use crate::io;
+use crate::io::{Read, Write};
 
 use super::bufread;
 use super::{GzBuilder, GzHeader};
@@ -313,7 +313,7 @@ impl<R: Read + Write> Write for MultiGzDecoder<R> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Cursor, ErrorKind, Read, Result, Write};
+    use crate::io::{Cursor, ErrorKind, Read, Result, Write};
     use alloc::vec::Vec;
 
     use super::GzDecoder;

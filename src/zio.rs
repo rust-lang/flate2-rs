@@ -1,5 +1,5 @@
-use std::io;
-use std::io::prelude::*;
+use crate::io;
+use crate::io::{BufRead, Write};
 use alloc::vec::Vec;
 use core::mem;
 
