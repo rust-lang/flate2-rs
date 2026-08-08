@@ -1,7 +1,9 @@
-use std::convert::TryFrom;
-use std::ffi::CString;
-use std::io::{BufRead, Error, ErrorKind, Read, Result, Write};
-use std::time;
+use crate::io::{BufRead, Error, ErrorKind, Read, Result, Write};
+use alloc::boxed::Box;
+use alloc::ffi::CString;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+use core::time;
 
 use crate::bufreader::BufReader;
 use crate::{Compression, Crc};
@@ -77,13 +79,22 @@ impl GzHeader {
     ///
     /// The time is measured as seconds since 00:00:00 GMT, Jan. 1 1970.
     /// See [`mtime`](#method.mtime) for more detail.
-    pub fn mtime_as_datetime(&self) -> Option<time::SystemTime> {
+    #[cfg(not(flate2_unstable_nightly_alloc_io))]
+    pub fn mtime_as_datetime(&self) -> Option<std::time::SystemTime> {
+        self.mtime_as_duration().map(|d| std::time::UNIX_EPOCH + d)
+    }
+
+    /// Returns the [`Duration`](time::Duration) between the most recent modification
+    /// time and 00:00:00 GMT, Jan. 1 1970, also known as Unix epoch.
+    /// See [`mtime`](#method.mtime) for more detail.
+    /// Returns `None` if the value of the underlying counter is 0,
+    /// indicating no time stamp is available.
+    pub fn mtime_as_duration(&self) -> Option<time::Duration> {
         if self.mtime == 0 {
             None
         } else {
             let duration = time::Duration::new(u64::from(self.mtime), 0);
-            let datetime = time::UNIX_EPOCH + duration;
-            Some(datetime)
+            Some(duration)
         }
     }
 }
@@ -455,7 +466,9 @@ impl GzBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::io::prelude::*;
+    use crate::io::{Read, Write};
+    use alloc::string::{String, ToString};
+    use alloc::vec::Vec;
 
     use super::{read, write, GzBuilder, GzHeaderParser};
     use crate::{Compression, GzHeader};
@@ -636,7 +649,7 @@ mod tests {
         #[track_caller]
         fn test_crc_for_read(data: &[u8], expected_crc: u32, description: &str) {
             // Compress data using read::GzEncoder
-            let data_reader = std::io::Cursor::new(data);
+            let data_reader = crate::io::Cursor::new(data);
             let mut encoder = read::GzEncoder::new(data_reader, Compression::default());
             let mut compressed = Vec::new();
             encoder.read_to_end(&mut compressed).unwrap();
@@ -734,7 +747,7 @@ mod tests {
         let mut decoder = read::GzDecoder::new(&compressed[..]);
         let mut output = Vec::new();
         let error = decoder.read_to_end(&mut output).unwrap_err();
-        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert_eq!(error.kind(), crate::io::ErrorKind::InvalidInput);
     }
 
     #[test]
@@ -744,7 +757,7 @@ mod tests {
         let error = read::GzDecoder::new(&compressed[..])
             .read_to_end(&mut Vec::new())
             .unwrap_err();
-        assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof);
+        assert_eq!(error.kind(), crate::io::ErrorKind::UnexpectedEof);
         assert_eq!(error.to_string(), "incomplete deflate stream");
     }
 
@@ -754,7 +767,7 @@ mod tests {
         let mut decoder = write::GzDecoder::new(Vec::new());
         decoder.write_all(&compressed).unwrap();
         let error = decoder.finish().unwrap_err();
-        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert_eq!(error.kind(), crate::io::ErrorKind::InvalidInput);
     }
 
     #[test]

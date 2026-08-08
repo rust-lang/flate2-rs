@@ -1,5 +1,5 @@
-use std::io;
-use std::io::prelude::*;
+use crate::io;
+use crate::io::{Read, Write};
 
 use crate::zio;
 use crate::{Compress, Decompress};
@@ -329,6 +329,8 @@ impl<W: Read + Write> Read for DeflateDecoder<W> {
 mod tests {
     use super::*;
     use crate::Compression;
+    use alloc::string::String;
+    use alloc::vec::Vec;
 
     const STR: &str = "Hello World Hello World Hello World Hello World Hello World \
         Hello World Hello World Hello World Hello World Hello World \

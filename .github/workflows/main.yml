@@ -7,7 +7,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [stable, beta, nightly, macos, windows, mingw]
+        build: [stable, beta, nightly, macos, windows, mingw, no_std]
         include:
           - build: stable
             os: ubuntu-latest
@@ -18,6 +18,10 @@ jobs:
           - build: nightly
             os: ubuntu-latest
             rust: nightly
+          - build: no_std
+            os: ubuntu-latest
+            rust: nightly
+            rustflags: "--cfg flate2_unstable_nightly_alloc_io"
           - build: macos
             os: macos-latest
             rust: stable
@@ -27,6 +31,8 @@ jobs:
           - build: mingw
             os: windows-2022
             rust: stable-x86_64-gnu
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
     steps:
     - uses: actions/checkout@v4
     - name: Install Rust (rustup)
@@ -92,6 +98,32 @@ jobs:
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup target add ${{ matrix.target }}
     - run: cargo build --target ${{ matrix.target }}
+
+  no_std:
+    name: no_std
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [x86_64-unknown-none, wasm32v1-none]
+        include:
+          - target: thumbv4t-none-eabi
+            flags: -Zbuild-std=core,alloc
+    env:
+      RUSTFLAGS: "--cfg flate2_unstable_nightly_alloc_io"
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Rust
+      run: rustup update nightly && rustup default nightly
+    - name: Install Target
+      run: rustup target add ${{ matrix.target }}
+      if: matrix.target != 'thumbv4t-none-eabi'
+    - name: Install rust-src
+      run: rustup component add rust-src
+      if: matrix.target == 'thumbv4t-none-eabi'
+      # Tests require access to the `test` crate, which requires `std`. The goal
+      # of this job is to simply confirm compilation on `no_std` targets succeeeds.
+      # Testing the `no_std` confirmation is done above.
+    - run: cargo build ${{ matrix.flags }} --target ${{ matrix.target }} --no-default-features --features rust_backend
 
   minimum:
     name: Minimum Rust compiler

@@ -17,7 +17,7 @@
 //! With zlib_rs the state is not self-referential and hence no boxing is needed. The `new` methods
 //! internally do allocate space for the (de)compression state.
 
-use std::fmt;
+use core::fmt;
 
 use ::zlib_rs::{DeflateFlush, InflateError, InflateFlush};
 

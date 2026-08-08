@@ -1,6 +1,7 @@
-use std::cmp;
-use std::io;
-use std::io::prelude::*;
+use crate::io;
+use crate::io::{Read, Write};
+use alloc::vec::Vec;
+use core::cmp;
 
 use super::{corrupt, GzBuilder, GzHeader, GzHeaderParser};
 use crate::crc::{Crc, CrcWriter};
@@ -479,6 +480,7 @@ impl<W: Write> Write for MultiGzDecoder<W> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::string::String;
 
     const STR: &str = "Hello World Hello World Hello World Hello World Hello World \
                                Hello World Hello World Hello World Hello World Hello World \

@@ -1,5 +1,5 @@
-use std::io;
-use std::io::prelude::*;
+use crate::io;
+use crate::io::{Read, Write};
 
 use crate::zio;
 use crate::{Compress, Decompress};
@@ -345,6 +345,9 @@ impl<W: Read + Write> Read for ZlibDecoder<W> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::String;
+    use alloc::vec::Vec;
+
     use super::*;
     use crate::Compression;
 

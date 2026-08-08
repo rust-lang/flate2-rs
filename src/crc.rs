@@ -1,7 +1,7 @@
 //! Simple CRC bindings backed by miniz.c
 
-use std::io;
-use std::io::prelude::*;
+use crate::io;
+use crate::io::{BufRead, Read, Write};
 
 /// The CRC calculated by a [`CrcReader`].
 #[derive(Debug, Default)]
@@ -318,8 +318,6 @@ mod tests {
         let cb = crc_of(b);
 
         ca.combine(&cb);
-
-        dbg!(&ca);
 
         assert_eq!(ca.amount(), 11);
         assert_eq!(ca.sum(), sum_of(b"hello world"));
