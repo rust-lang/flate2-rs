@@ -1,5 +1,6 @@
 use std::io;
 use std::io::prelude::*;
+use alloc::vec::Vec;
 
 use super::bufread;
 use crate::bufreader::BufReader;

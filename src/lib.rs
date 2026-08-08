@@ -121,9 +121,17 @@
 #![allow(trivial_numeric_casts)]
 #![cfg_attr(test, deny(warnings))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![no_std]
 
 #[cfg(not(feature = "any_impl",))]
 compile_error!("You need to choose a zlib backend");
+
+extern crate std;
+
+#[macro_use]
+extern crate alloc;
+
+use alloc::vec::Vec;
 
 pub use crate::crc::{Crc, CrcReader, CrcWriter};
 pub use crate::gz::GzBuilder;
@@ -253,8 +261,8 @@ impl Default for Compression {
 
 #[cfg(test)]
 fn random_bytes() -> impl Iterator<Item = u8> {
+    use core::iter;
     use rand::Rng;
-    use std::iter;
 
     iter::repeat(()).map(|_| rand::rng().random())
 }

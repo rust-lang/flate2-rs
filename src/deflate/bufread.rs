@@ -1,6 +1,6 @@
 use std::io;
 use std::io::prelude::*;
-use std::mem;
+use core::mem;
 
 use crate::zio;
 use crate::{Compress, Decompress};
@@ -255,6 +255,7 @@ mod test {
     use crate::deflate::write;
     use crate::Compression;
     use std::io::{Read, Write};
+    use alloc::vec::Vec;
 
     // DeflateDecoder consumes one deflate archive and then returns 0 for subsequent reads, allowing any
     // additional data to be consumed by the caller.
@@ -274,7 +275,7 @@ mod test {
         let mut decoder = DeflateDecoder::new(compressed.as_slice());
         let decoded_bytes = decoder.read_to_end(&mut output).unwrap();
         assert_eq!(decoded_bytes, output.len());
-        let actual = std::str::from_utf8(&output).expect("String parsing error");
+        let actual = core::str::from_utf8(&output).expect("String parsing error");
         assert_eq!(
             actual, expected,
             "after decompression we obtain the original input"

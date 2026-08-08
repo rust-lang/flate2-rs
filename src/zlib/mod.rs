@@ -6,6 +6,8 @@ pub mod write;
 mod tests {
     use std::io;
     use std::io::prelude::*;
+    use alloc::string::ToString;
+    use alloc::vec::Vec;
 
     use rand::{rng, Rng};
 

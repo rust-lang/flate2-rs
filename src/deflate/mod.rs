@@ -5,6 +5,8 @@ pub mod write;
 #[cfg(test)]
 mod tests {
     use std::io::prelude::*;
+    use alloc::string::ToString;
+    use alloc::vec::Vec;
 
     use rand::{rng, Rng};
 

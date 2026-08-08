@@ -1,9 +1,10 @@
 //! Implementation for C backends.
-use std::fmt;
-use std::marker;
-use std::mem::MaybeUninit;
-use std::os::raw::{c_int, c_uint};
-use std::ptr;
+use alloc::boxed::Box;
+use core::ffi::{c_int, c_uint};
+use core::fmt;
+use core::marker;
+use core::mem::MaybeUninit;
+use core::ptr;
 
 use super::*;
 use crate::mem;
@@ -71,11 +72,11 @@ impl Drop for StreamWrapper {
 mod allocator {
     use super::*;
 
-    use std::alloc::{self, Layout};
-    use std::convert::TryFrom;
-    use std::os::raw::c_void;
+    use core::alloc::Layout;
+    use core::convert::TryFrom;
+    use core::ffi::c_void;
 
-    const ALIGN: usize = std::mem::align_of::<usize>();
+    const ALIGN: usize = core::mem::align_of::<usize>();
 
     fn align_up(size: usize, align: usize) -> usize {
         (size + align - 1) & !(align - 1)
@@ -90,7 +91,7 @@ mod allocator {
             .checked_mul(item_size)
             .and_then(|i| usize::try_from(i).ok())
             .map(|size| align_up(size, ALIGN))
-            .and_then(|i| i.checked_add(std::mem::size_of::<usize>()))
+            .and_then(|i| i.checked_add(core::mem::size_of::<usize>()))
         {
             Some(i) => i,
             None => return ptr::null_mut(),
@@ -105,7 +106,7 @@ mod allocator {
         unsafe {
             // Allocate the data, and if successful store the size we allocated
             // at the beginning and then return an offset pointer.
-            let ptr = alloc::alloc(layout) as *mut usize;
+            let ptr = ::alloc::alloc::alloc(layout) as *mut usize;
             if ptr.is_null() {
                 return ptr as *mut c_void;
             }
@@ -122,7 +123,7 @@ mod allocator {
             let ptr = (address as *mut usize).offset(-1);
             let size = *ptr;
             let layout = Layout::from_size_align_unchecked(size, ALIGN);
-            alloc::dealloc(ptr as *mut u8, layout)
+            ::alloc::alloc::dealloc(ptr as *mut u8, layout)
         }
     }
 }
@@ -158,8 +159,8 @@ impl<D: Direction> Stream<D> {
         ErrorMessage(if msg.is_null() {
             None
         } else {
-            let s = unsafe { std::ffi::CStr::from_ptr(msg) };
-            std::str::from_utf8(s.to_bytes()).ok()
+            let s = unsafe { core::ffi::CStr::from_ptr(msg) };
+            core::str::from_utf8(s.to_bytes()).ok()
         })
     }
 }
@@ -418,8 +419,8 @@ pub use self::c_backend::*;
 #[allow(bad_style)]
 #[allow(unused_imports)]
 mod c_backend {
-    use std::mem;
-    use std::os::raw::{c_char, c_int};
+    use core::ffi::{c_char, c_int};
+    use core::mem;
 
     #[cfg(feature = "zlib-ng")]
     use libz_ng_sys as libz;

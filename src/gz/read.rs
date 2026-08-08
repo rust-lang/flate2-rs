@@ -314,6 +314,7 @@ impl<R: Read + Write> Write for MultiGzDecoder<R> {
 #[cfg(test)]
 mod tests {
     use std::io::{Cursor, ErrorKind, Read, Result, Write};
+    use alloc::vec::Vec;
 
     use super::GzDecoder;
 

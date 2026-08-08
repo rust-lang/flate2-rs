@@ -345,6 +345,9 @@ impl<W: Read + Write> Read for ZlibDecoder<W> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::String;
+    use alloc::vec::Vec;
+
     use super::*;
     use crate::Compression;
 

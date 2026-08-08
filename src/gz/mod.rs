@@ -1,7 +1,9 @@
-use std::convert::TryFrom;
-use std::ffi::CString;
 use std::io::{BufRead, Error, ErrorKind, Read, Result, Write};
-use std::time;
+use alloc::boxed::Box;
+use alloc::ffi::CString;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+use core::time;
 
 use crate::bufreader::BufReader;
 use crate::{Compression, Crc};
@@ -77,12 +79,12 @@ impl GzHeader {
     ///
     /// The time is measured as seconds since 00:00:00 GMT, Jan. 1 1970.
     /// See [`mtime`](#method.mtime) for more detail.
-    pub fn mtime_as_datetime(&self) -> Option<time::SystemTime> {
+    pub fn mtime_as_datetime(&self) -> Option<std::time::SystemTime> {
         if self.mtime == 0 {
             None
         } else {
             let duration = time::Duration::new(u64::from(self.mtime), 0);
-            let datetime = time::UNIX_EPOCH + duration;
+            let datetime = std::time::UNIX_EPOCH + duration;
             Some(datetime)
         }
     }
@@ -456,6 +458,8 @@ impl GzBuilder {
 #[cfg(test)]
 mod tests {
     use std::io::prelude::*;
+    use alloc::string::{String, ToString};
+    use alloc::vec::Vec;
 
     use super::{read, write, GzBuilder, GzHeaderParser};
     use crate::{Compression, GzHeader};

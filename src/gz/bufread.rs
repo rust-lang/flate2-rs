@@ -1,7 +1,8 @@
-use std::cmp;
 use std::io;
 use std::io::prelude::*;
-use std::mem;
+use alloc::vec::Vec;
+use core::cmp;
+use core::mem;
 
 use super::{corrupt, read_into, GzBuilder, GzHeader, GzHeaderParser};
 use crate::crc::CrcReader;
@@ -458,6 +459,7 @@ mod test {
     use crate::gz::write;
     use crate::Compression;
     use std::io::{Read, Write};
+    use alloc::vec::Vec;
 
     // GzDecoder consumes one gzip member and then returns 0 for subsequent reads, allowing any
     // additional data to be consumed by the caller.
@@ -477,7 +479,7 @@ mod test {
         let mut decoder = GzDecoder::new(compressed.as_slice());
         let decoded_bytes = decoder.read_to_end(&mut output).unwrap();
         assert_eq!(decoded_bytes, output.len());
-        let actual = std::str::from_utf8(&output).expect("String parsing error");
+        let actual = core::str::from_utf8(&output).expect("String parsing error");
         assert_eq!(
             actual, expected,
             "after decompression we obtain the original input"
