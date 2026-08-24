@@ -168,7 +168,8 @@ impl<D: Direction> Stream<D> {
 impl<D: Direction> Drop for Stream<D> {
     fn drop(&mut self) {
         unsafe {
-            let _ = D::destroy(self.stream_wrapper.inner);
+            let rc = D::destroy(self.stream_wrapper.inner);
+            assert_eq!(rc, MZ_OK);
         }
     }
 }
@@ -282,9 +283,8 @@ impl InflateBackend for Inflate {
         } else {
             -MZ_DEFAULT_WINDOW_BITS
         };
-        unsafe {
-            inflateReset2(self.inner.stream_wrapper.inner, bits);
-        }
+        let rc = unsafe { inflateReset2(self.inner.stream_wrapper.inner, bits) };
+        assert_eq!(rc, MZ_OK);
         self.inner.total_out = 0;
         self.inner.total_in = 0;
     }
