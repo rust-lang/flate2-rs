@@ -12,6 +12,7 @@ pub struct Writer<W: Write, D: Ops> {
     obj: Option<W>,
     pub data: D,
     buf: Vec<u8>,
+    finished: bool,
 }
 
 pub trait Ops {
@@ -189,10 +190,15 @@ impl<W: Write, D: Ops> Writer<W, D> {
             obj: Some(w),
             data: d,
             buf: Vec::with_capacity(32 * 1024),
+            finished: false,
         }
     }
 
     pub fn finish(&mut self) -> io::Result<()> {
+        if self.finished {
+            return self.dump();
+        }
+
         loop {
             self.dump()?;
 
@@ -201,10 +207,14 @@ impl<W: Write, D: Ops> Writer<W, D> {
                 .data
                 .run_vec(&[], &mut self.buf, Flush::finish())
                 .map_err(Into::into)?;
+            if status == Status::StreamEnd {
+                self.finished = true;
+                return self.dump();
+            }
             if before == self.data.total_out() {
                 // No more output and no end of stream: the input was
                 // truncated, mirroring the check in `read` above.
-                if D::REQUIRES_STREAM_END && status != Status::StreamEnd {
+                if D::REQUIRES_STREAM_END {
                     return Err(io::Error::new(
                         io::ErrorKind::UnexpectedEof,
                         "incomplete deflate stream",
@@ -217,6 +227,7 @@ impl<W: Write, D: Ops> Writer<W, D> {
 
     pub fn replace(&mut self, w: W) -> W {
         self.buf.clear();
+        self.finished = false;
         mem::replace(self.get_mut(), w)
     }
 
@@ -258,6 +269,9 @@ impl<W: Write, D: Ops> Writer<W, D> {
 
             if !buf.is_empty() && written == 0 && ret.is_ok() && !is_stream_end {
                 continue;
+            }
+            if is_stream_end {
+                self.finished = true;
             }
             return match ret {
                 Ok(st) => match st {

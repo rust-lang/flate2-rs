@@ -181,9 +181,27 @@ mod tests {
         let compressed = encoder.finish().unwrap();
 
         for end in 0..compressed.len() {
+            let truncated = &compressed[..end];
+
             let mut decoder = write::DeflateDecoder::new(Vec::new());
-            decoder.write_all(&compressed[..end]).unwrap();
-            let error = decoder.finish().unwrap_err();
+            decoder.write_all(truncated).unwrap();
+            assert_incomplete(decoder.finish().unwrap_err());
+
+            let mut decoder = write::DeflateDecoder::new(Vec::new());
+            decoder.write_all(truncated).unwrap();
+            assert_incomplete(decoder.try_finish().unwrap_err());
+
+            let mut decoder = write::DeflateDecoder::new(Vec::new());
+            decoder.write_all(truncated).unwrap();
+            assert_incomplete(decoder.reset(Vec::new()).unwrap_err());
+        }
+
+        let mut decoder = write::DeflateDecoder::new(Vec::new());
+        decoder.write_all(&compressed).unwrap();
+        decoder.try_finish().unwrap();
+        assert_eq!(decoder.finish().unwrap(), b"hello");
+
+        fn assert_incomplete(error: crate::io::Error) {
             assert_eq!(error.kind(), crate::io::ErrorKind::UnexpectedEof);
             assert_eq!(error.to_string(), "incomplete deflate stream");
         }
