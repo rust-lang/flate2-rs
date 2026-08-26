@@ -724,6 +724,15 @@ mod tests {
         assert!(dst.starts_with(string));
     }
 
+    #[test]
+    fn unfinished_compressor_can_be_dropped() {
+        let mut encoder = Compress::new(Compression::default(), false);
+        encoder
+            .compress(b"hello", &mut [0; 1024], FlushCompress::None)
+            .unwrap();
+        assert_eq!(encoder.total_in(), 5);
+    }
+
     #[cfg(feature = "any_zlib")]
     #[test]
     fn test_gzip_flate() {
