@@ -297,17 +297,20 @@ impl<W: Write, D: Ops> Writer<W, D> {
     }
 
     fn dump(&mut self) -> io::Result<()> {
+        // Keep partial writes fast while bounding the consumed prefix retained in the buffer.
+        const OUTPUT_BUFFER_COMPACTION_THRESHOLD: usize = 8 * 1024;
+
+        let obj = self
+            .obj
+            .as_mut()
+            .expect("inner writer should only be taken when the outer writer is consumed");
         while self.buf_pos < self.buf.len() {
-            let n = self
-                .obj
-                .as_mut()
-                .unwrap()
-                .write(&self.buf[self.buf_pos..])?;
+            let n = obj.write(&self.buf[self.buf_pos..])?;
             if n == 0 {
                 return Err(io::ErrorKind::WriteZero.into());
             }
             self.buf_pos += n;
-            if self.buf_pos >= 8 * 1024 {
+            if self.buf_pos >= OUTPUT_BUFFER_COMPACTION_THRESHOLD {
                 self.buf.drain(..self.buf_pos);
                 self.buf_pos = 0;
             }
@@ -344,7 +347,10 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
             }
         }
 
-        self.obj.as_mut().unwrap().flush()
+        self.obj
+            .as_mut()
+            .expect("inner writer should only be taken when the outer writer is consumed")
+            .flush()
     }
 }
 
