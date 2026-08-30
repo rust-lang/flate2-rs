@@ -297,9 +297,6 @@ impl<W: Write, D: Ops> Writer<W, D> {
     }
 
     fn dump(&mut self) -> io::Result<()> {
-        // Keep partial writes fast while bounding the consumed prefix retained in the buffer.
-        const OUTPUT_BUFFER_COMPACTION_THRESHOLD: usize = 8 * 1024;
-
         let obj = self
             .obj
             .as_mut()
@@ -310,10 +307,6 @@ impl<W: Write, D: Ops> Writer<W, D> {
                 return Err(io::ErrorKind::WriteZero.into());
             }
             self.buf_pos += n;
-            if self.buf_pos >= OUTPUT_BUFFER_COMPACTION_THRESHOLD {
-                self.buf.drain(..self.buf_pos);
-                self.buf_pos = 0;
-            }
         }
         self.buf.clear();
         self.buf_pos = 0;
@@ -327,6 +320,7 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
     }
 
     fn flush(&mut self) -> io::Result<()> {
+        self.dump()?;
         self.data
             .run_vec(&[], &mut self.buf, Flush::sync())
             .map_err(Into::into)?;

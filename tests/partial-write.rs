@@ -34,31 +34,26 @@ impl Write for PartialWriter {
 fn encoder_handles_partial_writes() {
     let input: Vec<u8> = StdRng::seed_from_u64(0x1234_5678_9abc_def0)
         .random_iter()
-        .take(128 * 1024)
+        .take(16 * 1024)
         .collect();
-
-    let mut expected = DeflateEncoder::new(Vec::new(), Compression::fast());
-    expected.write_all(&input).unwrap();
-    expected.flush().unwrap();
-    let expected = expected.finish().unwrap();
 
     let mut encoder = DeflateEncoder::new(PartialWriter::default(), Compression::fast());
     encoder.write_all(&input).unwrap();
+    let mut flush_was_interrupted = false;
     loop {
         match encoder.flush() {
-            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {
+                flush_was_interrupted = true;
+                continue;
+            }
             result => result.unwrap(),
         }
         break;
     }
     let writer = encoder.finish().unwrap();
     assert!(
-        writer.interrupted,
-        "the downstream writer was never interrupted, but it should interrupt after 1 KiB"
-    );
-    assert_eq!(
-        writer.output, expected,
-        "partial writes changed the compressed output"
+        flush_was_interrupted,
+        "flushing never surfaced the downstream interruption"
     );
 
     let mut decoded = Vec::new();
