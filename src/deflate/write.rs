@@ -255,8 +255,8 @@ impl<W: Write> DeflateDecoder<W> {
     /// Resets the state of this decoder entirely, swapping out the output
     /// stream for another.
     ///
-    /// This function will finish encoding the current stream into the current
-    /// output stream before swapping out the two output streams.
+    /// Any pending output will be written to the current output stream before
+    /// swapping out the two output streams.
     ///
     /// This will then reset the internal state of this decoder and replace the
     /// output stream with the one provided, returning the previous output
@@ -265,10 +265,10 @@ impl<W: Write> DeflateDecoder<W> {
     ///
     /// # Errors
     ///
-    /// This function will perform I/O to finish the stream, and if that I/O
-    /// returns an error then that will be returned from this function.
+    /// This function will perform I/O to write any pending output, and if that
+    /// I/O returns an error then that will be returned from this function.
     pub fn reset(&mut self, w: W) -> io::Result<W> {
-        self.inner.finish()?;
+        self.inner.drain()?;
         self.inner.data = Decompress::new(false);
         Ok(self.inner.replace(w))
     }

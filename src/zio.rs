@@ -12,6 +12,7 @@ pub struct Writer<W: Write, D: Ops> {
     obj: Option<W>,
     pub data: D,
     buf: Vec<u8>,
+    finished: bool,
 }
 
 pub trait Ops {
@@ -176,25 +177,50 @@ impl<W: Write, D: Ops> Writer<W, D> {
             obj: Some(w),
             data: d,
             buf: Vec::with_capacity(32 * 1024),
+            finished: false,
         }
     }
 
     pub fn finish(&mut self) -> io::Result<()> {
+        self.finish_inner(false)
+    }
+
+    pub(crate) fn drain(&mut self) -> io::Result<()> {
+        self.finish_inner(true)
+    }
+
+    fn finish_inner(&mut self, allow_incomplete: bool) -> io::Result<()> {
+        if self.finished {
+            return self.dump();
+        }
+
         loop {
             self.dump()?;
 
             let before = self.data.total_out();
-            self.data
+            let status = self
+                .data
                 .run_vec(&[], &mut self.buf, Flush::finish())
                 .map_err(Into::into)?;
+            if status == Status::StreamEnd {
+                self.finished = true;
+                return self.dump();
+            }
             if before == self.data.total_out() {
-                return Ok(());
+                if allow_incomplete {
+                    return Ok(());
+                }
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "incomplete deflate stream",
+                ));
             }
         }
     }
 
     pub fn replace(&mut self, w: W) -> W {
         self.buf.clear();
+        self.finished = false;
         mem::replace(self.get_mut(), w)
     }
 
@@ -236,6 +262,9 @@ impl<W: Write, D: Ops> Writer<W, D> {
 
             if !buf.is_empty() && written == 0 && ret.is_ok() && !is_stream_end {
                 continue;
+            }
+            if is_stream_end {
+                self.finished = true;
             }
             return match ret {
                 Ok(st) => match st {
