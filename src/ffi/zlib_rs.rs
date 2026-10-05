@@ -69,7 +69,7 @@ impl fmt::Debug for Inflate {
     }
 }
 
-impl From<FlushDecompress> for DeflateFlush {
+impl From<FlushDecompress> for InflateFlush {
     fn from(value: FlushDecompress) -> Self {
         match value {
             FlushDecompress::None => Self::NoFlush,
@@ -94,16 +94,35 @@ impl InflateBackend for Inflate {
         output: &mut [u8],
         flush: FlushDecompress,
     ) -> Result<Status, DecompressError> {
-        let flush = match flush {
-            FlushDecompress::None => InflateFlush::NoFlush,
-            FlushDecompress::Sync => InflateFlush::SyncFlush,
-            FlushDecompress::Finish => InflateFlush::Finish,
-        };
+        let flush = flush.into();
 
         let total_in_start = self.inner.total_in();
         let total_out_start = self.inner.total_out();
 
         let result = self.inner.decompress(input, output, flush);
+
+        self.total_in += self.inner.total_in() - total_in_start;
+        self.total_out += self.inner.total_out() - total_out_start;
+
+        match result {
+            Ok(status) => Ok(status.into()),
+            Err(InflateError::NeedDict { dict_id }) => crate::mem::decompress_need_dict(dict_id),
+            Err(_) => self.decompress_error(),
+        }
+    }
+
+    fn decompress_uninit(
+        &mut self,
+        input: &[u8],
+        output: &mut [MaybeUninit<u8>],
+        flush: FlushDecompress,
+    ) -> Result<Status, DecompressError> {
+        let flush = flush.into();
+
+        let total_in_start = self.inner.total_in();
+        let total_out_start = self.inner.total_out();
+
+        let result = self.inner.decompress_uninit(input, output, flush);
 
         self.total_in += self.inner.total_in() - total_in_start;
         self.total_out += self.inner.total_out() - total_out_start;
@@ -165,6 +184,18 @@ impl fmt::Debug for Deflate {
     }
 }
 
+impl From<FlushCompress> for DeflateFlush {
+    fn from(value: FlushCompress) -> Self {
+        match value {
+            FlushCompress::None => Self::NoFlush,
+            FlushCompress::Partial => Self::PartialFlush,
+            FlushCompress::Sync => Self::SyncFlush,
+            FlushCompress::Full => Self::FullFlush,
+            FlushCompress::Finish => Self::Finish,
+        }
+    }
+}
+
 impl DeflateBackend for Deflate {
     fn make(level: Compression, zlib_header: bool, window_bits: u8) -> Self {
         // Check in case the integer value changes at some point.
@@ -183,18 +214,34 @@ impl DeflateBackend for Deflate {
         output: &mut [u8],
         flush: FlushCompress,
     ) -> Result<Status, CompressError> {
-        let flush = match flush {
-            FlushCompress::None => DeflateFlush::NoFlush,
-            FlushCompress::Partial => DeflateFlush::PartialFlush,
-            FlushCompress::Sync => DeflateFlush::SyncFlush,
-            FlushCompress::Full => DeflateFlush::FullFlush,
-            FlushCompress::Finish => DeflateFlush::Finish,
-        };
+        let flush = flush.into();
 
         let total_in_start = self.inner.total_in();
         let total_out_start = self.inner.total_out();
 
         let result = self.inner.compress(input, output, flush);
+
+        self.total_in += self.inner.total_in() - total_in_start;
+        self.total_out += self.inner.total_out() - total_out_start;
+
+        match result {
+            Ok(status) => Ok(status.into()),
+            Err(_) => self.compress_error(),
+        }
+    }
+
+    fn compress_uninit(
+        &mut self,
+        input: &[u8],
+        output: &mut [MaybeUninit<u8>],
+        flush: FlushCompress,
+    ) -> Result<Status, CompressError> {
+        let flush = flush.into();
+
+        let total_in_start = self.inner.total_in();
+        let total_out_start = self.inner.total_out();
+
+        let result = self.inner.compress_uninit(input, output, flush);
 
         self.total_in += self.inner.total_in() - total_in_start;
         self.total_out += self.inner.total_out() - total_out_start;
