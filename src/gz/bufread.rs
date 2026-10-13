@@ -145,13 +145,17 @@ impl<R: BufRead> Read for GzEncoder<R> {
             let tmp = into;
             into = &mut tmp[amt..];
         }
-        match self.inner.read(into)? {
-            0 => {
+        match self.inner.read(into) {
+            Ok(0) => {
                 self.eof = true;
                 self.pos = 0;
                 self.read_footer(into)
             }
-            n => Ok(amt + n),
+            Ok(n) => Ok(amt + n),
+            // Report header bytes already copied before propagating an input
+            // error, so a retry does not discard part of the gzip stream.
+            Err(_) if amt > 0 => Ok(amt),
+            Err(err) => Err(err),
         }
     }
 }
