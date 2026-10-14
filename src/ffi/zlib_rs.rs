@@ -53,6 +53,7 @@ impl ErrorMessage {
 
 pub struct Inflate {
     pub(crate) inner: ::zlib_rs::Inflate,
+    window_bits: u8,
     // NOTE: these counts do not count the dictionary.
     total_in: u64,
     total_out: u64,
@@ -83,6 +84,7 @@ impl InflateBackend for Inflate {
     fn make(zlib_header: bool, window_bits: u8) -> Self {
         Inflate {
             inner: ::zlib_rs::Inflate::new(zlib_header, window_bits),
+            window_bits,
             total_in: 0,
             total_out: 0,
         }
@@ -118,7 +120,21 @@ impl InflateBackend for Inflate {
     fn reset(&mut self, zlib_header: bool) {
         self.total_in = 0;
         self.total_out = 0;
-        self.inner.reset(zlib_header);
+        if self.window_bits == MZ_DEFAULT_WINDOW_BITS as u8 {
+            self.inner.reset(zlib_header);
+        } else {
+            // zlib_rs::Inflate::reset always restores the default
+            // configuration, which would discard the window size and gzip
+            // mode selected at construction, so re-create the state instead.
+            // Keep only the base-2 logarithm of the window size when
+            // resetting a gzip decoder (window_bits + 16) to a raw stream.
+            let window_bits = if zlib_header {
+                self.window_bits
+            } else {
+                self.window_bits & 15
+            };
+            self.inner = ::zlib_rs::Inflate::new(zlib_header, window_bits);
+        }
     }
 }
 
