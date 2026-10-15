@@ -17,6 +17,9 @@ pub struct Writer<W: Write, D: Ops> {
 pub trait Ops {
     type Error: Into<io::Error>;
     type Flush: Flush;
+    // Whether running out of input before `Status::StreamEnd` means the
+    // stream is incomplete, as is the case for decompression.
+    const REQUIRES_STREAM_END: bool;
     fn total_in(&self) -> u64;
     fn total_out(&self) -> u64;
     fn run(
@@ -36,6 +39,7 @@ pub trait Ops {
 impl Ops for Compress {
     type Error = CompressError;
     type Flush = FlushCompress;
+    const REQUIRES_STREAM_END: bool = false;
     fn total_in(&self) -> u64 {
         self.total_in()
     }
@@ -63,6 +67,7 @@ impl Ops for Compress {
 impl Ops for Decompress {
     type Error = DecompressError;
     type Flush = FlushDecompress;
+    const REQUIRES_STREAM_END: bool = true;
     fn total_in(&self) -> u64 {
         self.total_in()
     }
@@ -184,10 +189,19 @@ impl<W: Write, D: Ops> Writer<W, D> {
             self.dump()?;
 
             let before = self.data.total_out();
-            self.data
+            let status = self
+                .data
                 .run_vec(&[], &mut self.buf, Flush::finish())
                 .map_err(Into::into)?;
             if before == self.data.total_out() {
+                // No more output and no end of stream: the input was
+                // truncated, mirroring the check in `read` above.
+                if D::REQUIRES_STREAM_END && status != Status::StreamEnd {
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "incomplete deflate stream",
+                    ));
+                }
                 return Ok(());
             }
         }
