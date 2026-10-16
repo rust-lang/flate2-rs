@@ -52,7 +52,6 @@ pub struct GzEncoder<R> {
     header: Vec<u8>,
     pos: usize,
     eof: bool,
-    pending_error: Option<io::Error>,
 }
 
 pub fn gz_encoder<R: BufRead>(header: Vec<u8>, r: R, lvl: Compression) -> GzEncoder<R> {
@@ -62,7 +61,6 @@ pub fn gz_encoder<R: BufRead>(header: Vec<u8>, r: R, lvl: Compression) -> GzEnco
         header,
         pos: 0,
         eof: false,
-        pending_error: None,
     }
 }
 
@@ -135,37 +133,23 @@ fn finish(buf: &[u8; 8]) -> (u32, u32) {
 }
 
 impl<R: BufRead> Read for GzEncoder<R> {
-    fn read(&mut self, mut into: &mut [u8]) -> io::Result<usize> {
+    fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
         if into.is_empty() {
             return Ok(0);
         }
-        if let Some(err) = self.pending_error.take() {
-            return Err(err);
-        }
-        let mut amt = 0;
         if self.eof {
             return self.read_footer(into);
         } else if self.pos < self.header.len() {
-            amt = copy(into, &self.header, &mut self.pos);
-            if amt == into.len() {
-                return Ok(amt);
-            }
-            into = &mut into[amt..];
+            // Report header progress before attempting a fallible input read.
+            return Ok(copy(into, &self.header, &mut self.pos));
         }
         match self.inner.read(into) {
             Ok(0) => {
                 self.eof = true;
                 self.pos = 0;
-                self.read_footer(into).map(|n| amt + n)
+                self.read_footer(into)
             }
-            Ok(n) => Ok(amt + n),
-            Err(err) if amt > 0 => {
-                // Report copied header bytes now, preserving even one-shot
-                // input errors for the next nonempty read.
-                self.pending_error = Some(err);
-                Ok(amt)
-            }
-            Err(err) => Err(err),
+            res => res,
         }
     }
 }
