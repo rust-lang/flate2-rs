@@ -147,6 +147,21 @@ mod tests {
     }
 
     #[test]
+    fn write_decoder_rejects_incomplete_stream() {
+        let mut encoder = write::ZlibEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(b"hello").unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        for end in 0..compressed.len() {
+            let mut decoder = write::ZlibDecoder::new(Vec::new());
+            decoder.write_all(&compressed[..end]).unwrap();
+            let error = decoder.try_finish().unwrap_err();
+            assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
+            assert_eq!(error.to_string(), "incomplete deflate stream");
+        }
+    }
+
+    #[test]
     fn qc_reader() {
         ::quickcheck::quickcheck(test as fn(_) -> _);
 
