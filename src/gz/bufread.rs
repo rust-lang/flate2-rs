@@ -133,25 +133,23 @@ fn finish(buf: &[u8; 8]) -> (u32, u32) {
 }
 
 impl<R: BufRead> Read for GzEncoder<R> {
-    fn read(&mut self, mut into: &mut [u8]) -> io::Result<usize> {
-        let mut amt = 0;
+    fn read(&mut self, into: &mut [u8]) -> io::Result<usize> {
+        if into.is_empty() {
+            return Ok(0);
+        }
         if self.eof {
             return self.read_footer(into);
         } else if self.pos < self.header.len() {
-            amt += copy(into, &self.header, &mut self.pos);
-            if amt == into.len() {
-                return Ok(amt);
-            }
-            let tmp = into;
-            into = &mut tmp[amt..];
+            // Report header progress before attempting a fallible input read.
+            return Ok(copy(into, &self.header, &mut self.pos));
         }
-        match self.inner.read(into)? {
-            0 => {
+        match self.inner.read(into) {
+            Ok(0) => {
                 self.eof = true;
                 self.pos = 0;
                 self.read_footer(into)
             }
-            n => Ok(amt + n),
+            res => res,
         }
     }
 }
