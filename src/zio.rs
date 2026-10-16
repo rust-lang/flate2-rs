@@ -17,8 +17,8 @@ pub struct Writer<W: Write, D: Ops> {
 pub trait Ops {
     type Error: Into<io::Error>;
     type Flush: Flush;
-    // Whether running out of input before `Status::StreamEnd` means the
-    // stream is incomplete, as is the case for decompression.
+    /// Whether running out of input before `Status::StreamEnd` means the
+    /// stream is incomplete, as is the case for decompression.
     const REQUIRES_STREAM_END: bool;
     fn total_in(&self) -> u64;
     fn total_out(&self) -> u64;
@@ -39,6 +39,10 @@ pub trait Ops {
 impl Ops for Compress {
     type Error = CompressError;
     type Flush = FlushCompress;
+    /// Unlike decompression, compression accepts arbitrary, unframed input and
+    /// creates the stream's ending with `FlushCompress::Finish`. Exhausting the
+    /// input cannot indicate truncation, so `Writer::finish` keeps the encoder's
+    /// existing no-more-output completion rule instead of requiring `StreamEnd`.
     const REQUIRES_STREAM_END: bool = false;
     fn total_in(&self) -> u64 {
         self.total_in()
@@ -67,6 +71,10 @@ impl Ops for Compress {
 impl Ops for Decompress {
     type Error = DecompressError;
     type Flush = FlushDecompress;
+    /// Unlike compression, decompression must find the stream's ending in the
+    /// supplied input; `FlushDecompress::Finish` cannot create missing bytes.
+    /// Once `Writer::finish` can produce no more output, only `StreamEnd` proves
+    /// the input was complete. Otherwise, it must report `UnexpectedEof`.
     const REQUIRES_STREAM_END: bool = true;
     fn total_in(&self) -> u64 {
         self.total_in()
