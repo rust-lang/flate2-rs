@@ -35,6 +35,7 @@ document-features = { version = "0.2", optional = true }
 fdeflate = { path = "fdeflate" }
 
 [dev-dependencies]
+miniz_oxide = "0.9.0"
 futures = { version = "0.3", default-features = false }
 rand = "0.9"
 quickcheck = { version = "1.0", default-features = false }

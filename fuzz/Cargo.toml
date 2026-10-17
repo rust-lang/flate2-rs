@@ -12,6 +12,13 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 flate2 = { path = ".." }
+miniz_oxide = "0.9.0"
+
+[features]
+fdeflate = ["flate2/fdeflate"]
+
+[patch."https://github.com/Shnatsel/fdeflate.git"]
+fdeflate = { path = "../fdeflate" }
 
 # Prevent this from interfering with workspaces
 [workspace]
@@ -20,5 +27,11 @@ members = ["."]
 [[bin]]
 name = "fuzz_gz_roundtrip"
 path = "fuzz_targets/fuzz_gz_roundtrip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "streaming"
+path = "fuzz_targets/streaming.rs"
 test = false
 doc = false
