@@ -12,6 +12,7 @@ pub struct Writer<W: Write, D: Ops> {
     obj: Option<W>,
     pub data: D,
     buf: Vec<u8>,
+    buf_pos: usize,
     finished: bool,
 }
 
@@ -190,6 +191,7 @@ impl<W: Write, D: Ops> Writer<W, D> {
             obj: Some(w),
             data: d,
             buf: Vec::with_capacity(32 * 1024),
+            buf_pos: 0,
             finished: false,
         }
     }
@@ -235,6 +237,7 @@ impl<W: Write, D: Ops> Writer<W, D> {
 
     pub fn replace(&mut self, w: W) -> W {
         self.buf.clear();
+        self.buf_pos = 0;
         self.finished = false;
         mem::replace(self.get_mut(), w)
     }
@@ -294,15 +297,18 @@ impl<W: Write, D: Ops> Writer<W, D> {
     }
 
     fn dump(&mut self) -> io::Result<()> {
-        // TODO: should manage this buffer not with `drain` but probably more of
-        // a deque-like strategy.
-        while !self.buf.is_empty() {
-            let n = self.obj.as_mut().unwrap().write(&self.buf)?;
+        while self.buf_pos < self.buf.len() {
+            let n = match self.obj.as_mut().unwrap().write(&self.buf[self.buf_pos..]) {
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                result => result?,
+            };
             if n == 0 {
                 return Err(io::ErrorKind::WriteZero.into());
             }
-            self.buf.drain(..n);
+            self.buf_pos += n;
         }
+        self.buf.clear();
+        self.buf_pos = 0;
         Ok(())
     }
 }
@@ -313,22 +319,35 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.data
-            .run_vec(&[], &mut self.buf, Flush::sync())
-            .map_err(Into::into)?;
-
-        // Unfortunately miniz doesn't actually tell us when we're done with
-        // pulling out all the data from the internal stream. To remedy this we
-        // have to continually ask the stream for more memory until it doesn't
-        // give us a chunk of memory the same size as our own internal buffer,
-        // at which point we assume it's reached the end.
+        // Drain previously encoded output before requesting Sync. In particular,
+        // miniz can return a short buffer after draining old output without
+        // processing the new flush request. Once that output is drained, a Sync
+        // call with spare output capacity completes the flush.
         loop {
-            self.dump()?;
-            let before = self.data.total_out();
-            self.data
-                .run_vec(&[], &mut self.buf, Flush::none())
+            loop {
+                self.dump()?;
+                let status = self
+                    .data
+                    .run_vec(&[], &mut self.buf, Flush::none())
+                    .map_err(Into::into)?;
+                self.finished |= status == Status::StreamEnd;
+                if self.buf.is_empty() {
+                    break;
+                }
+            }
+            if self.finished {
+                break;
+            }
+            let status = self
+                .data
+                .run_vec(&[], &mut self.buf, Flush::sync())
                 .map_err(Into::into)?;
-            if before == self.data.total_out() {
+            if status == Status::StreamEnd {
+                self.finished = true;
+            }
+            let complete = self.buf.len() < self.buf.capacity() || self.finished;
+            self.dump()?;
+            if complete {
                 break;
             }
         }

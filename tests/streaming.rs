@@ -1,5 +1,6 @@
-//! Streaming contracts shared by all backends.
+//! Contracts shared by all backends, including writer backpressure.
 use flate2::{Compress, Compression, Decompress, FlushCompress, FlushDecompress, Status};
+use std::io::{self, Write};
 
 fn random(len: usize) -> Vec<u8> {
     let mut state = 0x12345678u32;
@@ -174,5 +175,83 @@ fn alternating_slice_and_vec_output_preserves_decoder_history() {
         }
         assert_eq!(decoded, input);
         assert_eq!(decoder.total_in() as usize, encoded.len());
+    }
+}
+
+fn decode_prefix(compressed: &[u8], input: &[u8]) {
+    let mut decoder = Decompress::new(false);
+    let mut output = vec![0; input.len() + 1];
+    loop {
+        let (bi, bo) = (decoder.total_in(), decoder.total_out());
+        let status = decoder
+            .decompress(
+                &compressed[bi as usize..],
+                &mut output[bo as usize..],
+                FlushDecompress::None,
+            )
+            .unwrap();
+        if status == Status::StreamEnd || (bi, bo) == (decoder.total_in(), decoder.total_out()) {
+            break;
+        }
+    }
+    assert_eq!(decoder.total_out() as usize, input.len());
+    assert_eq!(&output[..input.len()], input);
+}
+
+#[test]
+fn writer_flush_exposes_every_input_byte() {
+    for level in [0, 1, 6, 9] {
+        for size in [32768, 65536, 100000, 131072, 524288] {
+            let input = random(size);
+            let mut encoder =
+                flate2::write::DeflateEncoder::new(Vec::new(), Compression::new(level));
+            encoder.write_all(&input).unwrap();
+            encoder.flush().unwrap();
+            decode_prefix(encoder.get_ref(), &input);
+        }
+    }
+}
+
+#[derive(Default)]
+struct ShortWriter {
+    bytes: Vec<u8>,
+    calls: usize,
+    fail_at: usize,
+    interrupted: bool,
+}
+impl Write for ShortWriter {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        self.calls += 1;
+        if self.calls == self.fail_at {
+            return Err(io::ErrorKind::WouldBlock.into());
+        }
+        if !self.interrupted {
+            self.interrupted = true;
+            return Err(io::ErrorKind::Interrupted.into());
+        }
+        let n = data.len().min(7);
+        self.bytes.extend_from_slice(&data[..n]);
+        Ok(n)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn flush_retry_after_partial_writes_preserves_all_bytes() {
+    let input = random(100000);
+    for level in [0, 1, 6] {
+        let mut encoder =
+            flate2::write::DeflateEncoder::new(ShortWriter::default(), Compression::new(level));
+        encoder.write_all(&input).unwrap();
+        encoder.get_mut().fail_at = encoder.get_ref().calls + 3;
+        assert_eq!(
+            encoder.flush().unwrap_err().kind(),
+            io::ErrorKind::WouldBlock
+        );
+        encoder.flush().unwrap();
+        decode_prefix(&encoder.get_ref().bytes, &input);
+        decode_prefix(&encoder.finish().unwrap().bytes, &input);
     }
 }
