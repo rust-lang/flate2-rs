@@ -77,7 +77,9 @@ fn raw_trailing_bytes_remain_unconsumed() {
 
 #[test]
 fn large_no_flush_call_preserves_streaming_backpressure() {
-    let input = vec![0x5a; 2 * 1024 * 1024];
+    // One token can cover 258 bytes, so a bounded token buffer can accept
+    // several MiB of repetitive input before producing a block.
+    let input = vec![0x5a; 8 * 1024 * 1024];
     let mut output = [0; 1];
     let mut encoder = Compress::new(Compression::default(), false);
 
