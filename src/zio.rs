@@ -13,6 +13,7 @@ pub struct Writer<W: Write, D: Ops> {
     pub data: D,
     buf: Vec<u8>,
     finished: bool,
+    buf_pos: usize,
 }
 
 pub trait Ops {
@@ -191,6 +192,7 @@ impl<W: Write, D: Ops> Writer<W, D> {
             data: d,
             buf: Vec::with_capacity(32 * 1024),
             finished: false,
+            buf_pos: 0,
         }
     }
 
@@ -236,6 +238,7 @@ impl<W: Write, D: Ops> Writer<W, D> {
     pub fn replace(&mut self, w: W) -> W {
         self.buf.clear();
         self.finished = false;
+        self.buf_pos = 0;
         mem::replace(self.get_mut(), w)
     }
 
@@ -294,15 +297,19 @@ impl<W: Write, D: Ops> Writer<W, D> {
     }
 
     fn dump(&mut self) -> io::Result<()> {
-        // TODO: should manage this buffer not with `drain` but probably more of
-        // a deque-like strategy.
-        while !self.buf.is_empty() {
-            let n = self.obj.as_mut().unwrap().write(&self.buf)?;
+        let obj = self
+            .obj
+            .as_mut()
+            .expect("inner writer should only be taken when the outer writer is consumed");
+        while self.buf_pos < self.buf.len() {
+            let n = obj.write(&self.buf[self.buf_pos..])?;
             if n == 0 {
                 return Err(io::ErrorKind::WriteZero.into());
             }
-            self.buf.drain(..n);
+            self.buf_pos += n;
         }
+        self.buf.clear();
+        self.buf_pos = 0;
         Ok(())
     }
 }
@@ -313,6 +320,7 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
     }
 
     fn flush(&mut self) -> io::Result<()> {
+        self.dump()?;
         self.data
             .run_vec(&[], &mut self.buf, Flush::sync())
             .map_err(Into::into)?;
@@ -333,7 +341,10 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
             }
         }
 
-        self.obj.as_mut().unwrap().flush()
+        self.obj
+            .as_mut()
+            .expect("inner writer should only be taken when the outer writer is consumed")
+            .flush()
     }
 }
 
