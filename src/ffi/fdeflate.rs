@@ -183,8 +183,12 @@ pub struct Inflate {
 impl fmt::Debug for Inflate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("fdeflate::Inflate")
+            .field("drain_pos", &self.drain_pos)
+            .field("decode_pos", &self.decode_pos)
             .field("total_in", &self.total_in)
             .field("total_out", &self.total_out)
+            .field("done", &self.done)
+            .field("error", &self.error)
             .finish()
     }
 }
