@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/flate2.svg?maxAge=2592000)](https://crates.io/crates/flate2)
 [![Documentation](https://docs.rs/flate2/badge.svg)](https://docs.rs/flate2)
 
-A streaming compression/decompression library DEFLATE-based streams in Rust.
+A streaming compression/decompression library for DEFLATE-based streams in Rust.
 
 This crate by default uses the `miniz_oxide` crate, a port of `miniz.c` to pure
 Rust. This crate also supports other [backends](#backends), such as the widely
