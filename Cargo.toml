@@ -29,6 +29,11 @@ fdeflate = { git = "https://github.com/Shnatsel/fdeflate.git", branch = "flate2-
 crc32fast = { version = "1.2.0", default-features = false, optional = true }
 document-features = { version = "0.2", optional = true }
 
+# Develop the streaming API together with the local fdeflate checkout. Remove this
+# override once these dependency changes are available on flate2-api-changes.
+[patch."https://github.com/Shnatsel/fdeflate.git"]
+fdeflate = { path = "fdeflate" }
+
 [dev-dependencies]
 futures = { version = "0.3", default-features = false }
 rand = "0.9"

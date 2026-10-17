@@ -1,36 +1,28 @@
 //! Implementation for the `fdeflate` Rust backend.
+#![forbid(unsafe_code)]
 
-use std::fmt;
-use std::io;
-
-use ::fdeflate::{DecompressionError as FdeflateError, FlushKind};
+use super::*;
+use crate::mem::{compress_failed, decompress_failed};
+use ::fdeflate::{
+    CompressionFlush, CompressionProgress, CompressionStatus, DecompressionError as FdeflateError,
+    DecompressionStatus,
+};
+use alloc::vec::Vec;
+use core::{fmt, mem::MaybeUninit};
 
 pub const MZ_NO_FLUSH: isize = 0;
 pub const MZ_PARTIAL_FLUSH: isize = 1;
 pub const MZ_SYNC_FLUSH: isize = 2;
 pub const MZ_FULL_FLUSH: isize = 3;
 pub const MZ_FINISH: isize = 4;
-
 pub const MZ_DEFAULT_WINDOW_BITS: core::ffi::c_int = 15;
 
-use super::*;
-use crate::mem::{compress_failed, decompress_failed};
-
-// fdeflate's decompressor needs one contiguous output slice containing recent history followed by
-// writable space. Keeping 32 KiB of history plus a 64 KiB decode tail avoids copying the history on
-// every call while still bounding how much decoded output we stage ahead of the caller.
-const FDEFLATE_HISTORY_LEN: usize = 32 * 1024;
-const FDEFLATE_DECODE_TAIL_LEN: usize = 64 * 1024;
-const FDEFLATE_SCRATCH_LEN: usize = FDEFLATE_HISTORY_LEN + FDEFLATE_DECODE_TAIL_LEN;
-
-// fdeflate compresses into its wrapped writer, not directly into flate2's caller-provided output
-// slice. Capping fresh input per call keeps that wrapped Vec from growing with arbitrarily large
-// caller slices while still amortizing fdeflate's block/parser overhead.
-const FDEFLATE_ENCODE_INPUT_CHUNK_LEN: usize = 128 * 1024;
+const HISTORY: usize = 32 * 1024;
+const TAIL: usize = 64 * 1024;
+const SCRATCH: usize = HISTORY + TAIL;
 
 #[derive(Clone, Default)]
 pub struct ErrorMessage(Option<&'static str>);
-
 impl ErrorMessage {
     pub fn get(&self) -> Option<&str> {
         self.0
@@ -66,178 +58,115 @@ fn decompression_message(error: FdeflateError) -> &'static str {
     }
 }
 
-fn io_error_message(_: io::Error) -> ErrorMessage {
-    ErrorMessage(Some("fdeflate compression failed"))
-}
-
-fn compression_result<T>(result: io::Result<T>) -> Result<T, CompressError> {
-    match result {
-        Ok(value) => Ok(value),
-        Err(error) => compress_failed(io_error_message(error)),
+fn compression_flush(flush: FlushCompress) -> CompressionFlush {
+    match flush {
+        FlushCompress::None => CompressionFlush::None,
+        FlushCompress::Partial => CompressionFlush::Partial,
+        FlushCompress::Sync => CompressionFlush::Sync,
+        FlushCompress::Full => CompressionFlush::Full,
+        FlushCompress::Finish => CompressionFlush::Finish,
     }
-}
-
-fn new_compressor(level: u8, zlib_header: bool) -> ::fdeflate::Compressor<Vec<u8>> {
-    ::fdeflate::Compressor::new(Vec::new(), level, zlib_header)
-        .expect("writing fdeflate output to a Vec cannot fail")
-}
-
-fn drain_vec(pending: &mut Vec<u8>, pending_pos: &mut usize, output: &mut [u8]) -> usize {
-    let n = (pending.len() - *pending_pos).min(output.len());
-    output[..n].copy_from_slice(&pending[*pending_pos..*pending_pos + n]);
-    *pending_pos += n;
-    if *pending_pos == pending.len() {
-        pending.clear();
-        *pending_pos = 0;
-    }
-    n
 }
 
 pub struct Deflate {
-    inner: Option<::fdeflate::Compressor<Vec<u8>>>,
-    pending: Vec<u8>,
-    pending_pos: usize,
-    inner_pending_pos: usize,
-    level: u8,
+    inner: ::fdeflate::StreamingCompressor,
     zlib_header: bool,
     total_in: u64,
     total_out: u64,
 }
-
 impl fmt::Debug for Deflate {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(
-            f,
-            "fdeflate deflate internal state. total_in: {}, total_out: {}",
-            self.total_in, self.total_out,
-        )
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("fdeflate::Deflate")
+            .field("total_in", &self.total_in)
+            .field("total_out", &self.total_out)
+            .finish()
     }
 }
-
 impl Deflate {
-    fn drain_pending(&mut self, output: &mut [u8]) -> usize {
-        let mut output_index = drain_vec(&mut self.pending, &mut self.pending_pos, output);
-
-        if output_index < output.len() {
-            if let Some(ref mut inner) = self.inner {
-                // fdeflate writes into the wrapped Vec; flate2 callers own the real destination, so
-                // drain those pending bytes before accepting more input. Track a cursor instead of
-                // draining the Vec so small caller buffers do not force repeated memmoves.
-                output_index += drain_vec(
-                    inner.get_mut(),
-                    &mut self.inner_pending_pos,
-                    &mut output[output_index..],
-                );
-            }
+    fn account(&mut self, progress: CompressionProgress) -> Result<Status, CompressError> {
+        self.total_in += progress.consumed as u64;
+        self.total_out += progress.produced as u64;
+        match progress.status {
+            Err(_) => compress_failed(ErrorMessage(Some(
+                "input supplied after finishing compression",
+            ))),
+            Ok(CompressionStatus::StreamEnd) => Ok(Status::StreamEnd),
+            Ok(_) if progress.consumed == 0 && progress.produced == 0 => Ok(Status::BufError),
+            Ok(_) => Ok(Status::Ok),
         }
-
-        self.total_out += output_index as u64;
-        output_index
-    }
-
-    fn is_finished(&self) -> bool {
-        self.inner.is_none() && self.pending.is_empty()
     }
 }
-
 impl DeflateBackend for Deflate {
     fn make(level: Compression, zlib_header: bool, _window_bits: u8) -> Self {
-        let level = level.level().min(9) as u8;
-        Deflate {
-            inner: Some(new_compressor(level, zlib_header)),
-            pending: Vec::new(),
-            pending_pos: 0,
-            inner_pending_pos: 0,
-            level,
+        Self {
+            inner: ::fdeflate::StreamingCompressor::new(level.level().min(9) as u8, zlib_header),
             zlib_header,
             total_in: 0,
             total_out: 0,
         }
     }
-
     fn compress(
         &mut self,
         input: &[u8],
         output: &mut [u8],
         flush: FlushCompress,
     ) -> Result<Status, CompressError> {
-        let before_in = self.total_in;
-        let before_out = self.total_out;
-
-        let output_index = self.drain_pending(output);
-        if output_index == output.len() {
-            return if self.is_finished() {
-                Ok(Status::StreamEnd)
-            } else if output.is_empty() {
-                Ok(Status::BufError)
-            } else {
-                Ok(Status::Ok)
-            };
-        }
-
-        if self.inner.is_none() {
-            return Ok(Status::StreamEnd);
-        }
-
-        let accepted_input_len = input.len().min(FDEFLATE_ENCODE_INPUT_CHUNK_LEN);
-        let accepted_all_input = accepted_input_len == input.len();
-
-        if let Some(ref mut inner) = self.inner {
-            if accepted_input_len != 0 {
-                let accepted_input = &input[..accepted_input_len];
-                compression_result(inner.write_data(accepted_input))?;
-                self.total_in += accepted_input.len() as u64;
-            }
-
-            // A flush describes all input provided to this call. If we only accepted a prefix to
-            // preserve streaming backpressure, defer the flush until the caller comes back with the
-            // remaining input, just like other backends report partial consumption through total_in.
-            if accepted_all_input {
-                match flush {
-                    FlushCompress::None => {}
-                    FlushCompress::Partial => compression_result(inner.flush(FlushKind::Partial))?,
-                    FlushCompress::Sync => compression_result(inner.flush(FlushKind::Sync))?,
-                    FlushCompress::Full => compression_result(inner.flush(FlushKind::Full))?,
-                    FlushCompress::Finish => {
-                        let inner = self.inner.take().unwrap();
-                        self.pending = compression_result(inner.finish())?;
-                        self.pending_pos = 0;
-                        self.inner_pending_pos = 0;
-                    }
-                }
-            }
-        }
-
-        self.drain_pending(&mut output[output_index..]);
-
-        if self.is_finished() {
-            Ok(Status::StreamEnd)
-        } else if before_in == self.total_in && before_out == self.total_out {
-            Ok(Status::BufError)
-        } else {
-            Ok(Status::Ok)
-        }
+        let progress = self.inner.process(input, output, compression_flush(flush));
+        self.account(progress)
     }
-
+    fn compress_uninit(
+        &mut self,
+        input: &[u8],
+        output: &mut [MaybeUninit<u8>],
+        flush: FlushCompress,
+    ) -> Result<Status, CompressError> {
+        let progress = self
+            .inner
+            .process_uninit(input, output, compression_flush(flush));
+        self.account(progress)
+    }
     fn reset(&mut self) {
-        self.inner = Some(new_compressor(self.level, self.zlib_header));
-        self.pending.clear();
-        self.pending_pos = 0;
-        self.inner_pending_pos = 0;
+        self.inner.reset(self.zlib_header);
         self.total_in = 0;
         self.total_out = 0;
     }
 }
-
 impl Backend for Deflate {
-    #[inline]
     fn total_in(&self) -> u64 {
         self.total_in
     }
-
-    #[inline]
     fn total_out(&self) -> u64 {
         self.total_out
+    }
+}
+
+trait Output {
+    fn len(&self) -> usize;
+    fn put(&mut self, offset: usize, bytes: &[u8]);
+    fn initialized(&mut self) -> Option<&mut [u8]> {
+        None
+    }
+}
+impl Output for [u8] {
+    fn len(&self) -> usize {
+        self.len()
+    }
+    fn put(&mut self, offset: usize, bytes: &[u8]) {
+        self[offset..offset + bytes.len()].copy_from_slice(bytes);
+    }
+    fn initialized(&mut self) -> Option<&mut [u8]> {
+        Some(self)
+    }
+}
+impl Output for [MaybeUninit<u8>] {
+    fn len(&self) -> usize {
+        self.len()
+    }
+    fn put(&mut self, offset: usize, bytes: &[u8]) {
+        // .write_copy_of_slice() has MSRV of 1.93, we can't use it yet
+        for (destination, &byte) in self[offset..offset + bytes.len()].iter_mut().zip(bytes) {
+            destination.write(byte);
+        }
     }
 }
 
@@ -249,152 +178,185 @@ pub struct Inflate {
     total_in: u64,
     total_out: u64,
     done: bool,
+    error: Option<&'static str>,
 }
-
 impl fmt::Debug for Inflate {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(
-            f,
-            "fdeflate inflate internal state. total_in: {}, total_out: {}",
-            self.total_in, self.total_out,
-        )
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("fdeflate::Inflate")
+            .field("total_in", &self.total_in)
+            .field("total_out", &self.total_out)
+            .finish()
     }
 }
-
 impl Inflate {
-    fn has_pending_output(&self) -> bool {
-        self.drain_pos < self.decode_pos
-    }
-
-    fn drain_output(&mut self, output: &mut [u8]) -> usize {
-        let n = (self.decode_pos - self.drain_pos).min(output.len());
-        output[..n].copy_from_slice(&self.scratch[self.drain_pos..self.drain_pos + n]);
+    fn drain<O: Output + ?Sized>(&mut self, output: &mut O, offset: &mut usize) {
+        let n = (self.decode_pos - self.drain_pos).min(output.len() - *offset);
+        if n != 0 {
+            output.put(*offset, &self.scratch[self.drain_pos..self.drain_pos + n]);
+        }
         self.drain_pos += n;
+        *offset += n;
         self.total_out += n as u64;
-        n
     }
 
-    fn compact_if_needed(&mut self) {
-        debug_assert!(!self.has_pending_output());
-
-        if self.decode_pos + FDEFLATE_DECODE_TAIL_LEN <= self.scratch.len() {
-            return;
+    fn prepare_scratch(&mut self, writable: usize) {
+        if self.scratch.is_empty() {
+            self.scratch.resize(SCRATCH, 0);
         }
-
-        // A VecDeque would avoid this occasional copy, but fdeflate needs a single contiguous
-        // slice containing both lookback history and writable output. Once the staged output has
-        // been drained, keep only the 32 KiB deflate history and reopen the 64 KiB decode tail.
-        let keep = self.decode_pos.min(FDEFLATE_HISTORY_LEN);
-        let start = self.decode_pos - keep;
-        if start != 0 {
-            self.scratch.copy_within(start..self.decode_pos, 0);
-        }
-        self.drain_pos = keep;
-        self.decode_pos = keep;
-    }
-}
-
-impl InflateBackend for Inflate {
-    fn make(zlib_header: bool, _window_bits: u8) -> Self {
-        let format = format_from_bool(zlib_header);
-        Inflate {
-            inner: ::fdeflate::Decompressor::new_with_format(format),
-            scratch: vec![0; FDEFLATE_SCRATCH_LEN],
-            drain_pos: 0,
-            decode_pos: 0,
-            total_in: 0,
-            total_out: 0,
-            done: false,
+        if self.decode_pos + writable > SCRATCH {
+            let keep = self.decode_pos.min(HISTORY);
+            self.scratch
+                .copy_within(self.decode_pos - keep..self.decode_pos, 0);
+            self.decode_pos = keep;
+            self.drain_pos = keep;
         }
     }
 
-    fn decompress(
+    fn run<O: Output + ?Sized>(
         &mut self,
         input: &[u8],
-        output: &mut [u8],
-        _flush: FlushDecompress,
+        output: &mut O,
+        flush: FlushDecompress,
     ) -> Result<Status, DecompressError> {
-        let before_in = self.total_in;
-        let before_out = self.total_out;
-
-        // Always drain staged output first. This keeps the scratch buffer from accumulating more
-        // than the tunable 64 KiB decode tail when callers provide very small output buffers.
-        let output_index = self.drain_output(output);
-        if output_index == output.len() {
-            return if self.done && !self.has_pending_output() {
-                Ok(Status::StreamEnd)
-            } else if output.is_empty() {
-                Ok(Status::BufError)
-            } else {
-                Ok(Status::Ok)
-            };
+        if let Some(error) = self.error {
+            return decompress_failed(ErrorMessage(Some(error)));
         }
-
-        if self.done {
-            return Ok(Status::StreamEnd);
-        }
-
-        self.compact_if_needed();
-
-        let mut input_index = 0;
+        let before = (self.total_in, self.total_out);
+        let mut input_pos = 0;
+        let mut output_pos = 0;
         loop {
-            let target_end = (self.decode_pos + FDEFLATE_DECODE_TAIL_LEN).min(self.scratch.len());
-            if self.decode_pos == target_end {
+            self.drain(output, &mut output_pos);
+            if self.drain_pos != self.decode_pos || self.done {
                 break;
             }
 
-            let (consumed, produced) = match self.inner.read(
-                &input[input_index..],
-                &mut self.scratch[..target_end],
-                self.decode_pos,
-            ) {
-                Ok(result) => result,
-                Err(error) => {
-                    return decompress_failed(ErrorMessage(Some(decompression_message(error))));
+            // The current call's output can replace scratch history once it
+            // contains a whole window. A fresh stream needs no history at all.
+            if (self.decode_pos == 0 || output_pos >= HISTORY) && output.len() - output_pos >= TAIL
+            {
+                if let Some(destination) = output.initialized() {
+                    let progress =
+                        self.inner
+                            .read_progress(&input[input_pos..], destination, output_pos);
+                    input_pos += progress.consumed;
+                    self.total_in += progress.consumed as u64;
+                    output_pos += progress.produced;
+                    self.total_out += progress.produced as u64;
+                    match progress.status {
+                        Err(error) => {
+                            let message = decompression_message(error);
+                            self.error = Some(message);
+                            return decompress_failed(ErrorMessage(Some(message)));
+                        }
+                        Ok(status) => {
+                            self.done = status == DecompressionStatus::Done;
+                            if !self.done {
+                                let keep = output_pos.min(HISTORY);
+                                self.prepare_scratch(0);
+                                self.scratch[..keep]
+                                    .copy_from_slice(&destination[output_pos - keep..output_pos]);
+                                self.decode_pos = keep;
+                                self.drain_pos = keep;
+                            }
+                            if self.done || status == DecompressionStatus::NeedsInput {
+                                break;
+                            }
+                            // A full destination may still admit non-producing
+                            // headers/trailers through the scratch path below.
+                            continue;
+                        }
+                    }
                 }
-            };
-            input_index += consumed;
-            self.total_in += consumed as u64;
-            self.decode_pos += produced;
-            self.done = self.inner.is_done();
+            }
 
-            // fdeflate may need one more turn after producing output to consume the final EOF
-            // marker from its bit buffer. Keep decoding into the contiguous tail until there is
-            // no internal progress left, the stream ends, or the staging tail is full.
-            if self.done || (consumed == 0 && produced == 0) {
-                break;
+            let remaining = output.len() - output_pos;
+            let writable = if remaining == 0 {
+                0
+            } else if output.len() >= SCRATCH && output_pos < HISTORY {
+                // Establish history in a large destination, then decode into it.
+                HISTORY - output_pos
+            } else {
+                TAIL
+            };
+            self.prepare_scratch(writable);
+            let progress = self.inner.read_progress(
+                &input[input_pos..],
+                &mut self.scratch[..self.decode_pos + writable],
+                self.decode_pos,
+            );
+            input_pos += progress.consumed;
+            self.total_in += progress.consumed as u64;
+            self.decode_pos += progress.produced;
+            self.drain(output, &mut output_pos);
+            match progress.status {
+                Err(error) => {
+                    let message = decompression_message(error);
+                    self.error = Some(message);
+                    return decompress_failed(ErrorMessage(Some(message)));
+                }
+                Ok(status) => {
+                    self.done = status == DecompressionStatus::Done;
+                    if self.done
+                        || status == DecompressionStatus::NeedsInput
+                        || (progress.consumed == 0 && progress.produced == 0)
+                    {
+                        break;
+                    }
+                }
             }
         }
-
-        self.drain_output(&mut output[output_index..]);
-
-        if self.done && !self.has_pending_output() {
+        if self.done && self.drain_pos == self.decode_pos {
             Ok(Status::StreamEnd)
-        } else if before_in == self.total_in && before_out == self.total_out {
+        } else if flush == FlushDecompress::Finish || before == (self.total_in, self.total_out) {
             Ok(Status::BufError)
         } else {
             Ok(Status::Ok)
         }
     }
-
+}
+impl InflateBackend for Inflate {
+    fn make(zlib_header: bool, _window_bits: u8) -> Self {
+        Self {
+            inner: ::fdeflate::Decompressor::new_with_format(format_from_bool(zlib_header)),
+            scratch: Vec::new(),
+            drain_pos: 0,
+            decode_pos: 0,
+            total_in: 0,
+            total_out: 0,
+            done: false,
+            error: None,
+        }
+    }
+    fn decompress(
+        &mut self,
+        input: &[u8],
+        output: &mut [u8],
+        flush: FlushDecompress,
+    ) -> Result<Status, DecompressError> {
+        self.run(input, output, flush)
+    }
+    fn decompress_uninit(
+        &mut self,
+        input: &[u8],
+        output: &mut [MaybeUninit<u8>],
+        flush: FlushDecompress,
+    ) -> Result<Status, DecompressError> {
+        self.run(input, output, flush)
+    }
     fn reset(&mut self, zlib_header: bool) {
-        let format = format_from_bool(zlib_header);
-        self.inner.reset(format);
+        self.inner.reset(format_from_bool(zlib_header));
         self.drain_pos = 0;
         self.decode_pos = 0;
         self.total_in = 0;
         self.total_out = 0;
         self.done = false;
+        self.error = None;
     }
 }
-
 impl Backend for Inflate {
-    #[inline]
     fn total_in(&self) -> u64 {
         self.total_in
     }
-
-    #[inline]
     fn total_out(&self) -> u64 {
         self.total_out
     }

@@ -1,4 +1,4 @@
-#![cfg(feature = "fdeflate")]
+#![cfg(all(feature = "fdeflate", not(feature = "any_zlib")))]
 
 use flate2::{Compress, Compression, Decompress, FlushCompress, FlushDecompress, Status};
 use std::io::{Read, Write};
@@ -168,4 +168,29 @@ fn read_and_write_wrappers_roundtrip_single_zero() {
     );
     writer.write_all(&input).unwrap();
     assert_eq!(writer.finish().unwrap().finish().unwrap(), input);
+}
+
+#[test]
+fn checksum_error_accounts_for_output_and_is_sticky_until_reset() {
+    let input = vec![42; 200000];
+    let mut encoded = ::fdeflate::compress_to_vec_with_level(&input, 6);
+    *encoded.last_mut().unwrap() ^= 1;
+    let mut decoder = Decompress::new(true);
+    let mut output = Vec::with_capacity(input.len());
+    assert!(decoder
+        .decompress_vec(&encoded, &mut output, FlushDecompress::Finish)
+        .is_err());
+    assert_eq!(output, input);
+    let counters = (decoder.total_in(), decoder.total_out());
+    assert!(decoder
+        .decompress(&[], &mut [0; 20], FlushDecompress::None)
+        .is_err());
+    assert_eq!(counters, (decoder.total_in(), decoder.total_out()));
+    decoder.reset(false);
+    assert_eq!(
+        decoder
+            .decompress(&[3, 0], &mut [], FlushDecompress::Finish)
+            .unwrap(),
+        Status::StreamEnd
+    );
 }

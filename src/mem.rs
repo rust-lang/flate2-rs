@@ -669,7 +669,6 @@ mod tests {
     use crate::write;
     use crate::{Compression, Decompress, FlushDecompress};
 
-    #[cfg(not(feature = "fdeflate"))]
     use crate::{Compress, FlushCompress};
 
     #[test]
@@ -820,9 +819,6 @@ mod tests {
         assert_eq!(err.message(), Some("invalid stored block lengths"));
     }
 
-    // TODO: Re-enable these flush byte-layout tests for fdeflate once
-    // https://github.com/image-rs/fdeflate/pull/73 is available in the dependency.
-    #[cfg(not(feature = "fdeflate"))]
     fn compress_with_flush(flush: FlushCompress) -> Vec<u8> {
         let incompressible = (0..=255).collect::<Vec<u8>>();
         let mut output = vec![0; 1024];
@@ -856,7 +852,6 @@ mod tests {
         output
     }
 
-    #[cfg(not(feature = "fdeflate"))]
     #[test]
     fn test_partial_flush() {
         let output = compress_with_flush(FlushCompress::Partial);
@@ -866,7 +861,6 @@ mod tests {
         assert_eq!(output[262] & 0x7, 0x4);
     }
 
-    #[cfg(not(feature = "fdeflate"))]
     #[test]
     fn test_sync_flush() {
         let output = compress_with_flush(FlushCompress::Sync);
@@ -875,7 +869,6 @@ mod tests {
         assert_eq!(&output[261..][..5], &[0, 0, 0, 0xff, 0xff]);
     }
 
-    #[cfg(not(feature = "fdeflate"))]
     #[test]
     fn test_full_flush() {
         let output = compress_with_flush(FlushCompress::Full);

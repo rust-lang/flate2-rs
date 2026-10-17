@@ -85,6 +85,18 @@ implementation at the cost of some `unsafe`, you can use `zlib-rs`:
 flate2 = { version = "1.1.10", features = ["zlib-rs", "runtime_detection"], default-features = false }
 ```
 
+### fdeflate backend on this branch
+
+The `fdeflate` feature selects a safe Rust backend with bounded streaming
+buffers. It currently requires `std` and Rust 1.88 or newer. Large initialized
+decompression destinations can be decoded into directly; small or uninitialized
+destinations use a reusable 96 KiB history/output buffer. Compression and
+decompression continue across internal buffer boundaries within a single call.
+
+Development currently uses the local `fdeflate/` checkout through a Cargo patch.
+The changes in that checkout must accompany this adapter; remove the patch once
+they are available on the dependency's `flate2-api-changes` branch.
+
 ### C backends
 
 While zlib-rs is [the fastest overall](https://trifectatech.org/blog/zlib-rs-is-faster-than-c/),
