@@ -283,10 +283,10 @@ impl<W: Write> ZlibDecoder<W> {
     ///
     /// # Errors
     ///
-    /// This function will perform I/O to complete this stream, and any I/O
+    /// This function will perform I/O to write any pending output, and any I/O
     /// errors which occur will be returned from this function.
     pub fn reset(&mut self, w: W) -> io::Result<W> {
-        self.inner.finish()?;
+        self.inner.drain()?;
         self.inner.data = Decompress::new(true);
         Ok(self.inner.replace(w))
     }
