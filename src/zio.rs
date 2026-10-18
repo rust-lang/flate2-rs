@@ -278,7 +278,13 @@ impl<W: Write, D: Ops> Writer<W, D> {
             let written = (self.data.total_in() - before_in) as usize;
             let is_stream_end = matches!(ret, Ok(Status::StreamEnd));
 
-            if !buf.is_empty() && written == 0 && ret.is_ok() && !is_stream_end {
+            // Without input consumed or output to drain, retrying can loop forever.
+            if !buf.is_empty()
+                && written == 0
+                && ret.is_ok()
+                && !is_stream_end
+                && !self.buf.is_empty()
+            {
                 continue;
             }
             if is_stream_end {
