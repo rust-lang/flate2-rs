@@ -320,26 +320,27 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.dump()?;
-        self.data
-            .run_vec(&[], &mut self.buf, Flush::sync())
-            .map_err(Into::into)?;
-
-        // Unfortunately miniz doesn't actually tell us when we're done with
-        // pulling out all the data from the internal stream. To remedy this we
-        // have to continually ask the stream for more memory until it doesn't
-        // give us a chunk of memory the same size as our own internal buffer,
-        // at which point we assume it's reached the end.
+        let mut flush = D::Flush::sync();
         loop {
             self.dump()?;
             let before = self.data.total_out();
             self.data
-                .run_vec(&[], &mut self.buf, Flush::none())
+                .run_vec(&[], &mut self.buf, flush)
                 .map_err(Into::into)?;
-            if before == self.data.total_out() {
+            if D::REQUIRES_STREAM_END {
+                // Decoders can leave pending output even after producing a short chunk.
+                flush = D::Flush::none();
+                if before == self.data.total_out() {
+                    break;
+                }
+            } else if self.buf.len() < self.buf.capacity() {
                 break;
+            } else {
+                // A full buffer may leave the sync flush incomplete; repeat it with fresh space.
+                flush = D::Flush::sync();
             }
         }
+        self.dump()?;
 
         self.obj
             .as_mut()
