@@ -93,10 +93,6 @@ decompression destinations can be decoded into directly; small or uninitialized
 destinations use a reusable 96 KiB history/output buffer. Compression and
 decompression continue across internal buffer boundaries within a single call.
 
-Development currently uses the local `fdeflate/` checkout through a Cargo patch.
-The changes in that checkout must accompany this adapter; remove the patch once
-they are available on the dependency's `flate2-api-changes` branch.
-
 ### C backends
 
 While zlib-rs is [the fastest overall](https://trifectatech.org/blog/zlib-rs-is-faster-than-c/),
