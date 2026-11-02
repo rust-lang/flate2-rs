@@ -36,6 +36,9 @@ pub trait Ops {
         output: &mut Vec<u8>,
         flush: Self::Flush,
     ) -> Result<Status, Self::Error>;
+    fn flush<W: Write>(writer: &mut Writer<W, Self>) -> io::Result<()>
+    where
+        Self: Sized;
 }
 
 impl Ops for Compress {
@@ -67,6 +70,19 @@ impl Ops for Compress {
         flush: FlushCompress,
     ) -> Result<Status, CompressError> {
         self.compress_vec(input, output, flush)
+    }
+
+    fn flush<W: Write>(writer: &mut Writer<W, Self>) -> io::Result<()> {
+        loop {
+            writer.dump()?;
+            writer
+                .data
+                .compress_vec(&[], &mut writer.buf, FlushCompress::Sync)?;
+            if writer.buf.len() < writer.buf.capacity() {
+                return writer.dump();
+            }
+            // A full buffer may leave the sync flush incomplete; repeat it with fresh space.
+        }
     }
 }
 
@@ -100,21 +116,35 @@ impl Ops for Decompress {
     ) -> Result<Status, DecompressError> {
         self.decompress_vec(input, output, flush)
     }
+
+    fn flush<W: Write>(writer: &mut Writer<W, Self>) -> io::Result<()> {
+        writer.dump()?;
+        writer
+            .data
+            .decompress_vec(&[], &mut writer.buf, FlushDecompress::Sync)?;
+
+        // Decoders can leave pending output even after producing a short chunk.
+        loop {
+            writer.dump()?;
+            let before = writer.data.total_out();
+            writer
+                .data
+                .decompress_vec(&[], &mut writer.buf, FlushDecompress::None)?;
+            if before == writer.data.total_out() {
+                return Ok(());
+            }
+        }
+    }
 }
 
 pub trait Flush {
     fn none() -> Self;
-    fn sync() -> Self;
     fn finish() -> Self;
 }
 
 impl Flush for FlushCompress {
     fn none() -> Self {
         FlushCompress::None
-    }
-
-    fn sync() -> Self {
-        FlushCompress::Sync
     }
 
     fn finish() -> Self {
@@ -125,10 +155,6 @@ impl Flush for FlushCompress {
 impl Flush for FlushDecompress {
     fn none() -> Self {
         FlushDecompress::None
-    }
-
-    fn sync() -> Self {
-        FlushDecompress::Sync
     }
 
     fn finish() -> Self {
@@ -320,27 +346,7 @@ impl<W: Write, D: Ops> Write for Writer<W, D> {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        let mut flush = D::Flush::sync();
-        loop {
-            self.dump()?;
-            let before = self.data.total_out();
-            self.data
-                .run_vec(&[], &mut self.buf, flush)
-                .map_err(Into::into)?;
-            if D::REQUIRES_STREAM_END {
-                // Decoders can leave pending output even after producing a short chunk.
-                flush = D::Flush::none();
-                if before == self.data.total_out() {
-                    break;
-                }
-            } else if self.buf.len() < self.buf.capacity() {
-                break;
-            } else {
-                // A full buffer may leave the sync flush incomplete; repeat it with fresh space.
-                flush = D::Flush::sync();
-            }
-        }
-        self.dump()?;
+        D::flush(self)?;
 
         self.obj
             .as_mut()
