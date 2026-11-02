@@ -99,13 +99,9 @@ impl<W: Write> ZlibEncoder<W> {
     /// Attempt to finish this output stream, writing out final chunks of data.
     ///
     /// Note that this function can only be used once data has finished being
-    /// written to the output stream. After this function is called then further
-    /// calls to `write` may result in a panic.
-    ///
-    /// # Panics
-    ///
-    /// Attempts to write data to this stream may result in a panic after this
-    /// function is called.
+    /// written to the output stream. Once this function returns `Ok(())`, further
+    /// calls to `write` return `Ok(0)` or an error. Call [`reset`](Self::reset) to
+    /// start a new stream.
     ///
     /// # Errors
     ///
