@@ -777,6 +777,50 @@ mod tests {
 
     #[cfg(feature = "any_zlib")]
     #[test]
+    fn reset_preserves_gzip_configuration() {
+        let string = "hello, hello!".as_bytes();
+
+        let mut encoded = Vec::with_capacity(1024);
+        let mut encoder = Compress::new_gzip(Compression::default(), 9);
+        encoder
+            .compress_vec(string, &mut encoded, FlushCompress::Finish)
+            .unwrap();
+
+        let mut decoder = Decompress::new_gzip(9);
+        let mut decoded = [0; 1024];
+        decoder
+            .decompress(&encoded, &mut decoded, FlushDecompress::Finish)
+            .unwrap();
+        assert_eq!(&decoded[..decoder.total_out() as usize], string);
+
+        decoder.reset(true);
+        let mut decoded = [0; 1024];
+        decoder
+            .decompress(&encoded, &mut decoded, FlushDecompress::Finish)
+            .expect("reset must preserve the gzip wrapper selected at construction");
+        assert_eq!(&decoded[..decoder.total_out() as usize], string);
+    }
+
+    #[cfg(feature = "any_zlib")]
+    #[test]
+    fn reset_preserves_window_bits() {
+        // A valid zlib header declaring a 32 KiB (15-bit) window: CMF 0x78, FLG 0x9c.
+        let header_15_bit_window = [0x78, 0x9c];
+        let mut decoded = [0; 64];
+
+        let mut decoder = Decompress::new_with_window_bits(true, 9);
+        decoder
+            .decompress(&header_15_bit_window, &mut decoded, FlushDecompress::None)
+            .expect_err("a 15-bit-window stream must be rejected by a 9-bit-window decoder");
+
+        decoder.reset(true);
+        decoder
+            .decompress(&header_15_bit_window, &mut decoded, FlushDecompress::None)
+            .expect_err("reset must preserve the window size selected at construction");
+    }
+
+    #[cfg(feature = "any_zlib")]
+    #[test]
     fn test_gzip_flate() {
         let string = "hello, hello!".as_bytes();
 
