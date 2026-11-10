@@ -181,6 +181,53 @@ impl<R: BufRead> DeflateDecoder<R> {
             data: Decompress::new(false),
         }
     }
+
+    /// Creates a new decoder from the given stream and decompressor allowing the decompress state
+    /// to be reused.
+    ///
+    /// Does not reset the decompressor state.
+    ///
+    /// ```rust
+    /// # use std::io::{self, Read};
+    ///
+    /// # use flate2::bufread::{DeflateDecoder, DeflateEncoder};
+    /// # use flate2::{Decompress, Compression};
+    ///
+    /// # fn main() -> io::Result<()> {
+    ///
+    /// let mut decompressor = {
+    ///     let mut encoder = DeflateEncoder::new(&b"Hello World!"[..], Compression::default());
+    ///     let mut compressed = Vec::new();
+    ///     encoder.read_to_end(&mut compressed)?;
+    ///
+    ///     let mut decoder = DeflateDecoder::from_parts(&compressed[..], Decompress::new(false));
+    ///     let mut output = Vec::new();
+    ///     decoder.read_to_end(&mut output)?;
+    ///     assert_eq!(output, b"Hello World!");
+    ///     decoder.into_parts().1
+    /// };
+    ///
+    /// let mut encoder = DeflateEncoder::new(&b"Hello Again!"[..], Compression::default());
+    /// let mut compressed = Vec::new();
+    /// encoder.read_to_end(&mut compressed)?;
+    ///
+    /// decompressor.reset(false);
+    /// let mut decoder = DeflateDecoder::from_parts(&compressed[..], decompressor);
+    /// let mut output = Vec::new();
+    /// decoder.read_to_end(&mut output)?;
+    /// assert_eq!(output, b"Hello Again!");
+    ///
+    /// # Ok(())
+    ///
+    /// # }
+    ///
+    /// ```
+    pub fn from_parts(r: R, decompress: Decompress) -> DeflateDecoder<R> {
+        DeflateDecoder {
+            obj: r,
+            data: decompress,
+        }
+    }
 }
 
 impl<R> DeflateDecoder<R> {
@@ -223,6 +270,14 @@ impl<R> DeflateDecoder<R> {
     /// Consumes this decoder, returning the underlying reader.
     pub fn into_inner(self) -> R {
         self.obj
+    }
+
+    /// Consumes this decoder, returning the underlying reader and the decompressor.
+    ///
+    /// Intended for use with `from_parts` to recover the decompressor state after
+    /// decoding a stream.
+    pub fn into_parts(self) -> (R, Decompress) {
+        (self.obj, self.data)
     }
 
     /// Returns the number of bytes that the decompressor has consumed.
