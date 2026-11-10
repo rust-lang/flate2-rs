@@ -49,8 +49,17 @@ impl<R: BufRead> ZlibEncoder<R> {
         }
     }
 
-    /// Creates a new encoder with the given `compression` settings which will
-    /// read uncompressed data from the given stream `r` and emit the compressed stream.
+    /// Creates a new encoder which will read uncompressed data from the given
+    /// stream and emit the compressed stream, using the given compression state.
+    ///
+    /// The state must be configured for ZLIB output, such as with [`Compress::new`]
+    /// and `zlib_header` set to `true`. It is used as-is, preserving its history,
+    /// byte counters, and end-of-stream state.
+    ///
+    /// To resume encoding after [`into_parts`](Self::into_parts), pass the returned
+    /// state and reader, preserving the reader's current position and unread input.
+    /// Before reusing the state for a new independent ZLIB stream, call
+    /// [`Compress::reset`].
     pub fn new_with_compress(r: R, compression: Compress) -> ZlibEncoder<R> {
         ZlibEncoder {
             obj: r,
@@ -95,6 +104,48 @@ impl<R> ZlibEncoder<R> {
     /// Consumes this encoder, returning the underlying reader.
     pub fn into_inner(self) -> R {
         self.obj
+    }
+
+    /// Consumes this encoder, returning the underlying reader and compression state.
+    ///
+    /// Neither part is reset, and this call does not finish the stream. The reader
+    /// retains its current position and unread input, and the state retains its
+    /// history, buffered data, byte counters, and end-of-stream state. Pass both
+    /// parts to [`new_with_compress`](Self::new_with_compress) to resume encoding,
+    /// appending subsequent output to the bytes already produced for the same stream.
+    ///
+    /// To reuse the state for a new independent ZLIB stream, explicitly call
+    /// [`Compress::reset`] first, even if the previous stream finished.
+    ///
+    /// # Examples
+    ///
+    /// Retaining the compression state lets its internal allocations outlive a
+    /// borrowed input buffer and be reused for the next stream:
+    ///
+    /// ```
+    /// use flate2::bufread::ZlibEncoder;
+    /// use flate2::{Compress, Compression};
+    /// use std::io::Read;
+    ///
+    /// # fn main() -> std::io::Result<()> {
+    /// let mut compression = Compress::new(Compression::fast(), true);
+    /// for message in ["first stream", "", "second stream"] {
+    ///     compression = {
+    ///         let input = message.as_bytes().to_vec();
+    ///         let mut encoder =
+    ///             ZlibEncoder::new_with_compress(input.as_slice(), compression);
+    ///         let mut compressed = Vec::new();
+    ///         encoder.read_to_end(&mut compressed)?;
+    ///         encoder.into_parts().1
+    ///     };
+    ///     // The input buffer is gone; reset the retained compressor for a new stream.
+    ///     compression.reset();
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn into_parts(self) -> (R, Compress) {
+        (self.obj, self.data)
     }
 
     /// Returns the number of bytes that have been read into this compressor.
