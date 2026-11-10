@@ -186,7 +186,15 @@ impl<R: BufRead> ZlibDecoder<R> {
     }
 
     /// Creates a new decoder which will decompress data read from the given
-    /// stream, using the given `decompression` settings.
+    /// stream, using the given decompression state.
+    ///
+    /// The state must be configured for the ZLIB format. It is used as-is,
+    /// preserving its history, byte counters, and end-of-stream state.
+    ///
+    /// To resume decoding after [`into_parts`](Self::into_parts), pass the returned
+    /// state and reader, preserving the reader's current position and unread input.
+    /// Before reusing the state for a new independent ZLIB stream, call
+    /// [`Decompress::reset`] with `true`.
     pub fn new_with_decompress(r: R, decompression: Decompress) -> ZlibDecoder<R> {
         ZlibDecoder {
             obj: r,
@@ -231,6 +239,49 @@ impl<R> ZlibDecoder<R> {
     /// Consumes this decoder, returning the underlying reader.
     pub fn into_inner(self) -> R {
         self.obj
+    }
+
+    /// Consumes this decoder, returning the underlying reader and decompression state.
+    ///
+    /// Neither part is reset: the reader retains its current position and unread
+    /// input, and the state retains its history, byte counters, and end-of-stream
+    /// state. Pass both parts to [`new_with_decompress`](Self::new_with_decompress)
+    /// to resume decoding.
+    ///
+    /// To reuse the state for a new independent ZLIB stream, explicitly call
+    /// [`Decompress::reset`] with `true` first, even if the previous stream finished.
+    ///
+    /// # Examples
+    ///
+    /// Reuse the decompression state across short-lived, borrowed input buffers:
+    ///
+    /// ```
+    /// use flate2::bufread::{ZlibDecoder, ZlibEncoder};
+    /// use flate2::{Compression, Decompress};
+    /// use std::io::Read;
+    ///
+    /// # fn main() -> std::io::Result<()> {
+    /// let mut decompression = Decompress::new(true);
+    /// for message in ["first stream", "second stream"] {
+    ///     decompression = {
+    ///         let mut compressed = Vec::new();
+    ///         ZlibEncoder::new(message.as_bytes(), Compression::fast())
+    ///             .read_to_end(&mut compressed)?;
+    ///         let mut decoder =
+    ///             ZlibDecoder::new_with_decompress(compressed.as_slice(), decompression);
+    ///         let mut output = String::new();
+    ///         decoder.read_to_string(&mut output)?;
+    ///         assert_eq!(output, message);
+    ///         decoder.into_parts().1
+    ///     };
+    ///     // The borrowed buffer is gone; only the codec is retained.
+    ///     decompression.reset(true);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn into_parts(self) -> (R, Decompress) {
+        (self.obj, self.data)
     }
 
     /// Returns the number of bytes that the decompressor has consumed.
