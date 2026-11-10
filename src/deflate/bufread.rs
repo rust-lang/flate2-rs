@@ -182,10 +182,18 @@ impl<R: BufRead> DeflateDecoder<R> {
         }
     }
 
-    /// Creates a new decoder from the given stream and decompressor allowing the decompress state
-    /// to be reused.
+    /// Creates a new decoder which will decompress data read from the given
+    /// stream, using the given decompression state.
     ///
-    /// Does not reset the decompressor state.
+    /// The state must be configured for raw DEFLATE, without a zlib header.
+    ///
+    /// Does not reset the decompressor state: its decoding history, byte counters,
+    /// and end-of-stream status are preserved. This allows decoding to resume
+    /// using the reader and decompressor returned by [`into_parts`](Self::into_parts),
+    /// provided the reader's position and unread compressed data are preserved.
+    ///
+    /// To reuse a decompressor for a new, independent stream, call
+    /// [`decompress.reset(false)`](Decompress::reset) before passing it here.
     ///
     /// ```rust
     /// # use std::io::{self, Read};
@@ -195,15 +203,21 @@ impl<R: BufRead> DeflateDecoder<R> {
     ///
     /// # fn main() -> io::Result<()> {
     ///
+    /// // Each compressed input can be short-lived, while the decompressor and
+    /// // its allocations are kept for reuse across independent streams.
     /// let mut decompressor = {
     ///     let mut encoder = DeflateEncoder::new(&b"Hello World!"[..], Compression::default());
     ///     let mut compressed = Vec::new();
     ///     encoder.read_to_end(&mut compressed)?;
     ///
-    ///     let mut decoder = DeflateDecoder::from_parts(&compressed[..], Decompress::new(false));
+    ///     let mut decoder =
+    ///         DeflateDecoder::new_with_decompress(&compressed[..], Decompress::new(false));
     ///     let mut output = Vec::new();
     ///     decoder.read_to_end(&mut output)?;
     ///     assert_eq!(output, b"Hello World!");
+    ///
+    ///     // Recover the decompressor without retaining the reader's borrow of
+    ///     // `compressed`. The input buffer is dropped at the end of this scope.
     ///     decoder.into_parts().1
     /// };
     ///
@@ -211,8 +225,11 @@ impl<R: BufRead> DeflateDecoder<R> {
     /// let mut compressed = Vec::new();
     /// encoder.read_to_end(&mut compressed)?;
     ///
+    /// // This is a new raw DEFLATE stream, not a continuation of the first one.
+    /// // Reset the decoding state, but reuse its allocations rather than create
+    /// // another Decompress. The new decoder borrows only the new input buffer.
     /// decompressor.reset(false);
-    /// let mut decoder = DeflateDecoder::from_parts(&compressed[..], decompressor);
+    /// let mut decoder = DeflateDecoder::new_with_decompress(&compressed[..], decompressor);
     /// let mut output = Vec::new();
     /// decoder.read_to_end(&mut output)?;
     /// assert_eq!(output, b"Hello Again!");
@@ -222,10 +239,10 @@ impl<R: BufRead> DeflateDecoder<R> {
     /// # }
     ///
     /// ```
-    pub fn from_parts(r: R, decompress: Decompress) -> DeflateDecoder<R> {
+    pub fn new_with_decompress(r: R, decompression: Decompress) -> DeflateDecoder<R> {
         DeflateDecoder {
             obj: r,
-            data: decompress,
+            data: decompression,
         }
     }
 }
@@ -274,8 +291,13 @@ impl<R> DeflateDecoder<R> {
 
     /// Consumes this decoder, returning the underlying reader and the decompressor.
     ///
-    /// Intended for use with `from_parts` to recover the decompressor state after
-    /// decoding a stream.
+    /// Neither part is reset: the reader retains its current position and unread
+    /// input, and the state retains its history, byte counters, and end-of-stream
+    /// state. Pass both parts to [`new_with_decompress`](Self::new_with_decompress)
+    /// to resume decoding.
+    ///
+    /// To reuse the state for a new independent raw DEFLATE stream, explicitly call
+    /// [`Decompress::reset`] with `false` first, even if the previous stream finished.
     pub fn into_parts(self) -> (R, Decompress) {
         (self.obj, self.data)
     }
