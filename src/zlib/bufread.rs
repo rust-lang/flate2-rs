@@ -120,7 +120,8 @@ impl<R> ZlibEncoder<R> {
     /// # Examples
     ///
     /// Retaining the compression state lets its internal allocations outlive a
-    /// borrowed input buffer and be reused for the next stream:
+    /// borrowed input buffer and be reused for the next stream. Recover the state
+    /// before handling errors, and reset it before each stream:
     ///
     /// ```
     /// use flate2::bufread::ZlibEncoder;
@@ -130,16 +131,28 @@ impl<R> ZlibEncoder<R> {
     /// # fn main() -> std::io::Result<()> {
     /// let mut compression = Compress::new(Compression::fast(), true);
     /// for message in ["first stream", "", "second stream"] {
-    ///     compression = {
+    ///     compression.reset();
+    ///     let mut compressed = Vec::new();
+    ///     let result = {
     ///         let input = message.as_bytes().to_vec();
     ///         let mut encoder =
     ///             ZlibEncoder::new_with_compress(input.as_slice(), compression);
-    ///         let mut compressed = Vec::new();
-    ///         encoder.read_to_end(&mut compressed)?;
-    ///         encoder.into_parts().1
+    ///         let result = encoder.read_to_end(&mut compressed);
+    ///         compression = encoder.into_parts().1;
+    ///         result
     ///     };
-    ///     // The input buffer is gone; reset the retained compressor for a new stream.
-    ///     compression.reset();
+    ///     // The input buffer is gone; the compressor is retained even after an error.
+    /// #   assert!(result.is_ok());
+    ///     let Ok(_) = result else {
+    ///         continue;
+    ///     };
+    ///     // Use the compressed data here.
+    /// #   let mut output = Vec::new();
+    /// #   flate2::bufread::ZlibDecoder::new(compressed.as_slice())
+    /// #       .read_to_end(&mut output)?;
+    /// #   assert_eq!(output, message.as_bytes());
+    /// #   // Skipping later work must not skip the next stream's reset.
+    /// #   if message == "first stream" { continue; }
     /// }
     /// # Ok(())
     /// # }
@@ -314,6 +327,7 @@ impl<R> ZlibDecoder<R> {
     /// # fn main() -> std::io::Result<()> {
     /// let mut decompression = Decompress::new(true);
     /// for message in ["first stream", "second stream"] {
+    ///     decompression.reset(true);
     ///     decompression = {
     ///         let mut compressed = Vec::new();
     ///         ZlibEncoder::new(message.as_bytes(), Compression::fast())
@@ -325,8 +339,6 @@ impl<R> ZlibDecoder<R> {
     ///         assert_eq!(output, message);
     ///         decoder.into_parts().1
     ///     };
-    ///     // The borrowed buffer is gone; only the codec is retained.
-    ///     decompression.reset(true);
     /// }
     /// # Ok(())
     /// # }

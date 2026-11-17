@@ -124,7 +124,8 @@ impl<R> DeflateEncoder<R> {
     /// # Examples
     ///
     /// Retaining the compression state lets its internal allocations outlive a
-    /// borrowed input buffer and be reused for the next stream:
+    /// borrowed input buffer and be reused for the next stream. Recover the state
+    /// before handling errors, and reset it before each stream:
     ///
     /// ```
     /// use flate2::bufread::DeflateEncoder;
@@ -134,16 +135,28 @@ impl<R> DeflateEncoder<R> {
     /// # fn main() -> std::io::Result<()> {
     /// let mut compression = Compress::new(Compression::fast(), false);
     /// for message in ["first stream", "", "second stream"] {
-    ///     compression = {
+    ///     compression.reset();
+    ///     let mut compressed = Vec::new();
+    ///     let result = {
     ///         let input = message.as_bytes().to_vec();
     ///         let mut encoder =
     ///             DeflateEncoder::new_with_compress(input.as_slice(), compression);
-    ///         let mut compressed = Vec::new();
-    ///         encoder.read_to_end(&mut compressed)?;
-    ///         encoder.into_parts().1
+    ///         let result = encoder.read_to_end(&mut compressed);
+    ///         compression = encoder.into_parts().1;
+    ///         result
     ///     };
-    ///     // The input buffer is gone; reset the retained compressor for a new stream.
-    ///     compression.reset();
+    ///     // The input buffer is gone; the compressor is retained even after an error.
+    /// #   assert!(result.is_ok());
+    ///     let Ok(_) = result else {
+    ///         continue;
+    ///     };
+    ///     // Use the compressed data here.
+    /// #   let mut output = Vec::new();
+    /// #   flate2::bufread::DeflateDecoder::new(compressed.as_slice())
+    /// #       .read_to_end(&mut output)?;
+    /// #   assert_eq!(output, message.as_bytes());
+    /// #   // Skipping later work must not skip the next stream's reset.
+    /// #   if message == "first stream" { continue; }
     /// }
     /// # Ok(())
     /// # }
