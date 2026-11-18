@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0](https://github.com/rust-lang/flate2-rs/compare/v1.1.11...v1.2.0) - 2026-11-18
+
+### Added
+
+- *(bufread)* add DeflateEncoder state reuse
+- *(bufread)* expose ZlibEncoder compression state
+- *(bufread)* expose ZlibDecoder decompression state
+- Allow the Decompressor state to be reused in bufread::DeflateDecoder
+
+### Other
+
+- *(bufread)* address state-reuse review feedback
+- *(bufread)* align DeflateDecoder state-reuse API
+
 ## [1.1.11](https://github.com/rust-lang/flate2-rs/compare/v1.1.10...v1.1.11) - 2026-11-06
 
 ### Fixed
