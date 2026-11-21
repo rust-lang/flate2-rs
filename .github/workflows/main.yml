@@ -1,6 +1,8 @@
 name: CI
 on: [push, pull_request]
 
+permissions: {}
+
 jobs:
   test:
     name: Test
@@ -76,6 +78,8 @@ jobs:
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    permissions:
+      checks: write # Required by `rustsec/audit-check` to create the "Security audit" check run.
     steps:
       - uses: actions/checkout@v4
 
