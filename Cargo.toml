@@ -25,6 +25,7 @@ zlib-rs = { version = "0.6.7", optional = true, default-features = false, featur
 ## This implementation uses only safe Rust code and doesn't require a C compiler.
 ## It provides good performance for most use cases while being completely portable.
 miniz_oxide = { version = "0.9.0", optional = true, features = ["simd"] }
+sirocco = { version = "0.4.1", optional = true, default-features = false, features = ["alloc"] }
 crc32fast = { version = "1.2.0", default-features = false, optional = true }
 document-features = { version = "0.2", optional = true }
 
@@ -39,12 +40,12 @@ quickcheck = { version = "1.0", default-features = false }
 default = ["rust_backend", "runtime_detection"]
 
 ## Allows runtime feature detection on supported CPU architectures.
-runtime_detection = ["zlib-rs?/std", "crc32fast?/std"]
+runtime_detection = ["zlib-rs?/std", "sirocco?/std", "crc32fast?/std"]
 
 #! ### User-Facing Backend Features
 #! Choose one of these features to select the compression backend.
 #! Only one backend should be enabled at a time, or else one will see an unstable order which is currently
-#! `zlib-ng`, `zlib-rs`, `miniz_oxide` and which may change at any time.
+#! `zlib-ng`, `zlib-rs`, `miniz_oxide`, `sirocco` and which may change at any time.
 
 ## Use the pure Rust `miniz_oxide` backend (default).
 ## This implementation uses only safe Rust code and doesn't require a C compiler.
@@ -60,6 +61,10 @@ zlib-rs = ["any_zlib", "dep:zlib-rs"] # zlib-rs uses its own crc32 implementatio
 
 ## Use the pure Rust `miniz_oxide` backend.
 miniz_oxide = ["any_impl", "dep:miniz_oxide", "dep:crc32fast"]
+
+## Use the pure Rust `sirocco` backend, a fast DEFLATE/zlib implementation.
+## Requires Rust 1.89 or later.
+sirocco = ["any_impl", "dep:sirocco", "dep:crc32fast"]
 
 ## Use the system's installed zlib library.
 ## This is useful when you need compatibility with other C code that uses zlib,

@@ -77,9 +77,21 @@ mod miniz_oxide;
 #[cfg(all(not(feature = "any_zlib"), feature = "miniz_oxide"))]
 pub use self::miniz_oxide::*;
 
+// Use sirocco when neither a fully compliant zlib nor miniz_oxide is selected.
+#[cfg(all(
+    not(any(feature = "any_zlib", feature = "miniz_oxide")),
+    feature = "sirocco"
+))]
+mod sirocco;
+#[cfg(all(
+    not(any(feature = "any_zlib", feature = "miniz_oxide")),
+    feature = "sirocco"
+))]
+pub use self::sirocco::*;
+
 // If no backend is enabled, fail fast with a clear error message.
 #[cfg(not(feature = "any_impl"))]
-compile_error!("No compression backend selected; enable one of `zlib`, `zlib-ng`, `zlib-rs`, or the default `rust_backend` feature.");
+compile_error!("No compression backend selected; enable one of `zlib`, `zlib-ng`, `zlib-rs`, `sirocco`, or the default `rust_backend` feature.");
 
 impl core::fmt::Debug for ErrorMessage {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {

@@ -724,9 +724,12 @@ mod tests {
         assert!(dst.starts_with(string));
     }
 
-    #[cfg(all(not(feature = "any_zlib"), feature = "miniz_oxide"))]
+    #[cfg(all(
+        not(feature = "any_zlib"),
+        any(feature = "miniz_oxide", feature = "sirocco")
+    ))]
     #[test]
-    fn reset_clears_miniz_oxide_dictionary() {
+    fn reset_clears_dictionary() {
         let secret = [b'A'; 32 * 1024];
         // A raw DEFLATE stream containing one final, uncompressed (stored) block:
         // 0x01 sets BFINAL=1 and BTYPE=00, followed by padding to a byte boundary.
@@ -761,9 +764,31 @@ mod tests {
         assert!(
             !attacker_output.contains(&b'A'),
             "reset must clear the dictionary: a distance-32768 match leaked bytes \
-             from the previous stream; both FullReset and the current upstream \
-             reset() prevent this, but MinReset does not"
+             from the previous stream"
         );
+    }
+
+    #[test]
+    fn trailer_decodes_without_output_space() {
+        let mut c = Compress::new(Compression::default(), true);
+        let mut encoded = Vec::with_capacity(64);
+        c.compress_vec(b"hello", &mut encoded, FlushCompress::Finish)
+            .unwrap();
+
+        // The output fills up before the zlib trailer comes in: it then needs
+        // no room at all.
+        let mut d = Decompress::new(true);
+        let mut out = [0; 5];
+        let split = encoded.len() - 4;
+        d.decompress(&encoded[..split], &mut out, FlushDecompress::None)
+            .unwrap();
+        assert_eq!(&out, b"hello");
+        let rest = &encoded[d.total_in() as usize..];
+        let st = d
+            .decompress(rest, &mut [], FlushDecompress::Finish)
+            .unwrap();
+        assert_eq!(st, crate::Status::StreamEnd);
+        assert_eq!(d.total_in() as usize, encoded.len());
     }
 
     #[test]

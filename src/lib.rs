@@ -26,6 +26,9 @@
 //! * `zlib-rs` - this implementation utilizes the `zlib-rs` crate, a Rust rewrite of zlib.
 //!   This backend is the fastest, at the cost of some `unsafe` Rust code.
 //!
+//! * `sirocco` - this implementation uses the `sirocco` crate, a pure Rust DEFLATE
+//!   implementation in the style of libdeflate.
+//!
 //! Several backends implemented in C are also available.
 //! These are useful in case you are already using a specific C implementation
 //! and need the result of compression to be bit-identical.
@@ -48,6 +51,7 @@
 //! * zlib-ng
 //! * zlib-rs
 //! * miniz_oxide
+//! * sirocco
 //!
 //! # Organization
 //!
