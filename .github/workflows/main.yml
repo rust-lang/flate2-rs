@@ -42,6 +42,7 @@ jobs:
       shell: bash
     - run: cargo build
     - run: cargo test
+    - run: cargo check --benches
     - run: cargo test --features zlib
     - run: cargo test --features zlib --no-default-features
     - run: cargo test --features zlib-default --no-default-features
@@ -50,6 +51,7 @@ jobs:
     - run: cargo test --features zlib-ng --no-default-features
       if: matrix.build != 'mingw'
     - run: cargo test --features zlib-rs --no-default-features
+    - run: cargo test --features sirocco --no-default-features
     - run: cargo test --features cloudflare_zlib --no-default-features
       if: matrix.build != 'mingw'
     - run: |
