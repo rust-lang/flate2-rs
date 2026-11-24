@@ -33,6 +33,13 @@ document-features = { version = "0.2", optional = true }
 futures = { version = "0.3", default-features = false }
 rand = "0.9"
 quickcheck = { version = "1.0", default-features = false }
+# For the benchmarks' input, the same whichever backend is selected. Keep
+# it in step with the optional dependency above.
+miniz_oxide = "0.9.0"
+
+[[bench]]
+name = "backends"
+harness = false
 
 [features]
 ## The default backend using pure Rust implementation via miniz_oxide.

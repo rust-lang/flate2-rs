@@ -42,6 +42,7 @@ jobs:
       shell: bash
     - run: cargo build
     - run: cargo test
+    - run: cargo check --benches
     - run: cargo test --features zlib
     - run: cargo test --features zlib --no-default-features
     - run: cargo test --features zlib-default --no-default-features
